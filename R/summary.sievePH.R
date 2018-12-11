@@ -1,3 +1,5 @@
+dVE <- function(v, a, b, g){ -exp(a+b*v+g)*c(1,v,1) }
+
 seVE <- function(v, Var, a, b, g){
   sapply(v, function(mark){ drop(sqrt(t(dVE(mark,a,b,g)) %*% Var %*% dVE(mark,a,b,g))) })
 }
@@ -46,15 +48,17 @@ summary.sievePH <- function(object,...) {
   alphaHat <- object$alphaHat
   lambdaHat <- object$lambdaHat
   gammaHat <- object$gammaHat
-  vAlphaHat <- object$Sigma[1,1]
-  vBetaHat <- object$Sigma[2,2]
-  vGammaHat <- object$Sigma[3,3]
+  vAlphaHat <- object$cov[1,1]
+  vBetaHat <- object$cov[2,2]
+  vGammaHat <- object$cov[3,3]
   V <- object$mark
   Z <- object$txInd
   ve <- object$ve
   
-  se <- seVE(V,Sigma,alphaHat,betaHat,gammaHat)
-  ci <- c(ve + qnorm(0.975)*se %o% c(-1,1))
+  # standard error and confidence interval limits
+  se <- seVE(V,cov,alphaHat,betaHat,gammaHat)
+  lb <- c(ve - qnorm(0.975)*se)
+  ub <- c(ve + qnorm(0.975)*se)
   
   ### two-sided Wald test of H0: VE(v)=VE
   waldH0beta <- betaHat/sqrt(vBetaHat)
@@ -70,12 +74,12 @@ summary.sievePH <- function(object,...) {
   
   ### one-sided weighted Wald-type test of H00: VE(v)=0 vs alternatives where VE>0 and VE(v) is decreasing
   weighted.waldH00 <- (betaHat/vBetaHat - gammaHat/vGammaHat)/
-    sqrt(1/vBetaHat + 1/vGammaHat - 2*Sigma[3,2]/(vBetaHat*vGammaHat))
+    sqrt(1/vBetaHat + 1/vGammaHat - 2*cov[3,2]/(vBetaHat*vGammaHat))
   weighted.waldH00.pval <- 1 - pnorm(weighted.waldH00)
   
   if (oneSided) {
     
-    # 1-sided test of H0:VE(v)=VE (beta=0) vs alternative that beta > 0
+    ### 1-sided Wald test of H0:VE(v)=VE (beta=0) vs alternative that beta > 0
     waldH0 <- betaHat/sqrt(vBetaHat)
     waldH0.pval <- 1 - pnorm(waldH0)
     
@@ -84,7 +88,7 @@ summary.sievePH <- function(object,...) {
     
   } else {
     
-    # 2-sided test of H0:VE(v)=VE (beta=0)
+    ### 2-sided Wald test of H0:VE(v)=VE (beta=0)
     waldH0 <- betaHat/sqrt(vBetaHat)
     waldH0.pval <- 2*(1 - pnorm(abs(waldH0)))
     
@@ -93,12 +97,12 @@ summary.sievePH <- function(object,...) {
     
   }
 
-  Tab <- cbind(ve, se, ci[1], ci[2], waldH0beta.pval, waldH0alpha.pval, waldH0gamma.pval, 
+  tab <- cbind(ve, se, lb, ub, waldH0beta.pval, waldH0alpha.pval, waldH0gamma.pval, 
                weighted.waldH00.pval, waldH0.pval, lrBeta.pval)
-  colnames(Tab) <- c("VE","SE","LB","UB","WaldH0beta p", "WaldH0alpha p", "WaldH0gamma p", 
-                     "WeightedWaldH00 p", paste0("WaldH0", ifelse(oneSided, "1sided", "2sided")," p"), 
-                     paste0("LRH0", ifelse(oneSided, "1sided", "2sided")," p"))
-  out <- list(table=Tab)
+  colnames(tab) <- c("VE","SE","LB","UB","pWaldH0beta", "pWaldH0alpha", "pWaldH0gamma", 
+                     "pWeightedWaldH00", paste0("pWaldH0", ifelse(oneSided, "1sided", "2sided")), 
+                     paste0("pLRH0", ifelse(oneSided, "1sided", "2sided")))
+  out <- list(table=tab)
   class(out) <- "summary.sievePH"
   out
 }
