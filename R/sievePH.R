@@ -184,6 +184,8 @@ sievePH <- function(time, failInd, mark, txInd, oneSided) {
   d <- failInd
   V <- mark
   Z <- txInd
+  nFail0 <- sum(d*(1-Z))                             # number of failures in placebo group
+  nFail1 <- sum(d*Z)                                 # number of failures in vaccine group
   
   dRatio <- densRatio(V[d==1],Z[d==1])
   
@@ -205,13 +207,14 @@ sievePH <- function(time, failInd, mark, txInd, oneSided) {
     # vaccine efficacy estimate
     ve <- VE(V,thetaHat[1],thetaHat[2],gammaHat)
     
-    # covariance matrix for alpha, beta1, covThg
+    # covariance matrix for alpha, beta1, gamma
     Sigma <- cbind(rbind(vthetaHat,covThG), c(covThG,vgammaHat)) 
-    # colnames(Sigma) <- rownames(Sigma) <- c("alpha", "beta1", "gamma")
+    colnames(Sigma) <- rownames(Sigma) <- c("alpha", "beta1", "gamma")
     
-    return( list(mark = V, txInd = Z, nInf0 = nInf0, nInf1 = nInf1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
-                 ve, Sigma))
+    return( list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
+                 ve = ve, cov = Sigma))
+  } else {
+    return( list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1))
   }
-  
 }
   
