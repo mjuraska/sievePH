@@ -20,12 +20,12 @@ covEst <- function(time, find, mark, txInd, phiHat, lambdaHat, gammaHat){
   time.fM <- matrix(time.f, nrow=n, ncol=m, byrow=TRUE)
   VV <- apply(V.f,1,tcrossprod)
   nmark <- NCOL(V.f)
-  
+
   g <- function(phi){ exp(drop(V.f %*% phi)) }
   dG <- function(phi){ t(g(phi) * V.f) }
   d2G <- function(phi){ array(t(t(VV)*g(phi)),dim=c(nmark,nmark,m)) }
   dGdG <- function(phi){ array(apply(dG(phi),2,tcrossprod),dim=c(nmark,nmark,m)) }
-  
+
   score1.vect <- function(phi, lambda){
     t((-lambda/(1+lambda*(g(phi)-1)) + txInd.f/g(phi)) * t(dG(phi)))
   }
@@ -66,20 +66,20 @@ covEst <- function(time, find, mark, txInd, phiHat, lambdaHat, gammaHat){
     (cbind(rbind(jack11(phi,lambda),j21),c(j21,jack22(phi,lambda))))/n
   }
   jack33 <- sum(eta*(eta-1))/n
-  
+
   p <- mean(find)
   # a vector with 2 components
   omega <- drop(score1.vect(phiHat,lambdaHat) %*% (score3.vect(gammaHat) + p*l.vect(gammaHat))/n - 
                   sum(score3.vect(gammaHat) + p*l.vect(gammaHat))*apply(score1.vect(phiHat,lambdaHat),1,sum)/(n^2))   
-  drop(solve(jack(phiHat,lambdaHat))[1:2,1:2] %*% omega)/(n*jack33)
+  return(drop(solve(jack(phiHat,lambdaHat))[1:2,1:2] %*% omega)/(n*jack33))
 }
 
-# 'densRatio' calculates the mark density ratio and returns a list containing:
+# 'densRatio' computes maximum profile likelihood estimates of coefficients (and their variance estimates) in a mark density ratio model and returns a list containing:
 #     'coef': estimates for alpha, beta, and lambda 
 #     'var': the corresponding covariance matrix
 #     'jack': the first two rows and columns of the limit estimating function in matrix form
 #     'conv': a logical value indicating convergence of the estimating functions
-# 'mark' is the mark variable, which is only observed for cases
+# 'mark' is a numeric vector representing the mark variable, which is completely observed in all cases (i.e., failures)
 # 'txInd' is the treatment group indicator (1 if treatment, 0 if control)
 densRatio <- function(mark, txInd){
   V <- cbind(1,mark)
@@ -87,12 +87,12 @@ densRatio <- function(mark, txInd){
   nmark <- NCOL(V)
   ninf <- NROW(V)
   VV <- apply(V,1,tcrossprod)
-  
+
   g <- function(theta){ exp(drop(V %*% theta)) }
   dG <- function(theta){ t(g(theta) * V) }
   d2G <- function(theta){ array(t(t(VV)*g(theta)),dim=c(nmark,nmark,ninf)) }
   dGdG <- function(theta){ array(apply(dG(theta),2,tcrossprod),dim=c(nmark,nmark,ninf)) }
-  
+
   # profile score functions for the parameter of interest, theta, 
   # and the Lagrange multiplier, lambda
   score1 <- function(theta, lambda){
@@ -121,7 +121,7 @@ densRatio <- function(mark, txInd){
     j21 <- jack21(theta,lambda)
     cbind(rbind(jack11(theta,lambda),j21),c(j21,jack22(theta,lambda)))
   }
-  
+
   param.old <- numeric(nmark+1)
   param.new <- c(numeric(nmark),0.5)
   while (sum((param.new - param.old)^2)>1e-8){
@@ -135,13 +135,13 @@ densRatio <- function(mark, txInd){
   }
   theta.new <- param.new[-(nmark+1)]
   lambda.new <- param.new[nmark+1]
-  
+
   SigmaHat <- function(theta, lambda){
     L <- -lambda * t(dG(theta)) * (1/(1+lambda*(g(theta)-1))) + t(dG(theta)) * (z/g(theta))
     L <- cbind(L, (g(theta)-1)/(1+lambda*(g(theta)-1)))
     crossprod(L)/ninf
   }
-  
+
   JackInv <- try(solve(jack(theta.new,lambda.new)), silent=TRUE)
   if (class(JackInv)!="try-error"){
     Var <- ninf * JackInv %*% SigmaHat(theta.new,lambda.new) %*% JackInv
@@ -150,22 +150,21 @@ densRatio <- function(mark, txInd){
   } else {
     Var <- NULL
   }
-  
-  list(coef=param.new, var=Var, jack=jack11(theta.new,lambda.new),
-       conv=!(class(jackInv)=="try-error" | class(JackInv)=="try-error"))
-}  
 
-#' Semiparametric Efficient Estimation and Testing for a Mark-Specific Proportional Hazards 
+  return(list(coef=param.new, var=Var, jack=jack11(theta.new,lambda.new), conv=!(class(jackInv)=="try-error" | class(JackInv)=="try-error")))
+}
+
+#' Semiparametric Efficient Estimation and Testing for a Mark-Specific Proportional Hazards
 #' Model with Multivariate Continuous Marks
-#' 
-#' \code{sievePH} conducts estimation and testing of the multivariate mark-specific hazard 
-#' ratio model in the competing risks failure time analysis framework for the assessment of 
-#' mark-specific vaccine efficacy. It improves efficiency by employing the semiparametric 
-#' method of maximum profile likelihood estimation in the vaccine-to-placebo mark density 
+#'
+#' \code{sievePH} conducts estimation and testing of the multivariate mark-specific hazard
+#' ratio model in the competing risks failure time analysis framework for the assessment of
+#' mark-specific vaccine efficacy. It improves efficiency by employing the semiparametric
+#' method of maximum profile likelihood estimation in the vaccine-to-placebo mark density
 #' ratio model, detailed in Juraska and Gilbert(2013). The method employs a complete-cases 
 #' analysis of the mark in failures. 
 #' The user can specify whether a one-sided or two-sided hypothesis test is to be performed.
-#' 
+#'
 #' @param time a numeric vector specifying the observed time, defined as the minimum of the 
 #' failure, censoring, and study time.
 #' @param failInd a binary vector indicating the failure status (1 if failure, 0 if censored)
@@ -173,9 +172,9 @@ densRatio <- function(mark, txInd){
 #' @param txInd a binary vector indicating the treatment group (1 if treatment, 0 if control)
 #' @param oneSided a logical value indicating whether the sieve test of H0:HR(v)=HR is to be 
 #' one-sided (TRUE) or two-sided (FALSE). 
-#' 
-#' @details 
-#' 
+#'
+#' @details
+#'
 #' @return \code{sievePH} returns an object of class "sievePH" which can be processed by 
 #' \code{\link{summary.sievePH}} to obtain or print a summary of the results. An object of class
 #' "sievePH" is a list containing the following components:
@@ -190,11 +189,11 @@ densRatio <- function(mark, txInd){
 #' \item{txInd}{a binary vector indicating the treatment group (1 if treatment, 0 if control)}
 #' \item{nFail0}{the number of failures in the placebo group}
 #' \item{nFail1}{the number of failures in the vaccine group}
-#' 
-#' @examples 
-#' 
+#'
+#' @examples
+#'
 #' @import survival
-#' 
+#'
 #' @export
 sievePH <- function(time, failInd, mark, txInd, oneSided) {
   X <- time
@@ -203,31 +202,31 @@ sievePH <- function(time, failInd, mark, txInd, oneSided) {
   Z <- txInd
   nFail0 <- sum(d*(1-Z))                             # number of failures in placebo group
   nFail1 <- sum(d*Z)                                 # number of failures in vaccine group
-  
+
   dRatio <- densRatio(V[d==1],Z[d==1])
-  
+
   if (dRatio$conv){
-    
-    # Cox proportional hazards model for marginal hazard ratio
+
+    # fit the Cox proportional hazards model to estimate the marginal hazard ratio
     phReg <- coxph(Surv(X,d)~Z)
-    
+
     # parameter estimates
     thetaHat <- dRatio$coef
     gammaHat <- phReg$coef
-    
+
     # variance and covariance estimates
     # order of columns in 'dRatio$var': alpha, beta1, beta2,...betak, lambda, where k is number of marks
     vthetaHat <- dRatio$var[1:2,1:2]
-    vgammaHat <- drop(phReg$var) 
+    vgammaHat <- drop(phReg$var)
     covThG <- covEst(X,d,V,Z,thetaHat[1:2],thetaHat[3],gammaHat)
-    
+
     # vaccine efficacy estimate
     ve <- VE(V,thetaHat[1],thetaHat[2],gammaHat)
-    
+
     # covariance matrix for alpha, beta1, gamma
-    Sigma <- cbind(rbind(vthetaHat,covThG), c(covThG,vgammaHat)) 
+    Sigma <- cbind(rbind(vthetaHat,covThG), c(covThG,vgammaHat))
     colnames(Sigma) <- rownames(Sigma) <- c("alpha", "beta1", "gamma")
-    
+
     result <- list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
                  ve = ve, cov = Sigma)
   } else {
@@ -237,4 +236,3 @@ sievePH <- function(time, failInd, mark, txInd, oneSided) {
   class(result) <- "sievePH"
   return(result)
 }
-  
