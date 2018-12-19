@@ -1,21 +1,22 @@
 # 've' returns vaccine efficacy values given parameters for the grid of mark values, v,
 # and values for alpha, beta, and gamma
-VE <- function(v, a, b, g){ 1-exp(a+b*v+g) }
+VE <- function(v, alpha, beta, gamma){ 1 - exp(alpha + beta*v + gamma) }
 
-# 'covEst' is an estimator for the covariance matrix of \hat{\phi} and \hat{\lambda} using Theorem 1 in Juraska and Gilbert (2013, Biometrics)
+# 'covEst' returns the estimated covariance matrix of 'phiHat' and 'lambdaHat' using 
+# Theorem 1 in Juraska and Gilbert (2013, Biometrics)
 # 'time' is the observed time, defined as the minimum of failure, censoring, and study times
 # 'find' is the failure indicator (0 if censored, 1 if failure)
 # 'mark' is the mark variable
-# 'txind' is the treatment group index (1 if treatment, 0 if control)
-# 'phi.hat' is a vector of the alpha and beta estimates
-# 'lambda.hat' is the estimate for lambda in the mark density ratio model
-# 'gamma.hat' is the estimate for gamma obtained in the marginal hazards model
-covEst <- function(time, find, mark, txind, phi.hat, lambda.hat, gamma.hat){
+# 'txInd' is the treatment group indicator (1 if treatment, 0 if control)
+# 'phiHat' is a vector of the alpha and beta estimates
+# 'lambdaHat' is the estimate for lambda in the mark density ratio model
+# 'gammaHat' is the estimate for gamma obtained in the marginal hazards model
+covEst <- function(time, find, mark, txInd, phiHat, lambdaHat, gammaHat){
   n <- length(time)
   m <- sum(find)
   time.f <- time[find==1]
   V.f <- cbind(1,mark[find==1])
-  txind.f <- txind[find==1]
+  txInd.f <- txInd[find==1]
   time.fM <- matrix(time.f, nrow=n, ncol=m, byrow=TRUE)
   VV <- apply(V.f,1,tcrossprod)
   nmark <- NCOL(V.f)
@@ -26,20 +27,20 @@ covEst <- function(time, find, mark, txind, phi.hat, lambda.hat, gamma.hat){
   dGdG <- function(phi){ array(apply(dG(phi),2,tcrossprod),dim=c(nmark,nmark,m)) }
   
   score1.vect <- function(phi, lambda){
-    t((-lambda/(1+lambda*(g(phi)-1)) + txind.f/g(phi)) * t(dG(phi)))
+    t((-lambda/(1+lambda*(g(phi)-1)) + txInd.f/g(phi)) * t(dG(phi)))
   }
-  xi <- function(gamma){ crossprod(time>=time.fM, txind*exp(gamma*txind)) }
-  zeta <- function(gamma){ crossprod(time>=time.fM, exp(gamma*txind)) }
-  eta <- drop(xi(gamma.hat)/zeta(gamma.hat))             
-  score3.vect <- function(gamma){ txind.f-eta }
+  xi <- function(gamma){ crossprod(time>=time.fM, txInd*exp(gamma*txInd)) }
+  zeta <- function(gamma){ crossprod(time>=time.fM, exp(gamma*txInd)) }
+  eta <- drop(xi(gammaHat)/zeta(gammaHat))             
+  score3.vect <- function(gamma){ txInd.f-eta }
   l.vect <- function(gamma){
     survprob.vect <- c(1, summary(survfit(Surv(time,find)~1), times=sort(time.f))$surv)
     surv.increm <- survprob.vect[-length(survprob.vect)] - survprob.vect[-1]
     time.fMsq <- time.fM[1:m,]
-    crossprod(time.f>=time.fMsq, surv.increm*(txind.f*exp(gamma*txind.f) - eta*exp(gamma*txind.f))/zeta(gamma))
+    crossprod(time.f>=time.fMsq, surv.increm*(txInd.f*exp(gamma*txInd.f) - eta*exp(gamma*txInd.f))/zeta(gamma))
   }
   score1 <- function(phi, lambda){
-    drop(-lambda * dG(phi) %*% (1/(1+lambda*(g(phi)-1))) + dG(phi) %*% (txind/g(phi)))
+    drop(-lambda * dG(phi) %*% (1/(1+lambda*(g(phi)-1))) + dG(phi) %*% (txInd/g(phi)))
   }
   score2 <- function(phi, lambda){
     -sum((g(phi)-1)/(1+lambda*(g(phi)-1)))
@@ -50,8 +51,8 @@ covEst <- function(time, find, mark, txind, phi.hat, lambda.hat, gamma.hat){
     dGdGperm <- aperm(dGdG(phi), c(3,1,2))
     term1 <- apply(aperm(d2Gperm*(1/(1+lambda*(g(phi)-1))), c(2,3,1)),c(1,2),sum)
     term2 <- apply(aperm(dGdGperm*(1/(1+lambda*(g(phi)-1))^2), c(2,3,1)),c(1,2),sum)
-    term3 <- apply(aperm(d2Gperm*(txind.f/g(phi)), c(2,3,1)),c(1,2),sum)
-    term4 <- apply(aperm(dGdGperm*(txind.f/g(phi)^2), c(2,3,1)),c(1,2),sum)
+    term3 <- apply(aperm(d2Gperm*(txInd.f/g(phi)), c(2,3,1)),c(1,2),sum)
+    term4 <- apply(aperm(dGdGperm*(txInd.f/g(phi)^2), c(2,3,1)),c(1,2),sum)
     -lambda*(term1 - lambda*term2) + term3 - term4
   }
   jack21 <- function(phi, lambda){
@@ -68,17 +69,21 @@ covEst <- function(time, find, mark, txind, phi.hat, lambda.hat, gamma.hat){
   
   p <- mean(find)
   # a vector with 2 components
-  omega <- drop(score1.vect(phi.hat,lambda.hat) %*% (score3.vect(gamma.hat) + p*l.vect(gamma.hat))/n - 
-                  sum(score3.vect(gamma.hat) + p*l.vect(gamma.hat))*apply(score1.vect(phi.hat,lambda.hat),1,sum)/(n^2))   
-  drop(solve(jack(phi.hat,lambda.hat))[1:2,1:2] %*% omega)/(n*jack33)
+  omega <- drop(score1.vect(phiHat,lambdaHat) %*% (score3.vect(gammaHat) + p*l.vect(gammaHat))/n - 
+                  sum(score3.vect(gammaHat) + p*l.vect(gammaHat))*apply(score1.vect(phiHat,lambdaHat),1,sum)/(n^2))   
+  drop(solve(jack(phiHat,lambdaHat))[1:2,1:2] %*% omega)/(n*jack33)
 }
 
-# 'densRatio' calculates the mark density ratio
+# 'densRatio' calculates the mark density ratio and returns a list containing:
+#     'coef': estimates for alpha, beta, and lambda 
+#     'var': the corresponding covariance matrix
+#     'jack': the first two rows and columns of the limit estimating function in matrix form
+#     'conv': a logical value indicating convergence of the estimating functions
 # 'mark' is the mark variable, which is only observed for cases
-# 'trt.id' is the treatment group index (1 if treatment, 0 if control)
-densRatio <- function(mark, trt.id){
+# 'txInd' is the treatment group indicator (1 if treatment, 0 if control)
+densRatio <- function(mark, txInd){
   V <- cbind(1,mark)
-  z <- trt.id
+  z <- txInd
   nmark <- NCOL(V)
   ninf <- NROW(V)
   VV <- apply(V,1,tcrossprod)
@@ -88,7 +93,7 @@ densRatio <- function(mark, trt.id){
   d2G <- function(theta){ array(t(t(VV)*g(theta)),dim=c(nmark,nmark,ninf)) }
   dGdG <- function(theta){ array(apply(dG(theta),2,tcrossprod),dim=c(nmark,nmark,ninf)) }
   
-  # profile score functions for the paramter of interest, theta, 
+  # profile score functions for the parameter of interest, theta, 
   # and the Lagrange multiplier, lambda
   score1 <- function(theta, lambda){
     drop(-lambda * dG(theta) %*% (1/(1+lambda*(g(theta)-1))) + dG(theta) %*% (z/g(theta)))
@@ -150,7 +155,6 @@ densRatio <- function(mark, trt.id){
        conv=!(class(jackInv)=="try-error" | class(JackInv)=="try-error"))
 }  
 
-
 #' Semiparametric Efficient Estimation and Testing for a Mark-Specific Proportional Hazards 
 #' Model with Multivariate Continuous Marks
 #' 
@@ -158,21 +162,34 @@ densRatio <- function(mark, trt.id){
 #' ratio model in the competing risks failure time analysis framework for the assessment of 
 #' mark-specific vaccine efficacy. It improves efficiency by employing the semiparametric 
 #' method of maximum profile likelihood estimation in the vaccine-to-placebo mark density 
-#' ratio model. The method employs a complete-cases analysis of the mark in failures. 
+#' ratio model, detailed in Juraska and Gilbert(2013). The method employs a complete-cases 
+#' analysis of the mark in failures. 
 #' The user can specify whether a one-sided or two-sided hypothesis test is to be performed.
 #' 
-#' @param time a numeric vector specifying the observed time, defined as the minimum of the failure, censoring, and study time.
-#' @param failInd an binary vector indicating the failure status (1 if failure, 0 if censored)
-#' @param mark a numeric vector specifying the values of the mark variable, observed only in cases
+#' @param time a numeric vector specifying the observed time, defined as the minimum of the 
+#' failure, censoring, and study time.
+#' @param failInd a binary vector indicating the failure status (1 if failure, 0 if censored)
+#' @param mark a numeric vector of the values of the mark variable, observed only in cases
 #' @param txInd a binary vector indicating the treatment group (1 if treatment, 0 if control)
-#' @param oneSided a logical value indicating if the the sieve test of H0:HR(v)=HR is to be one-sided (TRUE) or two-sided (FALSE). 
+#' @param oneSided a logical value indicating whether the sieve test of H0:HR(v)=HR is to be 
+#' one-sided (TRUE) or two-sided (FALSE). 
 #' 
 #' @details 
 #' 
-#' @return Returns an output list with the following components:
-#' \itemize{
-#'   \item \code{alphaHat}: 
-#' }
+#' @return \code{sievePH} returns an object of class "sievePH" which can be processed by 
+#' \code{\link{summary.sievePH}} to obtain or print a summary of the results. An object of class
+#' "sievePH" is a list containing the following components:
+#' \item{alphaHat}{the estimate for the \eqn{alpha} parameter in the density ratio model} 
+#' \item{betaHat}{the estimate for the \eqn{beta} parameter in the density ratio model}
+#' \item{gammaHat}{the estimate for the \eqn{gamma} parameter in the density ratio model}
+#' \item{lambdaHat}{the estimate for \eqn{lambda}, the Lagrange multiplier utilized in 
+#' the estimation procedure}
+#' \item{cov}{the covariance matrix for \eqn{alpha}, \eqn{beta}, and \eqn{gamma}}
+#' \item{ve}{a numeric vector of estimates of vaccine efficacy}
+#' \item{mark}{a numeric vector of the values of the mark variable, observed only in cases}
+#' \item{txInd}{a binary vector indicating the treatment group (1 if treatment, 0 if control)}
+#' \item{nFail0}{the number of failures in the placebo group}
+#' \item{nFail1}{the number of failures in the vaccine group}
 #' 
 #' @examples 
 #' 
@@ -199,7 +216,7 @@ sievePH <- function(time, failInd, mark, txInd, oneSided) {
     gammaHat <- phReg$coef
     
     # variance and covariance estimates
-    # order of columns: alpha, beta1, beta2,...betak, lambda, where k is number of marks
+    # order of columns in 'dRatio$var': alpha, beta1, beta2,...betak, lambda, where k is number of marks
     vthetaHat <- dRatio$var[1:2,1:2]
     vgammaHat <- drop(phReg$var) 
     covThG <- covEst(X,d,V,Z,thetaHat[1:2],thetaHat[3],gammaHat)
@@ -211,10 +228,13 @@ sievePH <- function(time, failInd, mark, txInd, oneSided) {
     Sigma <- cbind(rbind(vthetaHat,covThG), c(covThG,vgammaHat)) 
     colnames(Sigma) <- rownames(Sigma) <- c("alpha", "beta1", "gamma")
     
-    return( list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
-                 ve = ve, cov = Sigma))
+    result <- list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
+                 ve = ve, cov = Sigma)
   } else {
-    return( list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1))
+    result <- list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1)
   }
+  
+  class(result) <- "sievePH"
+  return(result)
 }
   

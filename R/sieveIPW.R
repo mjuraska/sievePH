@@ -1,17 +1,18 @@
 # 've' returns vaccine efficacy values given parameters for the grid of mark values, v,
 # and values for alpha, beta, and gamma
-VE <- function(v, a, b, g){ 1-exp(a+b*v+g) }
+VE <- function(v, alpha, beta, gamma){ 1 - exp(alpha + beta*v + gamma) }
 
-# 'covEstIPW' is an estimator for \cov(\hat{\phi}_{ipw},\hat{\lambda}) based on Theorem 1 of JG (2013)
+# 'covEstIPW' returns the estimated covariance matrix of 'phiHat' and 'lambdaHat' 
+# in the IPW scenario, using Theorem 1 in Juraska and Gilbert (2013, Biometrics)
 # 'time' is the observed time, defined as the minimum of failure, censoring, and study times
 # 'find' is the failure indicator (0 if censored, 1 if failure)
 # 'mark' is the mark variable
-# 'txind' is the treatment group index (1 if treatment, 0 if control)
-# 'aux.miss' 
-# 'phi.hat' is a vector of the alpha and beta estimates
-# 'lambda.hat' is the estimate for lambda in the mark density ratio model
-# 'gamma.hat' is the estimate for gamma obtained in the marginal hazards model
-covEstIPW <- function(time, find, mark, txind, aux.miss, phi.hat, lambda.hat, gamma.hat){
+# 'txInd' is the treatment group indicator (1 if treatment, 0 if control)
+# 'auxMiss'
+# 'phiHat' is a vector of the alpha and beta estimates
+# 'lambdaHat' is the estimate for lambda in the mark density ratio model
+# 'gammaHat' is the estimate for gamma obtained in the marginal hazards model
+covEstIPW <- function(time, find, mark, txInd, auxMiss, phiHat, lambdaHat, gammaHat){
   n <- length(time)
   m.complete <- sum(find==1 & !is.na(mark))
   m.f <- sum(find==1)
@@ -21,9 +22,9 @@ covEstIPW <- function(time, find, mark, txind, aux.miss, phi.hat, lambda.hat, ga
   V.f <- cbind(1,mark[find==1])
   V.complete <- na.omit(V.f)
   na.idx <- attr(V.complete,"na.action")	
-  txind.complete <- txind[find==1 & !is.na(mark)]
-  txind.f <- txind[find==1]
-  aux.miss.f <- aux.miss[find==1]
+  txInd.complete <- txInd[find==1 & !is.na(mark)]
+  txInd.f <- txInd[find==1]
+  auxMiss.f <- auxMiss[find==1]
   time.completeM <- matrix(time.complete, nrow=n, ncol=m.complete, byrow=TRUE)
   VV.complete <- apply(V.complete,1,tcrossprod)
   nmark <- NCOL(V.complete)
@@ -35,21 +36,21 @@ covEstIPW <- function(time, find, mark, txind, aux.miss, phi.hat, lambda.hat, ga
   
   score1.vect <- function(phi, lambda){
     vect <- matrix(0, nrow=nmark, ncol=m.f)
-    vect[,-na.idx] <- t((-lambda/(pi*(1+lambda*(g(phi)-1))) + txind.complete/(pi*g(phi))) * t(dG(phi)))
+    vect[,-na.idx] <- t((-lambda/(pi*(1+lambda*(g(phi)-1))) + txInd.complete/(pi*g(phi))) * t(dG(phi)))
     vect
   }
-  xi <- function(gamma){ crossprod(time>=time.fM, txind*exp(gamma*txind)) }
-  zeta <- function(gamma){ crossprod(time>=time.fM, exp(gamma*txind)) }
-  eta <- drop(xi(gamma.hat)/zeta(gamma.hat))             
-  score3.vect <- function(gamma){ txind.f-eta }
+  xi <- function(gamma){ crossprod(time>=time.fM, txInd*exp(gamma*txInd)) }
+  zeta <- function(gamma){ crossprod(time>=time.fM, exp(gamma*txInd)) }
+  eta <- drop(xi(gammaHat)/zeta(gammaHat))             
+  score3.vect <- function(gamma){ txInd.f-eta }
   l.vect <- function(gamma){
     survprob.vect <- c(1, summary(survfit(Surv(time,find)~1))$surv)
     surv.increm <- survprob.vect[-length(survprob.vect)] - survprob.vect[-1]
     time.fMsq <- time.fM[1:m.f,]
-    crossprod(time.f>=time.fMsq, surv.increm*(txind.f*exp(gamma*txind.f) - eta*exp(gamma*txind.f))/zeta(gamma))
+    crossprod(time.f>=time.fMsq, surv.increm*(txInd.f*exp(gamma*txInd.f) - eta*exp(gamma*txInd.f))/zeta(gamma))
   }
   score1 <- function(phi, lambda){
-    drop(-lambda * dG(phi) %*% (1/(pi*(1+lambda*(g(phi)-1)))) + dG(phi) %*% (txind.complete/(pi*g(phi))))
+    drop(-lambda * dG(phi) %*% (1/(pi*(1+lambda*(g(phi)-1)))) + dG(phi) %*% (txInd.complete/(pi*g(phi))))
   }
   score2 <- function(phi, lambda){
     -sum((g(phi)-1)/(pi*(1+lambda*(g(phi)-1))))
@@ -60,8 +61,8 @@ covEstIPW <- function(time, find, mark, txind, aux.miss, phi.hat, lambda.hat, ga
     dGdGperm <- aperm(dGdG(phi), c(3,1,2))
     term1 <- apply(aperm(d2Gperm*(1/(pi*(1+lambda*(g(phi)-1)))), c(2,3,1)),c(1,2),sum)
     term2 <- apply(aperm(dGdGperm*(1/(pi*(1+lambda*(g(phi)-1))^2)), c(2,3,1)),c(1,2),sum)
-    term3 <- apply(aperm(d2Gperm*(txind.complete/(pi*g(phi))), c(2,3,1)),c(1,2),sum)
-    term4 <- apply(aperm(dGdGperm*(txind.complete/(pi*g(phi)^2)), c(2,3,1)),c(1,2),sum)
+    term3 <- apply(aperm(d2Gperm*(txInd.complete/(pi*g(phi))), c(2,3,1)),c(1,2),sum)
+    term4 <- apply(aperm(dGdGperm*(txInd.complete/(pi*g(phi)^2)), c(2,3,1)),c(1,2),sum)
     -lambda*(term1 - lambda*term2) + term3 - term4
   }
   jack21 <- function(phi, lambda){
@@ -77,7 +78,7 @@ covEstIPW <- function(time, find, mark, txind, aux.miss, phi.hat, lambda.hat, ga
   jack33 <- sum(eta*(eta-1))/n
   
   r <- apply(V.f, 1, function(row){ ifelse(sum(is.na(row))>0,0,1) })
-  pi.all <- glm(r ~ txind.f*aux.miss.f, family=binomial)$fitted
+  pi.all <- glm(r ~ txInd.f*auxMiss.f, family=binomial)$fitted
   if (!is.null(na.idx)){
     pi <- pi.all[-na.idx]
   } else {
@@ -86,20 +87,24 @@ covEstIPW <- function(time, find, mark, txind, aux.miss, phi.hat, lambda.hat, ga
   if (any(pi<0.005)){ stop("Selection probabilities not bounded away from 0.") }
   
   p <- mean(find==1)
-  omega <- drop(score1.vect(phi.hat,lambda.hat) %*% (score3.vect(gamma.hat) + p*l.vect(gamma.hat))/n - 
-                  sum(score3.vect(gamma.hat) + p*l.vect(gamma.hat))*apply(score1.vect(phi.hat,lambda.hat),1,sum)/(n^2))   # a vector with 2 components
-  drop(solve(jack(phi.hat,lambda.hat))[1:2,1:2] %*% omega)/(n*jack33)
+  omega <- drop(score1.vect(phiHat,lambdaHat) %*% (score3.vect(gammaHat) + p*l.vect(gammaHat))/n - 
+                  sum(score3.vect(gammaHat) + p*l.vect(gammaHat))*apply(score1.vect(phiHat,lambdaHat),1,sum)/(n^2))   # a vector with 2 components
+  drop(solve(jack(phiHat,lambdaHat))[1:2,1:2] %*% omega)/(n*jack33)
 }
 
 # 'densRatioIPW' applies the mark density ratio model with missing multivariate marks using 
-# the inferential procedure defined by inverse probability weighting (IPW) of complete cases
+# the inferential procedure defined by inverse probability weighting (IPW) of complete cases.
+# The function calculates the mark density ratio and returns a list containing:
+#     'coef': estimates for alpha, beta, and lambda 
+#     'var': the corresponding covariance matrix 
+#     'jack': the first two rows and columns of the limit estimating function in matrix form
+#     'conv': a logical value indicating convergence of the estimating functions
 # 'mark' is the mark variable, which is only observed for cases
-# 'trt.id' is the treatment group index (1 if treatment, 0 if control)
-# 'aux' 
-densRatioIPW <- function(mark, trt.id, aux){
+# 'txInd' is the treatment group indicator (1 if treatment, 0 if control)
+densRatioIPW <- function(mark, txInd){
   V <- cbind(1,mark)
   V.complete <- na.omit(V)
-  z <- trt.id
+  z <- txInd
   na.idx <- attr(V.complete,"na.action")
   if (!is.null(na.idx)){
     z.complete <- z[-na.idx]
@@ -195,23 +200,35 @@ densRatioIPW <- function(mark, trt.id, aux){
 #' \code{sieveIPW} conducts estimation and testing of the multivariate mark-specific hazard 
 #' ratio model in the competing risks failure time analysis framework for the assessment of 
 #' mark-specific vaccine efficacy. It accounts for missing multivariate marks using the 
-#' inferential procude based on inverse probability weighting (IPW) of the complete cases, 
+#' inferential procedure based on inverse probability weighting (IPW) of the complete cases, 
 #' originally proposed by Horvitz and Thompson (1952), where the complete cases are weighted 
 #' by the inverse of the probabilities or their estimates.
 #' The user can specify whether a one-sided or two-sided hypothesis test is to be performed.
 #' 
-#' @param time a numeric vector specifying the observed time, defined as the minimum of the failure, censoring, and study time.
-#' @param failInd an binary vector indicating the failure status (1 if failure, 0 if censored)
-#' @param mark a numeric vector specifying the values of the mark variable, observed only in cases
+#' @param time a numeric vector specifying the observed time, defined as the minimum of the 
+#' failure, censoring, and study time.
+#' @param failInd a binary vector indicating the failure status (1 if failure, 0 if censored)
+#' @param mark a numeric vector of the values of the mark variable, observed only in cases
 #' @param txInd a binary vector indicating the treatment group (1 if treatment, 0 if control)
-#' @param oneSided a logical value indicating if the the sieve test of H0:HR(v)=HR is to be one-sided (TRUE) or two-sided (FALSE). 
+#' @param oneSided a logical value indicating whether the sieve test of H0:HR(v)=HR is to be 
+#' one-sided (TRUE) or two-sided (FALSE). 
 #' 
 #' @details 
 #' 
-#' @return Returns an output list with the following components:
-#' \itemize{
-#'   \item \code{alphaHat}: 
-#' }
+#' @return \code{sieveIPW} returns an object of class "sieveIPW" which can be processed by 
+#' \code{\link{summary.sieveIPW}} to obtain or print a summary of the results. An object of class
+#' "sieveIPW" is a list containing the following components:
+#' \item{alphaHat}{the estimate for the \eqn{alpha} parameter in the density ratio model} 
+#' \item{betaHat}{the estimate for the \eqn{beta} parameter in the density ratio model}
+#' \item{gammaHat}{the estimate for the \eqn{gamma} parameter in the density ratio model}
+#' \item{lambdaHat}{the estimate for \eqn{lambda}, the Lagrange multiplier utilized in 
+#' the estimation procedure}
+#' \item{cov}{the covariance matrix for \eqn{alpha}, \eqn{beta}, and \eqn{gamma}}
+#' \item{ve}{a numeric vector of estimates of vaccine efficacy}
+#' \item{mark}{a numeric vector of the values of the mark variable, observed only in cases}
+#' \item{txInd}{a binary vector indicating the treatment group (1 if treatment, 0 if control)}
+#' \item{nFail0}{the number of failures in the placebo group}
+#' \item{nFail1}{the number of failures in the vaccine group}
 #' 
 #' @examples 
 #' 
@@ -251,10 +268,12 @@ sieveIPW <- function(time, failInd, mark, txInd, oneSided) {
     Sigma <- cbind(rbind(vthetaHat,covThG), c(covThG,vgammaHat)) 
     colnames(Sigma) <- rownames(Sigma) <- c("alpha", "beta1", "gamma")
     
-    return( list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
-                 ve = ve, cov = Sigma))
+    result <- list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
+                   ve = ve, cov = Sigma)
   } else {
-    return( list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1))
+    result <- list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1)
   }
   
+  class(result) <- "sieveIPW"
+  return(result)
 }
