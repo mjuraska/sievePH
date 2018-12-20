@@ -158,23 +158,41 @@ densRatio <- function(mark, txInd){
 #' Semiparametric Efficient Estimation and Testing for a Mark-Specific Proportional Hazards 
 #' Model with Multivariate Continuous Marks
 #' 
-#' \code{sievePH} conducts estimation and testing of the multivariate mark-specific hazard 
-#' ratio model in the competing risks failure time analysis framework for the assessment of 
-#' mark-specific vaccine efficacy. It improves efficiency by employing the semiparametric 
-#' method of maximum profile likelihood estimation in the vaccine-to-placebo mark density 
-#' ratio model, detailed in Juraska and Gilbert(2013). The method employs a complete-cases 
-#' analysis of the mark in failures. 
-#' The user can specify whether a one-sided or two-sided hypothesis test is to be performed.
+#' \code{sievePH} implements an efficient method of estimation for the multivariate mark-specific hazard 
+#' ratio in the competing risks failure time analysis framework in order to assess mark-specific vaccine 
+#' efficacy. The model is described in detail in Juraska and Gilbert (2013) and improves efficiency 
+#' of estimation by employing the semiparametric method of maximum profile likelihood estimation 
+#' in the vaccine-to-placebo mark density ratio model. The model also enables the use of a more 
+#' efficient estimation method, proposed by Lu and Tsiatis (2008), for the overall log hazard ratio. 
+#' The method employed by \code{sievePH} is a complete-cases analysis of the mark in failures. 
 #' 
 #' @param time a numeric vector specifying the observed time, defined as the minimum of the 
 #' failure, censoring, and study time.
 #' @param failInd a binary vector indicating the failure status (1 if failure, 0 if censored)
 #' @param mark a numeric vector of the values of the mark variable, observed only in cases
 #' @param txInd a binary vector indicating the treatment group (1 if treatment, 0 if control)
-#' @param oneSided a logical value indicating whether the sieve test of H0:HR(v)=HR is to be 
-#' one-sided (TRUE) or two-sided (FALSE). 
 #' 
 #' @details 
+#' The conditional mark-specific hazard function can be factored into the product of the conditional 
+#' mark density ratio and the ordinary marginal hazard function ignoring mark data. For the mark density 
+#' ratio, following the assumption that the failure time and the mark variable are independent given the 
+#' treatment group, a semiparametric density ratio model (Qin 1998) may be used. For the marginal hazard 
+#' function, a Cox regression model is used.
+#' 
+#' Parameters in the mark density ratio are estimated with the maximum profile likelihood estimator, 
+#' where the estimator is defined as the solution to the system of profile score functions for 
+#' the parameter of interest and the Lagrange multiplier. The profile score functions are obtained by 
+#' using the Lagrange multiplier method to maximize the semi-parametric log likelihood. This estimator 
+#' is consistent and asymptotically normal. 
+#' 
+#' The parameter of interest in the marginal hazard function is estimated with the standard maximum 
+#' partial likelihood estimator (MPLE) or the more efficient Lu and Tsiatis (2008) estimator, which 
+#' leverages auxiliary data predictive of failure time (implemented in the R \code{speff2trial} package. 
+#' Both estimators are consistent and asymptotically normal. 
+#' 
+#' The joint asymptotic distribution of the parameter estimators in the density ratio and Cox models 
+#' is detailed in Juraska and Gilbert (2013) and is used to construct asymptotic pointwise Wald 
+#' confidence intervals for the mark-specific vaccine efficacy.
 #' 
 #' @return \code{sievePH} returns an object of class "sievePH" which can be processed by 
 #' \code{\link{summary.sievePH}} to obtain or print a summary of the results. An object of class
@@ -196,7 +214,7 @@ densRatio <- function(mark, txInd){
 #' @import survival
 #' 
 #' @export
-sievePH <- function(time, failInd, mark, txInd, oneSided) {
+sievePH <- function(time, failInd, mark, txInd) {
   X <- time
   d <- failInd
   V <- mark
