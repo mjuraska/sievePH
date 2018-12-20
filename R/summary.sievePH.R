@@ -70,15 +70,6 @@ summary.sievePH <- function(object, mark,
   vAlphaHat <- object$cov[1,1]
   vBetaHat <- object$cov[2,2]
   vGammaHat <- object$cov[3,3]
-  V <- object$mark
-  Z <- object$txInd
-  ve <- object$ve
-
-  # standard error and confidence interval limits
-  se <- seVE(V,cov,alphaHat,betaHat,gammaHat)
-  quantile <- 1 - (1-confLevel)/2
-  lb <- c(ve - qnorm(quantile)*se)
-  ub <- c(ve + qnorm(quantile)*se)
 
   ### two-sided likelihood ratio test of unity of HR(v) using the Simes (1986) procedure as described on page 4 in Juraska and Gilbert (2013, Biometrics)
   ### H00: beta=0 and gamma=0 (i.e., H00: HR(v)=1) vs. H1: beta!=0 or gamma!=0
@@ -116,6 +107,8 @@ summary.sievePH <- function(object, mark,
 
     ### 1-sided likelihood ratio test of H0: HR(v)=HR (beta=0) vs alternative that beta > 0
     pLR.HRconstant <- LRtest(object$mark[d==1], object$txInd[d==1], c(alphaHat, betaHat), lambdaHat)$pval
+    ### a named vector with the following components: the two-sided profile LR test p-value, and point estimates of the components of the vector beta
+    ### the labels are 'pLR.beta.2sided' and 'estBeta1', 'estBeta2', etc. (if the dimension of beta is 1, then only 'estBeta')
 
   } else {
 
@@ -135,6 +128,28 @@ summary.sievePH <- function(object, mark,
   #                    paste0("pLRH0", ifelse(oneSided, "1sided", "2sided")))
 
   coef <- matrix()
+
+  # standard error and confidence interval limits
+  se <- seVE(V,cov,alphaHat,betaHat,gammaHat)
+  quantile <- 1 - (1-confLevel)/2
+  lb <- c(ve - qnorm(quantile)*se)
+  ub <- c(ve + qnorm(quantile)*se)
+
+  if (contrast=="ve"){
+    est <-
+    lb <-
+    ub <-
+  } else if (contrast=="hr"){
+    est <-
+    lb <-
+    ub <-
+  } else if (contrast=="loghr"){
+    est <-
+    lb <-
+    ub <-
+  }
+  out[[contrast]] <- cbind(mark, est, lb, ub)
+  colnames(out[[contrast]]) <- c(colnames(mark), )
 
   ve <- cbind(mark, ve, lb, ub)
   contrastName <- ifelse(contrast=="ve", "VE", ifelse(contrast=="hr", "HR", "LogHR"))
