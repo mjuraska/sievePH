@@ -90,7 +90,7 @@ testStat <- function(timeMark, data){
 #' @examples 
 #' 
 #' @export
-KStest <- function(data, iter=1000){
+testIndepTimeMark <- function(data, iter=1000){
   T <- testStat(data[data$d==1,c("X","Y")], data)
   n <- NROW(data)
   resamp <- matrix(sample(1:n, n*iter, replace=TRUE), n, iter)

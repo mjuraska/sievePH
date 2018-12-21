@@ -6,7 +6,7 @@ seVE <- function(v, cov, alpha, beta, gamma){
   sapply(v, function(mark){ drop(sqrt(t(dVE(mark,alpha,beta,gamma)) %*% cov %*% dVE(mark,alpha,beta,gamma))) })
 }
 
-LRtest <- function(mark, txInd, thetaHat, lambdaHat){
+profileLRtest <- function(mark, txInd, thetaHat, lambdaHat){
   V <- cbind(1,mark)
   z <- txInd
   nmark <- NCOL(V)
@@ -70,15 +70,19 @@ summary.sievePH <- function(object, mark,
   vAlphaHat <- object$cov[1,1]
   vBetaHat <- object$cov[2,2]
   vGammaHat <- object$cov[3,3]
+  nmark <- ncol(mark)
+  phRegSummary <- summary(object$coxModel)
 
   ### two-sided likelihood ratio test of unity of HR(v) using the Simes (1986) procedure as described on page 4 in Juraska and Gilbert (2013, Biometrics)
   ### H00: beta=0 and gamma=0 (i.e., H00: HR(v)=1) vs. H1: beta!=0 or gamma!=0
   ### a named vector with two two-sided p-values, one from the profile LR test for beta and one from the partial LR test for gamma
   ### the components of the vector are named 'pLR.beta.2sided' and 'pLR.gamma.2sided'
+  pLR.HRunity.2sided <- c(pLR.beta.2sided = profileLRtest(object$mark[d==1], object$txInd[d==1], c(alphaHat, betaHat), lambdaHat)$pval,
+                          pLR.gamma.2sided = phRegSummary$logtest[3])
 
   ### two-sided Wald test of unity of HR(v)
   ### H00: beta=0 and gamma=0 (equivalent to H00: HR(v)=1) vs. H1: beta!=0 or gamma!=0
-  waldH00 <- drop(t(c(thetaHat[2], gammaHat)) %*% solve(Sigma[2:3,2:3]) %*% c(thetaHat[2], gammaHat))  # Sigma is missing as a local variable
+  waldH00 <- drop(t(c(betaHat, gammaHat)) %*% solve(object$cov[-1,-1]) %*% c(betaHat, gammaHat))
   pWald.HRunity.2sided <- 2*(1 - pnorm(abs(waldH00)))
 
   ### one-sided weighted Wald-type test of unity of HR(v)
@@ -106,9 +110,10 @@ summary.sievePH <- function(object, mark,
     pWald.HRconstant <- 1 - pnorm(waldH0)
 
     ### 1-sided likelihood ratio test of H0: HR(v)=HR (beta=0) vs alternative that beta > 0
-    pLR.HRconstant <- LRtest(object$mark[d==1], object$txInd[d==1], c(alphaHat, betaHat), lambdaHat)$pval
     ### a named vector with the following components: the two-sided profile LR test p-value, and point estimates of the components of the vector beta
     ### the labels are 'pLR.beta.2sided' and 'estBeta1', 'estBeta2', etc. (if the dimension of beta is 1, then only 'estBeta')
+    pLR.HRconstant <- c(profileLRtest(object$mark[d==1], object$txInd[d==1], c(alphaHat, betaHat), lambdaHat)$pval, betaHat)
+    names(pLR.HRconstant) <- c("pLR.beta.2sided", ifelse(nmark==1, "estBeta", sapply(1:nmark, function(x) paste0("estBeta", x))))
 
   } else {
 
@@ -117,28 +122,22 @@ summary.sievePH <- function(object, mark,
     pWald.HRconstant <- 2*(1 - pnorm(abs(waldH0)))
 
     ### 2-sided likelihood ratio test of H0: HR(v)=HR (beta=0)
-    pLR.HRconstant <- LRtest(object$mark[d==1], object$txInd[d==1], c(alphaHat, betaHat), lambdaHat)$pval
+    pLR.HRconstant <- profileLRtest(object$mark[d==1], object$txInd[d==1], c(alphaHat, betaHat), lambdaHat)$pval
 
   }
 
-  # tab <- cbind(ve, se, lb, ub, waldH0beta.pval, waldH0alpha.pval, waldH0gamma.pval,
-  #              weighted.waldH00.pval, waldH0.pval, lrBeta.pval)
-  # colnames(tab) <- c("VE","SE","LB","UB","pWaldH0beta", "pWaldH0alpha", "pWaldH0gamma",
-  #                    "pWeightedWaldH00", paste0("pWaldH0", ifelse(oneSided, "1sided", "2sided")),
-  #                    paste0("pLRH0", ifelse(oneSided, "1sided", "2sided")))
-
   coef <- matrix()
-
-  # standard error and confidence interval limits
-  se <- seVE(V,cov,alphaHat,betaHat,gammaHat)
+  
   quantile <- 1 - (1-confLevel)/2
-  lb <- c(ve - qnorm(quantile)*se)
-  ub <- c(ve + qnorm(quantile)*se)
-
+  # grid of mark values, ranging from min to max for each component
+  V <- apply(mark, 2, function(col) {seq(min(col), max(col), length.out = 100)})
+  
   if (contrast=="ve"){
-    est <-
-    lb <-
-    ub <-
+    # vaccine efficacy estimate and confidence bounds
+    est <- VE(V,thetaHat[1],thetaHat[2],gammaHat)
+    se <- seVE(V,cov,alphaHat,betaHat,gammaHat)
+    lb <- c(est - qnorm(quantile)*se)
+    ub <- c(est + qnorm(quantile)*se)
   } else if (contrast=="hr"){
     est <-
     lb <-
@@ -148,16 +147,14 @@ summary.sievePH <- function(object, mark,
     lb <-
     ub <-
   }
-  out[[contrast]] <- cbind(mark, est, lb, ub)
-  colnames(out[[contrast]]) <- c(colnames(mark), )
 
-  ve <- cbind(mark, ve, lb, ub)
+  contrastMatrix <- cbind(V, est, lb, ub)
   contrastName <- ifelse(contrast=="ve", "VE", ifelse(contrast=="hr", "HR", "LogHR"))
-  colnames(ve) <- c(colnames(mark), contrastName, "LB", "UB")
+  colnames(contrastMatrix) <- c(colnames(mark), contrastName, "LB", "UB")
 
 
   out <- list(coef, pLR.HRunity.2sided, pWald.HRunity.2sided, pWtWald.HRunity.1sided,
-               pWald.HRconstant, pLR.HRconstant, ve)
+               pWald.HRconstant, pLR.HRconstant, contrastMatrix)
   names(out) <- c("coef", "pLR.HRunity.2sided", "pWald.HRunity.2sided", "pWtWald.HRunity.1sided",
                   paste0("pWald.HRconstant", ifelse(sieveAlternative=="twoSided", "2sided", "1sided")),
                   paste0("pLR.HRconstant", ifelse(sieveAlternative=="twoSided", "2sided", "1sided")),

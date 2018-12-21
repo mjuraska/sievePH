@@ -4,28 +4,28 @@ VE <- function(v, alpha, beta, gamma){ 1 - exp(alpha + beta*v + gamma) }
 
 # 'covEstIPW' returns the estimated covariance matrix of 'phiHat' and 'lambdaHat' 
 # in the IPW scenario, using Theorem 1 in Juraska and Gilbert (2013, Biometrics)
-# 'time' is the observed time, defined as the minimum of failure, censoring, and study times
-# 'find' is the failure indicator (0 if censored, 1 if failure)
+# 'eventTime' is the observed time, defined as the minimum of failure, censoring, and study times
+# 'eventType' is the failure indicator (0 if censored, 1 if failure)
 # 'mark' is the mark variable
-# 'txInd' is the treatment group indicator (1 if treatment, 0 if control)
+# 'tx' is the treatment group indicator (1 if treatment, 0 if control)
 # 'auxMiss'
 # 'phiHat' is a vector of the alpha and beta estimates
 # 'lambdaHat' is the estimate for lambda in the mark density ratio model
 # 'gammaHat' is the estimate for gamma obtained in the marginal hazards model
-covEstIPW <- function(time, find, mark, txInd, auxMiss, phiHat, lambdaHat, gammaHat){
-  n <- length(time)
-  m.complete <- sum(find==1 & !is.na(mark))
-  m.f <- sum(find==1)
-  time.f <- time[find==1]
-  time.fM <- matrix(time.f, nrow=n, ncol=m.f, byrow=TRUE)
-  time.complete <- time[find==1 & !is.na(mark)]
-  V.f <- cbind(1,mark[find==1])
+covEstIPW <- function(eventTime, eventType, mark, tx, auxMiss, phiHat, lambdaHat, gammaHat){
+  n <- length(eventTime)
+  m.complete <- sum(eventType==1 & !is.na(mark))
+  m.f <- sum(eventType==1)
+  eventTime.f <- eventTime[eventType==1]
+  eventTime.fM <- matrix(eventTime.f, nrow=n, ncol=m.f, byrow=TRUE)
+  eventTime.complete <- eventTime[eventType==1 & !is.na(mark)]
+  V.f <- cbind(1,mark[eventType==1])
   V.complete <- na.omit(V.f)
   na.idx <- attr(V.complete,"na.action")	
-  txInd.complete <- txInd[find==1 & !is.na(mark)]
-  txInd.f <- txInd[find==1]
-  auxMiss.f <- auxMiss[find==1]
-  time.completeM <- matrix(time.complete, nrow=n, ncol=m.complete, byrow=TRUE)
+  tx.complete <- tx[eventType==1 & !is.na(mark)]
+  tx.f <- tx[eventType==1]
+  auxMiss.f <- auxMiss[eventType==1]
+  eventTime.completeM <- matrix(eventTime.complete, nrow=n, ncol=m.complete, byrow=TRUE)
   VV.complete <- apply(V.complete,1,tcrossprod)
   nmark <- NCOL(V.complete)
   
@@ -36,21 +36,21 @@ covEstIPW <- function(time, find, mark, txInd, auxMiss, phiHat, lambdaHat, gamma
   
   score1.vect <- function(phi, lambda){
     vect <- matrix(0, nrow=nmark, ncol=m.f)
-    vect[,-na.idx] <- t((-lambda/(pi*(1+lambda*(g(phi)-1))) + txInd.complete/(pi*g(phi))) * t(dG(phi)))
+    vect[,-na.idx] <- t((-lambda/(pi*(1+lambda*(g(phi)-1))) + tx.complete/(pi*g(phi))) * t(dG(phi)))
     vect
   }
-  xi <- function(gamma){ crossprod(time>=time.fM, txInd*exp(gamma*txInd)) }
-  zeta <- function(gamma){ crossprod(time>=time.fM, exp(gamma*txInd)) }
+  xi <- function(gamma){ crossprod(eventTime>=eventTime.fM, tx*exp(gamma*tx)) }
+  zeta <- function(gamma){ crossprod(eventTime>=eventTime.fM, exp(gamma*tx)) }
   eta <- drop(xi(gammaHat)/zeta(gammaHat))             
-  score3.vect <- function(gamma){ txInd.f-eta }
+  score3.vect <- function(gamma){ tx.f-eta }
   l.vect <- function(gamma){
-    survprob.vect <- c(1, summary(survfit(Surv(time,find)~1))$surv)
+    survprob.vect <- c(1, summary(survfit(Surv(eventTime,eventType)~1))$surv)
     surv.increm <- survprob.vect[-length(survprob.vect)] - survprob.vect[-1]
-    time.fMsq <- time.fM[1:m.f,]
-    crossprod(time.f>=time.fMsq, surv.increm*(txInd.f*exp(gamma*txInd.f) - eta*exp(gamma*txInd.f))/zeta(gamma))
+    eventTime.fMsq <- eventTime.fM[1:m.f,]
+    crossprod(eventTime.f>=eventTime.fMsq, surv.increm*(tx.f*exp(gamma*tx.f) - eta*exp(gamma*tx.f))/zeta(gamma))
   }
   score1 <- function(phi, lambda){
-    drop(-lambda * dG(phi) %*% (1/(pi*(1+lambda*(g(phi)-1)))) + dG(phi) %*% (txInd.complete/(pi*g(phi))))
+    drop(-lambda * dG(phi) %*% (1/(pi*(1+lambda*(g(phi)-1)))) + dG(phi) %*% (tx.complete/(pi*g(phi))))
   }
   score2 <- function(phi, lambda){
     -sum((g(phi)-1)/(pi*(1+lambda*(g(phi)-1))))
@@ -61,8 +61,8 @@ covEstIPW <- function(time, find, mark, txInd, auxMiss, phiHat, lambdaHat, gamma
     dGdGperm <- aperm(dGdG(phi), c(3,1,2))
     term1 <- apply(aperm(d2Gperm*(1/(pi*(1+lambda*(g(phi)-1)))), c(2,3,1)),c(1,2),sum)
     term2 <- apply(aperm(dGdGperm*(1/(pi*(1+lambda*(g(phi)-1))^2)), c(2,3,1)),c(1,2),sum)
-    term3 <- apply(aperm(d2Gperm*(txInd.complete/(pi*g(phi))), c(2,3,1)),c(1,2),sum)
-    term4 <- apply(aperm(dGdGperm*(txInd.complete/(pi*g(phi)^2)), c(2,3,1)),c(1,2),sum)
+    term3 <- apply(aperm(d2Gperm*(tx.complete/(pi*g(phi))), c(2,3,1)),c(1,2),sum)
+    term4 <- apply(aperm(dGdGperm*(tx.complete/(pi*g(phi)^2)), c(2,3,1)),c(1,2),sum)
     -lambda*(term1 - lambda*term2) + term3 - term4
   }
   jack21 <- function(phi, lambda){
@@ -78,7 +78,7 @@ covEstIPW <- function(time, find, mark, txInd, auxMiss, phiHat, lambdaHat, gamma
   jack33 <- sum(eta*(eta-1))/n
   
   r <- apply(V.f, 1, function(row){ ifelse(sum(is.na(row))>0,0,1) })
-  pi.all <- glm(r ~ txInd.f*auxMiss.f, family=binomial)$fitted
+  pi.all <- glm(r ~ tx.f*auxMiss.f, family=binomial)$fitted
   if (!is.null(na.idx)){
     pi <- pi.all[-na.idx]
   } else {
@@ -86,7 +86,7 @@ covEstIPW <- function(time, find, mark, txInd, auxMiss, phiHat, lambdaHat, gamma
   }
   if (any(pi<0.005)){ stop("Selection probabilities not bounded away from 0.") }
   
-  p <- mean(find==1)
+  p <- mean(eventType==1)
   omega <- drop(score1.vect(phiHat,lambdaHat) %*% (score3.vect(gammaHat) + p*l.vect(gammaHat))/n - 
                   sum(score3.vect(gammaHat) + p*l.vect(gammaHat))*apply(score1.vect(phiHat,lambdaHat),1,sum)/(n^2))   # a vector with 2 components
   drop(solve(jack(phiHat,lambdaHat))[1:2,1:2] %*% omega)/(n*jack33)
@@ -100,11 +100,12 @@ covEstIPW <- function(time, find, mark, txInd, auxMiss, phiHat, lambdaHat, gamma
 #     'jack': the first two rows and columns of the limit estimating function in matrix form
 #     'conv': a logical value indicating convergence of the estimating functions
 # 'mark' is the mark variable, which is only observed for cases
-# 'txInd' is the treatment group indicator (1 if treatment, 0 if control)
-densRatioIPW <- function(mark, txInd){
+# 'tx' is the treatment group indicator (1 if treatment, 0 if control)
+# 'aux'
+densRatioIPW <- function(mark, tx, aux){
   V <- cbind(1,mark)
   V.complete <- na.omit(V)
-  z <- txInd
+  z <- tx
   na.idx <- attr(V.complete,"na.action")
   if (!is.null(na.idx)){
     z.complete <- z[-na.idx]
@@ -174,10 +175,15 @@ densRatioIPW <- function(mark, txInd){
     U <- matrix(0,nrow=length(z),ncol=nmark+1)
     U[-na.idx,1:nmark] <- -lambda * t(dG(theta)) * (1/(pi*(1+lambda*(g(theta)-1)))) + t(dG(theta)) * (z.complete/(pi*g(theta)))
     U[-na.idx,nmark+1] <- (g(theta)-1)/(pi*(1+lambda*(g(theta)-1)))
-    # S <- (r-pi.all) * cbind(1,z,aux,z*aux)
-    S <- (r-pi.all) * cbind(1,z)
-    # resids <- lapply(1:NCOL(U), function(i){ lm(U[,i] ~ S[,1] + S[,2] + S[,3] + S[,4])$resid })
-    resids <- lapply(1:NCOL(U), function(i){ lm(U[,i] ~ S[,1] + S[,2])$resid })
+    
+    if (is.null(aux)) {
+      S <- (r-pi.all) * cbind(1,z)
+      resids <- lapply(1:NCOL(U), function(i){ lm(U[,i] ~ S[,1] + S[,2])$resid })
+    } else {
+      S <- (r-pi.all) * cbind(1,z,aux,z*aux)
+      resids <- lapply(1:NCOL(U), function(i){ lm(U[,i] ~ S[,1] + S[,2] + S[,3] + S[,4])$resid })
+    }
+    
     Resids <- do.call("cbind",resids)
     crossprod(Resids)/ninf
   }
@@ -197,7 +203,7 @@ densRatioIPW <- function(mark, txInd){
 #' Semiparametric Efficient Estimation and Testing for a Mark-Specific Proportional Hazards 
 #' Model with Missing Multivariate Marks using Inverse Probability Weighting of Complete Cases
 #' 
-#' \code{sieveIPW} conducts estimation and testing of the multivariate mark-specific hazard 
+#' \code{sievePH.IPW} conducts estimation and testing of the multivariate mark-specific hazard 
 #' ratio model in the competing risks failure time analysis framework for the assessment of 
 #' mark-specific vaccine efficacy. It accounts for missing multivariate marks using the 
 #' inferential procedure based on inverse probability weighting (IPW) of the complete cases, 
@@ -205,19 +211,19 @@ densRatioIPW <- function(mark, txInd){
 #' by the inverse of the probabilities or their estimates.
 #' The user can specify whether a one-sided or two-sided hypothesis test is to be performed.
 #' 
-#' @param time a numeric vector specifying the observed time, defined as the minimum of the 
-#' failure, censoring, and study time.
-#' @param failInd a binary vector indicating the failure status (1 if failure, 0 if censored)
+#' @param eventTime a numeric vector specifying the observed time, defined as the minimum of the 
+#' event, censoring, and study time.
+#' @param eventType a binary vector indicating the event status (1 if failure, 0 if censored)
 #' @param mark a numeric vector of the values of the mark variable, observed only in cases
-#' @param txInd a binary vector indicating the treatment group (1 if treatment, 0 if control)
-#' @param oneSided a logical value indicating whether the sieve test of H0:HR(v)=HR is to be 
-#' one-sided (TRUE) or two-sided (FALSE). 
+#' @param tx a binary vector indicating the treatment group (1 if treatment, 0 if control)
+#' @param aux
+#' @param auxMiss
 #' 
 #' @details 
 #' 
-#' @return \code{sieveIPW} returns an object of class "sieveIPW" which can be processed by 
-#' \code{\link{summary.sieveIPW}} to obtain or print a summary of the results. An object of class
-#' "sieveIPW" is a list containing the following components:
+#' @return \code{sievePH.IPW} returns an object of class "sievePH.IPW" which can be processed by 
+#' \code{\link{summary.sievePH.IPW}} to obtain or print a summary of the results. An object of class
+#' "sievePH.IPW" is a list containing the following components:
 #' \item{alphaHat}{the estimate for the \eqn{alpha} parameter in the density ratio model} 
 #' \item{betaHat}{the estimate for the \eqn{beta} parameter in the density ratio model}
 #' \item{gammaHat}{the estimate for the \eqn{gamma} parameter in the density ratio model}
@@ -226,25 +232,26 @@ densRatioIPW <- function(mark, txInd){
 #' \item{cov}{the covariance matrix for \eqn{alpha}, \eqn{beta}, and \eqn{gamma}}
 #' \item{ve}{a numeric vector of estimates of vaccine efficacy}
 #' \item{mark}{a numeric vector of the values of the mark variable, observed only in cases}
-#' \item{txInd}{a binary vector indicating the treatment group (1 if treatment, 0 if control)}
-#' \item{nFail0}{the number of failures in the placebo group}
-#' \item{nFail1}{the number of failures in the vaccine group}
+#' \item{tx}{a binary vector indicating the treatment group (1 if treatment, 0 if control)}
+#' \item{nEvents0}{the number of events in the placebo group}
+#' \item{nEvents1}{the number of events in the vaccine group}
+#' \item{coxModel}{the fitted cox regression model for the marginal hazard ratio}
 #' 
 #' @examples 
 #' 
 #' @import survival
 #' 
 #' @export
-sieveIPW <- function(time, failInd, mark, txInd, oneSided) {
+sievePH.IPW <- function(eventTime, eventType, mark, tx, aux = NULL, auxMiss = NULL) {
 
-  X <- time
-  d <- failInd
+  X <- eventTime
+  d <- eventType
   V <- mark
-  Z <- txInd
-  nFail0 <- sum(d*(1-Z))                             # number of failures in placebo group
-  nFail1 <- sum(d*Z)                                 # number of failures in vaccine group
+  Z <- tx
+  nEvents0 <- sum(d*(1-Z))                             # number of failures in placebo group
+  nEvents1 <- sum(d*Z)                                 # number of failures in vaccine group
   
-  dRatio <- densRatioIPW(V[d==1],Z[d==1])
+  dRatio <- densRatioIPW(V[d==1],Z[d==1], aux)
   
   if (dRatio$conv){
     
@@ -259,7 +266,7 @@ sieveIPW <- function(time, failInd, mark, txInd, oneSided) {
     # order of columns: alpha, beta1, beta2,...betak, lambda, where k is number of marks
     vthetaHat <- dRatio$var[1:2,1:2]
     vgammaHat <- drop(phReg$var) 
-    covThG <- covEstIPW(X,d,V,Z,thetaHat[1:2],thetaHat[3],gammaHat)
+    covThG <- covEstIPW(X,d,V,Z,auxMiss,thetaHat[1:2],thetaHat[3],gammaHat)
     
     # vaccine efficacy estimate
     ve <- VE(V,thetaHat[1],thetaHat[2],gammaHat)
@@ -268,12 +275,12 @@ sieveIPW <- function(time, failInd, mark, txInd, oneSided) {
     Sigma <- cbind(rbind(vthetaHat,covThG), c(covThG,vgammaHat)) 
     colnames(Sigma) <- rownames(Sigma) <- c("alpha", "beta1", "gamma")
     
-    result <- list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
-                   ve = ve, cov = Sigma)
+    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
+                   ve = ve, cov = Sigma, coxModel = phReg)
   } else {
-    result <- list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1)
+    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1)
   }
   
-  class(result) <- "sieveIPW"
+  class(result) <- "sievePH.IPW"
   return(result)
 }

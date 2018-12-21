@@ -4,20 +4,20 @@ VE <- function(v, alpha, beta, gamma){ 1 - exp(alpha + beta*v + gamma) }
 
 # 'covEst' returns the estimated covariance matrix of 'phiHat' and 'lambdaHat' using 
 # Theorem 1 in Juraska and Gilbert (2013, Biometrics)
-# 'time' is the observed time, defined as the minimum of failure, censoring, and study times
+# 'eventTime' is the observed time, defined as the minimum of failure, censoring, and study times
 # 'find' is the failure indicator (0 if censored, 1 if failure)
 # 'mark' is the mark variable
-# 'txInd' is the treatment group indicator (1 if treatment, 0 if control)
+# 'tx' is the treatment group indicator (1 if treatment, 0 if control)
 # 'phiHat' is a vector of the alpha and beta estimates
 # 'lambdaHat' is the estimate for lambda in the mark density ratio model
 # 'gammaHat' is the estimate for gamma obtained in the marginal hazards model
-covEst <- function(time, find, mark, txInd, phiHat, lambdaHat, gammaHat){
-  n <- length(time)
+covEst <- function(eventTime, find, mark, tx, phiHat, lambdaHat, gammaHat){
+  n <- length(eventTime)
   m <- sum(find)
-  time.f <- time[find==1]
+  eventTime.f <- eventTime[find==1]
   V.f <- cbind(1,mark[find==1])
-  txInd.f <- txInd[find==1]
-  time.fM <- matrix(time.f, nrow=n, ncol=m, byrow=TRUE)
+  tx.f <- tx[find==1]
+  eventTime.fM <- matrix(eventTime.f, nrow=n, ncol=m, byrow=TRUE)
   VV <- apply(V.f,1,tcrossprod)
   nmark <- NCOL(V.f)
 
@@ -27,20 +27,20 @@ covEst <- function(time, find, mark, txInd, phiHat, lambdaHat, gammaHat){
   dGdG <- function(phi){ array(apply(dG(phi),2,tcrossprod),dim=c(nmark,nmark,m)) }
 
   score1.vect <- function(phi, lambda){
-    t((-lambda/(1+lambda*(g(phi)-1)) + txInd.f/g(phi)) * t(dG(phi)))
+    t((-lambda/(1+lambda*(g(phi)-1)) + tx.f/g(phi)) * t(dG(phi)))
   }
-  xi <- function(gamma){ crossprod(time>=time.fM, txInd*exp(gamma*txInd)) }
-  zeta <- function(gamma){ crossprod(time>=time.fM, exp(gamma*txInd)) }
+  xi <- function(gamma){ crossprod(eventTime>=eventTime.fM, tx*exp(gamma*tx)) }
+  zeta <- function(gamma){ crossprod(eventTime>=eventTime.fM, exp(gamma*tx)) }
   eta <- drop(xi(gammaHat)/zeta(gammaHat))             
-  score3.vect <- function(gamma){ txInd.f-eta }
+  score3.vect <- function(gamma){ tx.f-eta }
   l.vect <- function(gamma){
-    survprob.vect <- c(1, summary(survfit(Surv(time,find)~1), times=sort(time.f))$surv)
+    survprob.vect <- c(1, summary(survfit(Surv(eventTime,find)~1), times=sort(eventTime.f))$surv)
     surv.increm <- survprob.vect[-length(survprob.vect)] - survprob.vect[-1]
-    time.fMsq <- time.fM[1:m,]
-    crossprod(time.f>=time.fMsq, surv.increm*(txInd.f*exp(gamma*txInd.f) - eta*exp(gamma*txInd.f))/zeta(gamma))
+    eventTime.fMsq <- eventTime.fM[1:m,]
+    crossprod(eventTime.f>=eventTime.fMsq, surv.increm*(tx.f*exp(gamma*tx.f) - eta*exp(gamma*tx.f))/zeta(gamma))
   }
   score1 <- function(phi, lambda){
-    drop(-lambda * dG(phi) %*% (1/(1+lambda*(g(phi)-1))) + dG(phi) %*% (txInd/g(phi)))
+    drop(-lambda * dG(phi) %*% (1/(1+lambda*(g(phi)-1))) + dG(phi) %*% (tx/g(phi)))
   }
   score2 <- function(phi, lambda){
     -sum((g(phi)-1)/(1+lambda*(g(phi)-1)))
@@ -51,8 +51,8 @@ covEst <- function(time, find, mark, txInd, phiHat, lambdaHat, gammaHat){
     dGdGperm <- aperm(dGdG(phi), c(3,1,2))
     term1 <- apply(aperm(d2Gperm*(1/(1+lambda*(g(phi)-1))), c(2,3,1)),c(1,2),sum)
     term2 <- apply(aperm(dGdGperm*(1/(1+lambda*(g(phi)-1))^2), c(2,3,1)),c(1,2),sum)
-    term3 <- apply(aperm(d2Gperm*(txInd.f/g(phi)), c(2,3,1)),c(1,2),sum)
-    term4 <- apply(aperm(dGdGperm*(txInd.f/g(phi)^2), c(2,3,1)),c(1,2),sum)
+    term3 <- apply(aperm(d2Gperm*(tx.f/g(phi)), c(2,3,1)),c(1,2),sum)
+    term4 <- apply(aperm(dGdGperm*(tx.f/g(phi)^2), c(2,3,1)),c(1,2),sum)
     -lambda*(term1 - lambda*term2) + term3 - term4
   }
   jack21 <- function(phi, lambda){
@@ -80,10 +80,10 @@ covEst <- function(time, find, mark, txInd, phiHat, lambdaHat, gammaHat){
 #     'jack': the first two rows and columns of the limit estimating function in matrix form
 #     'conv': a logical value indicating convergence of the estimating functions
 # 'mark' is a numeric vector representing the mark variable, which is completely observed in all cases (i.e., failures)
-# 'txInd' is the treatment group indicator (1 if treatment, 0 if control)
-densRatio <- function(mark, txInd){
+# 'tx' is the treatment group indicator (1 if treatment, 0 if control)
+densRatio <- function(mark, tx){
   V <- cbind(1,mark)
-  z <- txInd
+  z <- tx
   nmark <- NCOL(V)
   ninf <- NROW(V)
   VV <- apply(V,1,tcrossprod)
@@ -166,11 +166,11 @@ densRatio <- function(mark, txInd){
 #' proposed by Lu and Tsiatis (2008), for the overall log hazard ratio. The method employed
 #' by \code{sievePH} is a complete-cases analysis of the mark in failures. 
 #'
-#' @param time a numeric vector specifying the observed time, defined as the minimum of the 
-#' failure, censoring, and study time.
-#' @param failInd a binary vector indicating the failure status (1 if failure, 0 if censored)
+#' @param eventTime a numeric vector specifying the observed time, defined as the minimum of the 
+#' event, censoring, and study time.
+#' @param eventType a binary vector indicating the event status (1 if failure, 0 if censored)
 #' @param mark a numeric vector of the values of the mark variable, observed only in cases
-#' @param txInd a binary vector indicating the treatment group (1 if treatment, 0 if control)
+#' @param tx a binary vector indicating the treatment group (1 if treatment, 0 if control)
 #'
 #' @details
 #' The conditional mark-specific hazard function can be factored into the product of the conditional 
@@ -205,22 +205,23 @@ densRatio <- function(mark, txInd){
 #' \item{cov}{the covariance matrix for \eqn{alpha}, \eqn{beta}, and \eqn{gamma}}
 #' \item{ve}{a numeric vector of estimates of vaccine efficacy}
 #' \item{mark}{a numeric vector of the values of the mark variable, observed only in cases}
-#' \item{txInd}{a binary vector indicating the treatment group (1 if treatment, 0 if control)}
-#' \item{nFail0}{the number of failures in the placebo group}
-#' \item{nFail1}{the number of failures in the vaccine group}
+#' \item{tx}{a binary vector indicating the treatment group (1 if treatment, 0 if control)}
+#' \item{nEvents0}{the number of events in the placebo group}
+#' \item{nEvents1}{the number of events in the vaccine group}
+#' \item{coxModel}{the fitted cox regression model for the marginal hazard ratio}
 #'
 #' @examples
 #'
 #' @import survival
 #'
 #' @export
-sievePH <- function(time, failInd, mark, txInd) {
-  X <- time
-  d <- failInd
+sievePH <- function(eventTime, eventType, mark, tx) {
+  X <- eventTime
+  d <- eventType
   V <- mark
-  Z <- txInd
-  nFail0 <- sum(d*(1-Z))                             # number of failures in placebo group
-  nFail1 <- sum(d*Z)                                 # number of failures in vaccine group
+  Z <- tx
+  nEvents0 <- sum(d*(1-Z))                             # number of events in placebo group
+  nEvents1 <- sum(d*Z)                                 # number of events in vaccine group
 
   dRatio <- densRatio(V[d==1],Z[d==1])
 
@@ -235,21 +236,19 @@ sievePH <- function(time, failInd, mark, txInd) {
 
     # variance and covariance estimates
     # order of columns in 'dRatio$var': alpha, beta1, beta2,...betak, lambda, where k is number of marks
-    vthetaHat <- dRatio$var[1:2,1:2]
+    lastComp <- length(thetaHat)
+    vthetaHat <- dRatio$var[-lastComp,-lastComp]
     vgammaHat <- drop(phReg$var)
-    covThG <- covEst(X,d,V,Z,thetaHat[1:2],thetaHat[3],gammaHat)
-
-    # vaccine efficacy estimate
-    ve <- VE(V,thetaHat[1],thetaHat[2],gammaHat)
+    covThG <- covEst(X,d,V,Z,thetaHat[-lastComp],thetaHat[lastComp],gammaHat)
 
     # covariance matrix for alpha, beta1, gamma
     Sigma <- cbind(rbind(vthetaHat,covThG), c(covThG,vgammaHat))
-    colnames(Sigma) <- rownames(Sigma) <- c("alpha", "beta1", "gamma")
+    colnames(Sigma) <- rownames(Sigma) <- c("alpha", sapply(1:ncol(V), function(x){ paste0("beta",x) }), "gamma")
 
-    result <- list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
-                 ve = ve, cov = Sigma)
+    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
+                 ve = ve, cov = Sigma, coxModel = phReg)
   } else {
-    result <- list(mark = V, txInd = Z, nFail0 = nFail0, nFail1 = nFail1)
+    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1)
   }
   
   class(result) <- "sievePH"
