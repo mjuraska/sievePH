@@ -2,20 +2,23 @@
 # and values for alpha, beta, and gamma
 VE <- function(v, alpha, beta, gamma){ 1 - exp(alpha + beta*v + gamma) }
 
-# 'covEst' returns the estimated covariance matrix of 'phiHat' and 'lambdaHat' using 
-# Theorem 1 in Juraska and Gilbert (2013, Biometrics)
-# 'eventTime' is the observed time, defined as the minimum of failure, censoring, and study times
+# 'covEst' returns the estimated covariance matrix of 'phiHat' and 'lambdaHat' using Theorem 1 in Juraska and Gilbert (2013, Biometrics)
+# 'eventTime' is the observed right-censored time on study
 # 'find' is the failure indicator (0 if censored, 1 if failure)
-# 'mark' is the mark variable
+# 'mark' is a data frame (with the same number of rows as the length of 'eventTime') specifying a multivariate mark (a numeric vector for a univariate mark is allowed), with NA for subjects with find=0.
+# No missing mark values in subjects with find=1 are permitted.
 # 'tx' is the treatment group indicator (1 if treatment, 0 if control)
 # 'phiHat' is a vector of the alpha and beta estimates
 # 'lambdaHat' is the estimate for lambda in the mark density ratio model
 # 'gammaHat' is the estimate for gamma obtained in the marginal hazards model
 covEst <- function(eventTime, find, mark, tx, phiHat, lambdaHat, gammaHat){
+  # convert either a numeric vector or a data frame into a matrix
+  mark <- as.matrix(mark)
+
   n <- length(eventTime)
   m <- sum(find)
   eventTime.f <- eventTime[find==1]
-  V.f <- cbind(1,mark[find==1])
+  V.f <- cbind(1,mark[find==1,])
   tx.f <- tx[find==1]
   eventTime.fM <- matrix(eventTime.f, nrow=n, ncol=m, byrow=TRUE)
   VV <- apply(V.f,1,tcrossprod)
@@ -31,7 +34,7 @@ covEst <- function(eventTime, find, mark, tx, phiHat, lambdaHat, gammaHat){
   }
   xi <- function(gamma){ crossprod(eventTime>=eventTime.fM, tx*exp(gamma*tx)) }
   zeta <- function(gamma){ crossprod(eventTime>=eventTime.fM, exp(gamma*tx)) }
-  eta <- drop(xi(gammaHat)/zeta(gammaHat))             
+  eta <- drop(xi(gammaHat)/zeta(gammaHat))
   score3.vect <- function(gamma){ tx.f-eta }
   l.vect <- function(gamma){
     survprob.vect <- c(1, summary(survfit(Surv(eventTime,find)~1), times=sort(eventTime.f))$surv)
@@ -69,19 +72,22 @@ covEst <- function(eventTime, find, mark, tx, phiHat, lambdaHat, gammaHat){
 
   p <- mean(find)
   # a vector with 2 components
-  omega <- drop(score1.vect(phiHat,lambdaHat) %*% (score3.vect(gammaHat) + p*l.vect(gammaHat))/n - 
-                  sum(score3.vect(gammaHat) + p*l.vect(gammaHat))*apply(score1.vect(phiHat,lambdaHat),1,sum)/(n^2))   
-  return(drop(solve(jack(phiHat,lambdaHat))[1:2,1:2] %*% omega)/(n*jack33))
+  omega <- drop(score1.vect(phiHat,lambdaHat) %*% (score3.vect(gammaHat) + p*l.vect(gammaHat))/n -
+                  sum(score3.vect(gammaHat) + p*l.vect(gammaHat))*apply(score1.vect(phiHat,lambdaHat),1,sum)/(n^2))
+  return(drop(solve(jack(phiHat,lambdaHat))[1:nmark,1:nmark] %*% omega)/(n*jack33))
 }
 
 # 'densRatio' computes maximum profile likelihood estimates of coefficients (and their variance estimates) in a mark density ratio model and returns a list containing:
-#     'coef': estimates for alpha, beta, and lambda 
+#     'coef': estimates for alpha, beta, and lambda
 #     'var': the corresponding covariance matrix
 #     'jack': the first two rows and columns of the limit estimating function in matrix form
 #     'conv': a logical value indicating convergence of the estimating functions
-# 'mark' is a numeric vector representing the mark variable, which is completely observed in all cases (i.e., failures)
+# 'mark' is a data frame representing a multivariate mark variable (a numeric vector for a univariate mark is allowed), which is completely observed in all cases (i.e., failures). No missing mark values are permitted.
 # 'tx' is the treatment group indicator (1 if treatment, 0 if control)
 densRatio <- function(mark, tx){
+  # convert either a numeric vector or a data frame into a matrix
+  mark <- as.matrix(mark)
+
   V <- cbind(1,mark)
   z <- tx
   nmark <- NCOL(V)
@@ -93,7 +99,7 @@ densRatio <- function(mark, tx){
   d2G <- function(theta){ array(t(t(VV)*g(theta)),dim=c(nmark,nmark,ninf)) }
   dGdG <- function(theta){ array(apply(dG(theta),2,tcrossprod),dim=c(nmark,nmark,ninf)) }
 
-  # profile score functions for the parameter of interest, theta, 
+  # profile score functions for the parameter of interest, theta,
   # and the Lagrange multiplier, lambda
   score1 <- function(theta, lambda){
     drop(-lambda * dG(theta) %*% (1/(1+lambda*(g(theta)-1))) + dG(theta) %*% (z/g(theta)))
@@ -164,47 +170,47 @@ densRatio <- function(mark, tx){
 #' method of maximum profile likelihood estimation in the vaccine-to-placebo mark density
 #' ratio model. The model also enables the use of a more efficient estimation method,
 #' proposed by Lu and Tsiatis (2008), for the overall log hazard ratio. The method employed
-#' by \code{sievePH} is a complete-cases analysis of the mark in failures. 
+#' by \code{sievePH} is a complete-cases analysis of the mark in failures.
 #'
-#' @param eventTime a numeric vector specifying the observed time, defined as the minimum of the 
+#' @param eventTime a numeric vector specifying the observed time, defined as the minimum of the
 #' event, censoring, and study time.
 #' @param eventType a binary vector indicating the event status (1 if failure, 0 if censored)
 #' @param mark a numeric vector of the values of the mark variable, observed only in cases
 #' @param tx a binary vector indicating the treatment group (1 if treatment, 0 if control)
 #'
 #' @details
-#' The conditional mark-specific hazard function can be factored into the product of the conditional 
-#' mark density ratio and the ordinary marginal hazard function ignoring mark data. For the mark density 
-#' ratio, following the assumption that the failure time and the mark variable are independent given the 
-#' treatment group, a semiparametric density ratio model (Qin 1998) may be used. For the marginal hazard 
+#' The conditional mark-specific hazard function can be factored into the product of the conditional
+#' mark density ratio and the ordinary marginal hazard function ignoring mark data. For the mark density
+#' ratio, following the assumption that the failure time and the mark variable are independent given the
+#' treatment group, a semiparametric density ratio model (Qin 1998) may be used. For the marginal hazard
 #' function, a Cox regression model is used.
-#' 
-#' Parameters in the mark density ratio are estimated with the maximum profile likelihood estimator, 
-#' where the estimator is defined as the solution to the system of profile score functions for 
-#' the parameter of interest and the Lagrange multiplier. The profile score functions are obtained by 
-#' using the Lagrange multiplier method to maximize the semi-parametric log likelihood. This estimator 
-#' is consistent and asymptotically normal. 
-#' 
-#' The parameter of interest in the marginal hazard function is estimated with the standard maximum 
-#' partial likelihood estimator (MPLE) or the more efficient Lu and Tsiatis (2008) estimator, which 
-#' leverages auxiliary data predictive of failure time (implemented in the R \code{speff2trial} package. 
-#' Both estimators are consistent and asymptotically normal. 
-#' 
-#' The joint asymptotic distribution of the parameter estimators in the density ratio and Cox models 
-#' is detailed in Juraska and Gilbert (2013) and is used to construct asymptotic pointwise Wald 
+#'
+#' Parameters in the mark density ratio are estimated with the maximum profile likelihood estimator,
+#' where the estimator is defined as the solution to the system of profile score functions for
+#' the parameter of interest and the Lagrange multiplier. The profile score functions are obtained by
+#' using the Lagrange multiplier method to maximize the semi-parametric log likelihood. This estimator
+#' is consistent and asymptotically normal.
+#'
+#' The parameter of interest in the marginal hazard function is estimated with the standard maximum
+#' partial likelihood estimator (MPLE) or the more efficient Lu and Tsiatis (2008) estimator, which
+#' leverages auxiliary data predictive of failure time (implemented in the R \code{speff2trial} package.
+#' Both estimators are consistent and asymptotically normal.
+#'
+#' The joint asymptotic distribution of the parameter estimators in the density ratio and Cox models
+#' is detailed in Juraska and Gilbert (2013) and is used to construct asymptotic pointwise Wald
 #' confidence intervals for the mark-specific vaccine efficacy.
 #'
-#' @return \code{sievePH} returns an object of class "sievePH" which can be processed by 
+#' @return \code{sievePH} returns an object of class "sievePH" which can be processed by
 #' \code{\link{summary.sievePH}} to obtain or print a summary of the results. An object of class
 #' "sievePH" is a list containing the following components:
-#' \item{alphaHat}{the estimate for the \eqn{alpha} parameter in the density ratio model} 
+#' \item{alphaHat}{the estimate for the \eqn{alpha} parameter in the density ratio model}
 #' \item{betaHat}{the estimate for the \eqn{beta} parameter in the density ratio model}
 #' \item{gammaHat}{the estimate for the \eqn{gamma} parameter in the density ratio model}
-#' \item{lambdaHat}{the estimate for \eqn{lambda}, the Lagrange multiplier utilized in 
+#' \item{lambdaHat}{the estimate for \eqn{lambda}, the Lagrange multiplier utilized in
 #' the estimation procedure}
 #' \item{cov}{the covariance matrix for \eqn{alpha}, \eqn{beta}, and \eqn{gamma}}
 #' \item{ve}{a numeric vector of estimates of vaccine efficacy}
-#' \item{mark}{a numeric vector of the values of the mark variable, observed only in cases}
+#' \item{mark}{a data frame specifying a multivariate mark (a numeric vector for a univariate mark is allowed), observed only in cases. No missing mark values are permitted.}
 #' \item{tx}{a binary vector indicating the treatment group (1 if treatment, 0 if control)}
 #' \item{nEvents0}{the number of events in the placebo group}
 #' \item{nEvents1}{the number of events in the vaccine group}
@@ -216,6 +222,8 @@ densRatio <- function(mark, tx){
 #'
 #' @export
 sievePH <- function(eventTime, eventType, mark, tx) {
+  if (is.numeric(mark)){ mark <- data.frame(mark) }
+
   X <- eventTime
   d <- eventType
   V <- mark
@@ -223,7 +231,7 @@ sievePH <- function(eventTime, eventType, mark, tx) {
   nEvents0 <- sum(d*(1-Z))                             # number of events in placebo group
   nEvents1 <- sum(d*Z)                                 # number of events in vaccine group
 
-  dRatio <- densRatio(V[d==1],Z[d==1])
+  dRatio <- densRatio(V[d==1,],Z[d==1])
 
   if (dRatio$conv){
 
@@ -245,12 +253,12 @@ sievePH <- function(eventTime, eventType, mark, tx) {
     Sigma <- cbind(rbind(vthetaHat,covThG), c(covThG,vgammaHat))
     colnames(Sigma) <- rownames(Sigma) <- c("alpha", sapply(1:ncol(V), function(x){ paste0("beta",x) }), "gamma")
 
-    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat, 
-                 ve = ve, cov = Sigma, coxModel = phReg)
+    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat,
+                   cov = Sigma, coxModel = phReg)
   } else {
     result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1)
   }
-  
+
   class(result) <- "sievePH"
   return(result)
 }
