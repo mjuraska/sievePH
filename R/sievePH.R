@@ -71,7 +71,7 @@ covEst <- function(eventTime, find, mark, tx, phiHat, lambdaHat, gammaHat){
   jack33 <- sum(eta*(eta-1))/n
 
   p <- mean(find)
-  # a vector with 2 components
+
   omega <- drop(score1.vect(phiHat,lambdaHat) %*% (score3.vect(gammaHat) + p*l.vect(gammaHat))/n -
                   sum(score3.vect(gammaHat) + p*l.vect(gammaHat))*apply(score1.vect(phiHat,lambdaHat),1,sum)/(n^2))
   return(drop(solve(jack(phiHat,lambdaHat))[1:nmark,1:nmark] %*% omega)/(n*jack33))
@@ -231,7 +231,7 @@ sievePH <- function(eventTime, eventType, mark, tx) {
   nEvents0 <- sum(d*(1-Z))                             # number of events in placebo group
   nEvents1 <- sum(d*Z)                                 # number of events in vaccine group
 
-  dRatio <- densRatio(V[d==1,],Z[d==1])
+  dRatio <- densRatio(V[d==1, ], Z[d==1])
 
   if (dRatio$conv){
 
@@ -253,7 +253,7 @@ sievePH <- function(eventTime, eventType, mark, tx) {
     Sigma <- cbind(rbind(vthetaHat,covThG), c(covThG,vgammaHat))
     colnames(Sigma) <- rownames(Sigma) <- c("alpha", sapply(1:ncol(V), function(x){ paste0("beta",x) }), "gamma")
 
-    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1, alphaHat=thetaHat[1], betaHat=thetaHat[2], lambdaHat = thetaHat[3], gammaHat = gammaHat,
+    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1, alphaHat=thetaHat[1], betaHat=thetaHat[-c(1, lastComp)], lambdaHat = thetaHat[lastComp], gammaHat = gammaHat,
                    cov = Sigma, coxModel = phReg)
   } else {
     result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1)
