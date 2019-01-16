@@ -1,7 +1,3 @@
-# 've' returns vaccine efficacy values given parameters for the grid of mark values, v,
-# and values for alpha, beta, and gamma
-VE <- function(v, alpha, beta, gamma){ 1 - exp(alpha + beta*v + gamma) }
-
 # 'covEst' returns the estimated covariance matrix of 'phiHat' and 'lambdaHat' using Theorem 1 in Juraska and Gilbert (2013, Biometrics)
 # 'eventTime' is the observed right-censored time on study
 # 'find' is the failure indicator (0 if censored, 1 if failure)
