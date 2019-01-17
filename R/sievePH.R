@@ -156,105 +156,90 @@ densRatio <- function(mark, tx){
   return(list(coef=param.new, var=Var, jack=jack11(theta.new,lambda.new), conv=!(class(jackInv)=="try-error" | class(JackInv)=="try-error")))
 }
 
-#' Semiparametric Efficient Estimation and Testing for a Mark-Specific Proportional Hazards
-#' Model with Multivariate Continuous Marks
+#' Semiparametric Estimation of Coefficients in a Mark-Specific Proportional Hazards
+#' Model with a Multivariate Continuous Mark, Fully Observed in All Failures
 #'
-#' \code{sievePH} implements an efficient method of estimation for the multivariate mark-
-#' specific hazard ratio in the competing risks failure time analysis framework in order
-#' to assess mark-specific vaccine efficacy. The model is described in detail in Juraska
-#' and Gilbert (2013) and improves efficiency of estimation by employing the semiparametric
-#' method of maximum profile likelihood estimation in the vaccine-to-placebo mark density
-#' ratio model. The model also enables the use of a more efficient estimation method,
-#' proposed by Lu and Tsiatis (2008), for the overall log hazard ratio. The method employed
-#' by \code{sievePH} is a complete-cases analysis of the mark in failures.
+#' \code{sievePH} implements the semiparametric estimation method of Juraska and Gilbert (2013) for the multivariate mark-
+#' specific hazard ratio in the competing risks failure time analysis framework. It employs (i) the semiparametric
+#' method of maximum profile likelihood estimation in the treatment-to-placebo mark density
+#' ratio model (Qin, 1998) and the ordinary method of maximum partial likelihood estimation of the overall log hazard ratio in the Cox model.
+#' \code{sievePH} requires that the multivariate mark data are fully observed in all failures.
 #'
-#' @param eventTime a numeric vector specifying the observed time, defined as the minimum of the
-#' event, censoring, and study time.
-#' @param eventType a binary vector indicating the event status (1 if failure, 0 if censored)
-#' @param mark a numeric vector of the values of the mark variable, observed only in cases
-#' @param tx a binary vector indicating the treatment group (1 if treatment, 0 if control)
+#' @param eventTime a numeric vector specifying the observed right-censored event time
+#' @param eventInd a numeric vector indicating the event of interest (1 if event, 0 if right-censored)
+#' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
+#' No missing values are permitted for subjects with \code{eventInd = 1}. For subjects with \code{eventInd = 0}, the value(s) in \code{mark} should be set to \code{NA}.
+#' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
 #'
 #' @details
-#' The conditional mark-specific hazard function can be factored into the product of the conditional
-#' mark density ratio and the ordinary marginal hazard function ignoring mark data. For the mark density
-#' ratio, following the assumption that the failure time and the mark variable are independent given the
-#' treatment group, a semiparametric density ratio model (Qin 1998) may be used. For the marginal hazard
-#' function, a Cox regression model is used.
+#' \code{sievePH} considers data from a randomized placebo-controlled treatment efficacy trial with a time-to-event endpoint.
+#' The parameter of interest, the mark-specific hazard ratio, is the ratio (treatment/placebo) of the conditional mark-specific hazard functions.
+#' It factors as the product of the mark density ratio (treatment/placebo) and the ordinary marginal hazard function ignoring mark data.
+#' The mark density ratio is estimated using the method of Qin (1998), while the marginal hazard ratio is estimated using \code{coxph()} in the \code{survival} package.
+#' Both estimators are consistent and asymptotically normal. The joint asymptotic distribution of the estimators is detailed in Juraska and Gilbert (2013).
 #'
-#' Parameters in the mark density ratio are estimated with the maximum profile likelihood estimator,
-#' where the estimator is defined as the solution to the system of profile score functions for
-#' the parameter of interest and the Lagrange multiplier. The profile score functions are obtained by
-#' using the Lagrange multiplier method to maximize the semi-parametric log likelihood. This estimator
-#' is consistent and asymptotically normal.
-#'
-#' The parameter of interest in the marginal hazard function is estimated with the standard maximum
-#' partial likelihood estimator (MPLE) or the more efficient Lu and Tsiatis (2008) estimator, which
-#' leverages auxiliary data predictive of failure time (implemented in the R \code{speff2trial} package.
-#' Both estimators are consistent and asymptotically normal.
-#'
-#' The joint asymptotic distribution of the parameter estimators in the density ratio and Cox models
-#' is detailed in Juraska and Gilbert (2013) and is used to construct asymptotic pointwise Wald
-#' confidence intervals for the mark-specific vaccine efficacy.
-#'
-#' @return \code{sievePH} returns an object of class "sievePH" which can be processed by
+#' @return An object of class \code{sievePH} which can be processed by
 #' \code{\link{summary.sievePH}} to obtain or print a summary of the results. An object of class
-#' "sievePH" is a list containing the following components:
-#' \item{alphaHat}{the estimate for the \eqn{alpha} parameter in the density ratio model}
-#' \item{betaHat}{the estimate for the \eqn{beta} parameter in the density ratio model}
-#' \item{gammaHat}{the estimate for the \eqn{gamma} parameter in the density ratio model}
-#' \item{lambdaHat}{the estimate for \eqn{lambda}, the Lagrange multiplier utilized in
-#' the estimation procedure}
-#' \item{cov}{the covariance matrix for \eqn{alpha}, \eqn{beta}, and \eqn{gamma}}
-#' \item{ve}{a numeric vector of estimates of vaccine efficacy}
-#' \item{mark}{a data frame specifying a multivariate mark (a numeric vector for a univariate mark is allowed), observed only in cases. No missing mark values are permitted.}
-#' \item{tx}{a binary vector indicating the treatment group (1 if treatment, 0 if control)}
-#' \item{nEvents0}{the number of events in the placebo group}
-#' \item{nEvents1}{the number of events in the vaccine group}
-#' \item{coxModel}{the fitted cox regression model for the marginal hazard ratio}
+#' \code{sievePH} is a list containing the following components:
+#' \itemize{
+#' \item \code{DRcoef}: a numeric vector of estimates of coefficients \eqn{\phi} in the weight function \eqn{g(v, \phi)} in the density ratio model
+#' \item \code{DRlambda}: an estimate of the Lagrange multiplier in the profile score functions for \eqn{\phi} (that arises by profiling out the nuisance parameter)
+#' \item \code{DRconverged}: a logical value indicating whether the estimation procedure in the density ratio model converged
+#' \item \code{logHR}: an estimate of the marginal log hazard ratio from \code{coxph()} in the \code{survival} package
+#' \item \code{cov}: the estimated joint covariance matrix of \code{DRcoef} and \code{logHR}
+#' \item \code{coxphFit}: an object returned by the call of \code{coxph()}
+#' \item \code{nPlaEvents}: the number of events observed in the placebo group
+#' \item \code{nPlaEvents}: the number of events observed in the treatment group
+#' \item \code{mark}: the input object
+#' \item \code{tx}: the input object
+#' }
+#'
+#' @references Juraska, M. and Gilbert, P. B. (2013), Mark-specific hazard ratio model with multivariate continuous marks: an application to vaccine efficacy. \emph{Biometrics} 69(2):328–337.
+#'
+#' Qin, J. (1998), Inferences for case-control and semiparametric two-sample density ratio models. \emph{Biometrika} 85, 619–630.
 #'
 #' @examples
 #'
 #' @import survival
 #'
 #' @export
-sievePH <- function(eventTime, eventType, mark, tx) {
+sievePH <- function(eventTime, eventInd, mark, tx) {
   if (is.numeric(mark)){ mark <- data.frame(mark) }
 
-  X <- eventTime
-  d <- eventType
-  V <- mark
-  Z <- tx
-  nEvents0 <- sum(d*(1-Z))                             # number of events in placebo group
-  nEvents1 <- sum(d*Z)                                 # number of events in vaccine group
+  nPlaEvents <- sum(eventInd * (1-tx))
+  nTxEvents <- sum(eventInd * tx)
 
-  dRatio <- densRatio(V[d==1, ], Z[d==1])
+  dRatio <- densRatio(mark[eventInd==1, ], tx[eventInd==1])
+
+  # fit the Cox proportional hazards model to estimate the marginal hazard ratio
+  phReg <- coxph(Surv(eventTime, eventInd) ~ tx)
+
+  # the estimate of the marginal log hazard ratio
+  gammaHat <- phReg$coef
+
+  # the output list
+  out <- list(DRcoef=NA, DRlambda=NA, DRconverged=dRatio$conv, logHR=gammaHat, cov=NA, coxphFit=phReg, nPlaEvents=nPlaEvents, nTxEvents=nTxEvents, mark=mark, tx=tx)
 
   if (dRatio$conv){
-
-    # fit the Cox proportional hazards model to estimate the marginal hazard ratio
-    phReg <- coxph(Surv(X,d)~Z)
-
-    # parameter estimates
+    # a vector of estimates of the density ratio coefficients (alpha, beta1, beta2,..., betak) and the Lagrange multiplier
     thetaHat <- dRatio$coef
-    gammaHat <- phReg$coef
 
     # variance and covariance estimates
-    # order of columns in 'dRatio$var': alpha, beta1, beta2,...betak, lambda, where k is number of marks
+    # order of columns in 'dRatio$var': alpha, beta1, beta2,...betak, lambda, where k is the dimension of the mark
     lastComp <- length(thetaHat)
-    vthetaHat <- dRatio$var[-lastComp,-lastComp]
+    vthetaHat <- dRatio$var[-lastComp, -lastComp]
     vgammaHat <- drop(phReg$var)
-    covThG <- covEst(X,d,V,Z,thetaHat[-lastComp],thetaHat[lastComp],gammaHat)
+    covThG <- covEst(eventTime, eventInd, mark, tx, thetaHat[-lastComp], thetaHat[lastComp], gammaHat)
 
-    # covariance matrix for alpha, beta1, gamma
-    Sigma <- cbind(rbind(vthetaHat,covThG), c(covThG,vgammaHat))
-    colnames(Sigma) <- rownames(Sigma) <- c("alpha", sapply(1:ncol(V), function(x){ paste0("beta",x) }), "gamma")
+    # covariance matrix for alpha, beta1, beta2,..., betak, gamma
+    Sigma <- cbind(rbind(vthetaHat, covThG), c(covThG, vgammaHat))
+    colnames(Sigma) <- rownames(Sigma) <- c("alpha", paste0("beta", 1:NCOL(mark)), "gamma")
 
-    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1, alphaHat=thetaHat[1], betaHat=thetaHat[-c(1, lastComp)], lambdaHat = thetaHat[lastComp], gammaHat = gammaHat,
-                   cov = Sigma, coxModel = phReg)
-  } else {
-    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1)
+    out$DRcoef <- thetaHat[-lastComp]
+    out$DRlambda <- thetaHat[lastComp]
+    out$cov <- Sigma
   }
 
-  class(result) <- "sievePH"
-  return(result)
+  class(out) <- "sievePH"
+  return(out)
 }
