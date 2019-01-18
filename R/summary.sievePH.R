@@ -13,16 +13,15 @@ seVE <- function(v, cov, alpha, beta, gamma){
 # 'mark' is a matrix specifying a multivariate mark (a numeric vector for a univariate mark is allowed), which is completely observed in all cases (i.e., failures). No missing mark values are permitted.
 # 'tx' is a binary vector indicating the treatment group (1 if treatment, 0 if control)
 profileLRtest <- function(mark, tx, thetaHat, lambdaHat){
-  V <- cbind(1,mark)
-  z <- tx
-  nMark <- NCOL(V)
+  mark <- as.matrix(mark)
+  nMark <- NCOL(mark) + 1
 
-  g <- function(theta){ exp(drop(V %*% theta)) }
-  loglik <- function(theta, lambda){ -sum(log(1 + lambda*(g(theta)-1))) + sum(z*log(g(theta))) }
+  g <- function(theta, mark){ exp(drop(cbind(1, mark) %*% theta)) }
+  loglik <- function(theta, lambda, mark){ -sum(log(1 + lambda * (g(theta, mark) - 1))) + sum(tx * log(g(theta, mark))) }
 
-  teststat <- 2*(loglik(thetaHat, lambdaHat) - loglik(rep(0,nMark), 0))
-  pval <- 1-pchisq(teststat,nMark-1)
-  list(teststat=teststat, pval=pval)
+  teststat <- 2 * (loglik(thetaHat, lambdaHat, mark) - loglik(rep(0, nMark), 0, mark))
+  pval <- 1 - pchisq(teststat, nMark - 1)
+  return(list(teststat=teststat, pval=pval))
 }
 
 #' Summarizing Results for Semiparametric Efficient Estimation and Testing for a Multivariate Mark-Specific Hazard Ratio Model
@@ -30,7 +29,8 @@ profileLRtest <- function(mark, tx, thetaHat, lambdaHat){
 #' summary method for an object of class "sievePH"
 #'
 #' @param object an object of class "sievePH", usually a result of a call to \code{\link{sievePH}}.
-#' @param mark a numeric matrix specifying the values of the multivariate mark variable, where rows correspond to subjects and columns correspond to components of the mark.
+#' @param markGrid a matrix specifying a grid of multivariate mark values, where rows correspond to different values on the (multivariate) grid and columns correspond to components of the mark. The point and interval
+#' estimates of the \code{contrast} are calculated on the grid.
 #' @param contrast a string specifying the estimate of interest. Default is \code{"ve"}; other options are \code{"hr"} and \code{"loghr"}.
 #' @param sieveAlternative a string specifying the type of alternative for the sieve test, with possible values being \code{"twoSided"} (default) or \code{"oneSided").
 #' @param confLevel the confidence level to be used for the reported confidence intervals. Default is \code{0.95}.
@@ -57,19 +57,32 @@ profileLRtest <- function(mark, tx, thetaHat, lambdaHat){
 #' \item \code{ve}{a numeric matrix containing the values of the multivariate mark variable and point and interval estimates for the component specified by the \code{contrast} input parameter, with the confidence level specified by the \code{confLevel} input parameter.}
 #'
 #' @examples
-#' ### from the example of 'sievePH':
-#' fit <- sievePH(...)
+#' n <- 500
+#' tx <- rep(0:1, each=n/2)
+#' tm <- c(rexp(n/2, 0.1), rexp(n/2, 0.1 * exp(-0.4)))
+#' cens <- runif(n, 0, 15)
+#' eventTime <- pmin(tm, cens, 3)
+#' eventInd <- as.numeric(tm <= pmin(cens, 3))
+#' mark1 <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
+#' mark2 <- ifelse(eventInd==1, c(rbeta(n/2, 1, 3), rbeta(n/2, 5, 1)), NA)
 #'
+#' # fit a model with a bivariate mark
+#' fit <- sievePH(eventTime, eventInd, data.frame(mark1, mark2), tx)
 #' summary(fit)
-
-summary.sievePH <- function(object, mark,
+#'
+#' @seealso \code{\link{sievePH}}
+#'
+#' @export
+summary.sievePH <- function(object, markGrid,
                             contrast = c("ve", "hr", "loghr"),
-                            sieveAlternative = c("twoSided","oneSided"), confLevel = 0.95, ...) {
+                            sieveAlternative = c("twoSided","oneSided"), confLevel = 0.95, ...){
+
+  if (missing(markGrid)){ stop("The grid of mark values in 'markGrid' is missing.") }
 
   sieveAlternative <- match.arg(sieveAlternative, choices = c("twoSided","oneSided"))
   contrast <- match.arg(contrast, choices = c("ve", "hr", "loghr"))
 
-  nMark <- ncol(mark)
+  nMark <- NCOL(object$mark)
   betaHat <- object$betaHat
   alphaHat <- object$alphaHat
   lambdaHat <- object$lambdaHat
@@ -78,31 +91,33 @@ summary.sievePH <- function(object, mark,
   vAlphaHat <- variances[1]
   vBetaHat <- variances[2:(nMark+1)]
   vGammaHat <- variances[length(variances)]
-  
+
   phRegSummary <- summary(object$coxModel)
-  
+
   # quantile to be used in confidence bounds
   quantile <- 1 - (1-confLevel)/2
-  
-  ### two-sided profile likelihood ratio test of constancy of HR (H0: beta=0)
-  pLR.beta.2sided <- profileLRtest(object$mark[d==1, ], object$tx[d==1], c(alphaHat, betaHat), lambdaHat)$pval
-  
-  ### two-sided likelihood ratio test of unity of HR(v) using the Simes (1986) procedure as described on page 4 in Juraska and Gilbert (2013, Biometrics)
-  ### H00: beta=0 and gamma=0 (i.e., H00: HR(v)=1) vs. H1: beta!=0 or gamma!=0
-  ### a named vector with two two-sided p-values, one from the profile LR test for beta and one from the partial LR test for gamma
-  ### the components of the vector are named 'pLR.beta.2sided' and 'pLR.gamma.2sided'
-  pLR.HRunity.2sided <- c(pLR.beta.2sided, pLR.gamma.2sided = phRegSummary$logtest[3])
 
-  ### two-sided Wald test of unity of HR(v)
-  ### H00: beta=0 and gamma=0 (equivalent to H00: HR(v)=1) vs. H1: beta!=0 or gamma!=0
-  waldH00 <- drop(t(c(betaHat, gammaHat)) %*% solve(object$cov[-1,-1]) %*% c(betaHat, gammaHat))
-  pWald.HRunity.2sided <- 2*pnorm(-abs(waldH00))
+  # 'sievePH' requires that the mark data be fully observed in all failures
+  isNA <- attr(na.omit(object$mark), "na.action")
+
+  ### two-sided profile likelihood ratio test of constancy of HR (H0: beta=0)
+  pLR.dRatio.2sided <- profileLRtest(object$mark[-isNA, ], object$tx[-isNA], c(alphaHat, betaHat), lambdaHat)$pval
+
+  ### two-sided likelihood ratio test of H0: HR(v)=1 (i.e., HR unity) against H1: HR(v)!=1 intended for the use of the Simes (1986) procedure as described on page 4 in Juraska and Gilbert (2013, Biometrics)
+  ### H0 is equivalent to H0*: beta=0 and gamma=0, and H1 is equivalent to H1*: beta!=0 or gamma!=0
+  ### a named vector with two two-sided p-values, one from the profile LR test for beta and one from the partial LR test for gamma
+  ### the components of the vector are named 'pLR.dRatio.2sided' and 'pLR.cox.2sided'
+  pLR.HRunity.2sided <- c(pLR.dRatio.2sided, pLR.cox.2sided = phRegSummary$logtest[3])
+
+  ### two-sided Wald test of H0: HR(v)=1 against H1: HR(v)!=1
+  ### H0 is equivalent to H0*: beta=0 and gamma=0, and H1 is equivalent to H1*: beta!=0 or gamma!=0
+  pWald.HRunity.2sided <- 1 - pchisq(drop(t(c(betaHat, gammaHat)) %*% solve(object$cov[-1, -1]) %*% c(betaHat, gammaHat)), nMark + 1)
 
   ### one-sided weighted Wald-type test of unity of HR(v)
   ### H00: HR(v)=1 vs H1: HR<1 are HR(v) increasing in each component of v
   weighted.waldH00 <- (betaHat/vBetaHat - gammaHat/vGammaHat) / sqrt(1/vBetaHat + 1/vGammaHat - 2*cov[3,2]/(vBetaHat*vGammaHat))
   pWtWald.HRunity.1sided <- 1 - pnorm(weighted.waldH00)
-  
+
   ### two-sided Wald test of H0: est=0, where est is alpha, beta, or gamma
   waldH0.2sided.pval <- function(est, vEst) {
     testStat <- est / sqrt(vEst)
@@ -129,44 +144,40 @@ summary.sievePH <- function(object, mark,
     ### 2-sided likelihood ratio test of H0: HR(v)=HR (beta=0)
     pLR.HRconstant <- pLR.beta.2sided
   }
-  
-  
+
+
   # create output matrix of coefficients
   coef <- matrix(nrow = nMark + 2, ncol = 5)
   colnames(coef) <- c("Estimate", "LB", "UB", "pLR", "pWald")
-  rownames(coef) <- c("DR Intercept", colnames(mark), "Marginal Log HR")
-  
+  rownames(coef) <- c("DR Intercept", colnames(object$mark), "Marginal Log HR")
+
   est <- c(alphaHat, betaHat, gammaHat)
   vEst <- c(vAlphaHat, vBetaHat, vGammaHat)
-  
+
   coef[, "Estimate"] <- est
   coef[, c("LB", "UB")] <- t(mapply(function(x, y) {x + qnorm(quantile)*sqrt(y) %o% c(-1,1)}, est, vEst))
   coef[, "pLR"] <- c(rep(pLR.beta.2sided, nMark + 1), phRegSummary$logtest[3])  #### change?
   coef[, "pWald"] <- c(waldH0.2sided.pval(est[-length(est)], vEst[-length(vEst)]), phRegSummary$waldtest[3])
-  
-  
-  # grid of mark values, ranging from min to max for each component (redundant if input mark matrix is already a grid)
-  vGrid <- apply(mark, 2, function(col) {seq(min(col), max(col), length.out = 100)})
-  
+
   # linear score estimates and variance estimates
   lScore <- log(1-ve)
   if (nMark > 1) {
     combs <- combn(nMark, 2)  # distinct combinations of indices for betaHat
-    covAlphaBeta <- sapply(1:nMark, function(i) {2*vGrid[,i]*object$cov[1, i+1]})  # covariance of alpha and elements of betaHat
-    covBeta <- sapply(1:ncol(combs), function(i) {2*vGrid[,combs[1,i]]*vGrid[,combs[2,i]]*object$cov[combs[1,i]+1, combs[2,i]+1]})  # covariance of elements of betaHat
-    varLscore <- vAlphaHat + t(t(vGrid^2)*vBetaHat) + vGammaHat + covAlphaBeta + covBeta
+    covAlphaBeta <- sapply(1:nMark, function(i) {2*markGrid[,i]*object$cov[1, i+1]})  # covariance of alpha and elements of betaHat
+    covBeta <- sapply(1:ncol(combs), function(i) {2*markGrid[,combs[1,i]]*markGrid[,combs[2,i]]*object$cov[combs[1,i]+1, combs[2,i]+1]})  # covariance of elements of betaHat
+    varLscore <- vAlphaHat + t(t(markGrid^2)*vBetaHat) + vGammaHat + covAlphaBeta + covBeta
   } else {  # univariate mark
-    varLscore <- vAlphaHat + (vGrid^2)*vBetaHat + 2*vGrid*object$cov[1,2] + vGammaHat
+    varLscore <- vAlphaHat + (markGrid^2)*vBetaHat + 2*markGrid*object$cov[1,2] + vGammaHat
   }
   # linear score lower and upper confidence limits with confidence level specified by 'confLevel'
   lLB <- lScore - (sqrt(varLscore)*qnorm(quantile))
   lUB <- lScore + (sqrt(varLscore)*qnorm(quantile))
-  
+
   # contrast estimates and confidence bounds
-  ve <- VE(vGrid, alphaHat, betaHat, gammaHat)
+  ve <- VE(markGrid, alphaHat, betaHat, gammaHat)
   if (contrast=="ve"){
     est <- ve
-    se <- seVE(vGrid, object$cov, alphaHat, betaHat, gammaHat)
+    se <- seVE(markGrid, object$cov, alphaHat, betaHat, gammaHat)
     lb <- c(est - qnorm(quantile)*se)
     ub <- c(est + qnorm(quantile)*se)
   } else if (contrast=="hr"){
@@ -178,13 +189,13 @@ summary.sievePH <- function(object, mark,
     lb <- lLB
     ub <- lUB
   }
-  
-  
+
+
   # create contrast matrix to be included in output
   contrastMatrix <- cbind(vGrid, est, lb, ub)
   contrastName <- ifelse(contrast=="ve", "VE", ifelse(contrast=="hr", "HR", "LogHR"))
-  colnames(contrastMatrix) <- c(colnames(mark), contrastName, "LB", "UB")
-  
+  colnames(contrastMatrix) <- c(colnames(object$mark), contrastName, "LB", "UB")
+
 
   out <- list(coef, pLR.HRunity.2sided, pWald.HRunity.2sided, pWtWald.HRunity.1sided,
                pWald.HRconstant, pLR.HRconstant, contrastMatrix)
