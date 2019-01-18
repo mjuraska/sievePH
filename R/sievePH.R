@@ -162,10 +162,10 @@ densRatio <- function(mark, tx){
 #' \code{sievePH} implements the semiparametric estimation method of Juraska and Gilbert (2013) for the multivariate mark-
 #' specific hazard ratio in the competing risks failure time analysis framework. It employs (i) the semiparametric
 #' method of maximum profile likelihood estimation in the treatment-to-placebo mark density
-#' ratio model (Qin, 1998) and the ordinary method of maximum partial likelihood estimation of the overall log hazard ratio in the Cox model.
+#' ratio model (Qin, 1998) and (ii) the ordinary method of maximum partial likelihood estimation of the overall log hazard ratio in the Cox model.
 #' \code{sievePH} requires that the multivariate mark data are fully observed in all failures.
 #'
-#' @param eventTime a numeric vector specifying the observed right-censored event time
+#' @param eventTime a numeric vector specifying the observed right-censored time to the event of interest
 #' @param eventInd a numeric vector indicating the event of interest (1 if event, 0 if right-censored)
 #' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
 #' No missing values are permitted for subjects with \code{eventInd = 1}. For subjects with \code{eventInd = 0}, the value(s) in \code{mark} should be set to \code{NA}.
@@ -199,6 +199,22 @@ densRatio <- function(mark, tx){
 #' Qin, J. (1998), Inferences for case-control and semiparametric two-sample density ratio models. \emph{Biometrika} 85, 619–630.
 #'
 #' @examples
+#' n <- 500
+#' tx <- rep(0:1, each=n/2)
+#' tm <- c(rexp(n/2, 0.1), rexp(n/2, 0.1 * exp(-0.4)))
+#' cens <- runif(n, 0, 15)
+#' eventTime <- pmin(tm, cens, 3)
+#' eventInd <- as.numeric(tm <= pmin(cens, 3))
+#' mark1 <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
+#' mark2 <- ifelse(eventInd==1, c(rbeta(n/2, 1, 3), rbeta(n/2, 5, 1)), NA)
+#'
+#' # fit a model with a univariate mark
+#' fit <- sievePH(eventTime, eventInd, mark1, tx)
+#'
+#' # fit a model with a bivariate mark
+#' fit <- sievePH(eventTime, eventInd, data.frame(mark1, mark2), tx)
+#'
+#' @seealso \code{\link{summary.sievePH}} and \code{\link{testIndepTimeMark}}
 #'
 #' @import survival
 #'
