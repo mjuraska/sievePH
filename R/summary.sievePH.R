@@ -48,13 +48,15 @@ profileLRtest <- function(mark, tx, thetaHat, lambdaHat){
 #'
 #' @return
 #' A list with the following components:
-#' \item \code{coef}{a numeric matrix.}
-#' \item \code{pLR.HRunity.2sided}{the p-value for the two-sided likelihood ratio test of unity.}
-#' \item \code{pWald.HRunity.2sided}{the p-value for the two-sided WAld test of unity.}
-#' \item \code{pWtWald.HRunity.1sided}{the p-value for the one-sided weighted Wald test of unity.}
-#' \item \code{pLR.HRconstant.2sided}{the p-value for the two-sided likelihood ratio test of constancy.}
-#' \item \code{pWald.HRconstant.2sided}{the p-value for the two-sided Wald test of constancy.}
-#' \item \code{ve}{a numeric matrix containing the values of the multivariate mark variable and point and interval estimates for the component specified by the \code{contrast} input parameter, with the confidence level specified by the \code{confLevel} input parameter.}
+#' \itemize{
+#' \item \code{coef}: a numeric matrix
+#' \item \code{pLR.HRunity.2sided}: the p-value for the two-sided likelihood ratio test of unity
+#' \item \code{pWald.HRunity.2sided}: the p-value for the two-sided WAld test of unity
+#' \item \code{pWtWald.HRunity.1sided}: the p-value for the one-sided weighted Wald test of unity
+#' \item \code{pLR.HRconstant.2sided}: the p-value for the two-sided likelihood ratio test of constancy
+#' \item \code{pWald.HRconstant.2sided}: the p-value for the two-sided Wald test of constancy
+#' \item \code{ve}: a numeric matrix containing the values of the multivariate mark variable and point and interval estimates for the component specified by the \code{contrast} input parameter, with the confidence level specified by the \code{confLevel} input parameter
+#' }
 #'
 #' @examples
 #' n <- 500
@@ -83,16 +85,16 @@ summary.sievePH <- function(object, markGrid,
   contrast <- match.arg(contrast, choices = c("ve", "hr", "loghr"))
 
   nMark <- NCOL(object$mark)
-  betaHat <- object$betaHat
-  alphaHat <- object$alphaHat
-  lambdaHat <- object$lambdaHat
-  gammaHat <- object$gammaHat
+  betaHat <- object$DRcoef[-1]
+  alphaHat <- object$DRcoef[1]
+  lambdaHat <- object$DRlambda
+  gammaHat <- object$logHR
   variances <- diag(object$cov)
   vAlphaHat <- variances[1]
   vBetaHat <- variances[2:(nMark+1)]
   vGammaHat <- variances[length(variances)]
 
-  phRegSummary <- summary(object$coxModel)
+  phRegSummary <- summary(object$coxphFit)
 
   # quantile to be used in confidence bounds
   quantile <- 1 - (1-confLevel)/2
@@ -192,7 +194,7 @@ summary.sievePH <- function(object, markGrid,
 
 
   # create contrast matrix to be included in output
-  contrastMatrix <- cbind(vGrid, est, lb, ub)
+  contrastMatrix <- cbind(markGrid, est, lb, ub)
   contrastName <- ifelse(contrast=="ve", "VE", ifelse(contrast=="hr", "HR", "LogHR"))
   colnames(contrastMatrix) <- c(colnames(object$mark), contrastName, "LB", "UB")
 
