@@ -8,7 +8,7 @@ VE <- function(v, alpha, beta, gamma){ 1 - exp(alpha + beta*v + gamma) }
 # 'eventType' is the failure indicator (0 if censored, 1 if failure)
 # 'mark' is a data frame (with the same number of rows as the length of 'eventTime') specifying a multivariate mark (a numeric vector for a univariate mark is allowed), with NA for subjects with find=0.
 # 'tx' is the treatment group indicator (1 if treatment, 0 if control)
-# 'aux'
+# 'aux' is a numeric vector (a single auxilliary covariate allowed)
 # 'auxMiss'
 # 'phiHat' is a vector of the alpha and beta estimates
 # 'lambdaHat' is the estimate for lambda in the mark density ratio model
@@ -322,11 +322,12 @@ densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
 }
 
 
-#' Semiparametric Efficient Estimation and Testing for a Mark-Specific Proportional Hazards
-#' Model with Missing Multivariate Marks using Augmentation of the Inverse Probability Weighting
-#' Estimating Functions through Leveraging Auxiliary Data Predictive of the Mark
+#' Semiparametric Estimation of Coefficients in a Mark-Specific Proportional Hazards Model
+#' with a Missing Multivariate Continuous Mark, with an Inferential Procedure based on 
+#' Augmentation of the Inverse Probability Weighted Estimating Functions by Leveraging 
+#' Auxiliary Data Predictive of the Mark
 #'
-#' \code{sievePH.AIPW} conducts estimation and testing of the multivariate mark-specific hazard ratio
+#' \code{sievePHaipw} conducts estimation and testing of the multivariate mark-specific hazard ratio
 #' model in the competing risks failure time analysis framework for the assessment of mark-specific
 #' vaccine efficacy. It accounts for missing multivariate marks by adding an augmented term to the
 #' inverse probability weighting (IPW) estimating functions and leveraging auxiliary data predictive
@@ -334,77 +335,118 @@ densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
 #' mark and auxiliary data are used to "impute' expected profile score vectors for subjects with
 #' complete and incomplete mark data.
 #' The user can specify whether a one-sided or two-sided hypothesis test is to be performed.
+#' 
+#' \code{sievePHipw} extends the semiparametric estimation method of Juraska and Gilbert (2013) for continuous mark-
+#' specific hazard ratios to accomodate missing at random marks that are univariate or multivariate. The inferential 
+#' procedure, initially proposed by Robins et al. (1994), accounts for missing marks by adding an augmented term to the
+#' inverse probability weighted (IPW) estimating functions and leveraging auxiliary data predictive of the mark. 
+#' Correlations between the mark and auxiliary data are used to "impute" expected profile score vectors for subjects with
+#' complete and incomplete mark data and are incorporated into the semiparametric method of maximum profile likelihood 
+#' estimation in the treatment-to-placebo mark density ratio model (Qin, 1998). The augmented IPW complete-case estimator 
+#' improves efficiency and robustness to mis-specification of the missingness model. \code{sievePHipw} also employs the 
+#' ordinary method of maximum partial likelihood estimation of the overall log hazard ratio in the Cox model.
 #'
-#' @param eventTime a numeric vector specifying the observed time, defined as the minimum of the
-#' event, censoring, and study time.
-#' @param eventType a binary vector indicating the event status (1 if failure, 0 if censored)
-#' @param mark a numeric vector of the values of the mark variable, observed only in cases
-#' @param tx a binary vector indicating the treatment group (1 if treatment, 0 if control)
-#' @param aux
-#' @param auxMiss
+#' @param eventTime a numeric vector specifying the observed right-censored event time
+#' @param eventInd a numeric vector indicating the event of interest (1 if event, 0 if right-censored)
+#' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
+#' For subjects with \code{eventInd = 0}, the value(s) in \code{mark} should be set to \code{NA}.
+#' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
+#' @param aux a numeric vector (a single auxilliary covariate allowed)
+#' @param auxMiss 
 #'
 #' @details
+#' \code{sievePHipw} considers data from a randomized placebo-controlled treatment efficacy trial with a time-to-event endpoint.
+#' The parameter of interest, the mark-specific hazard ratio, is the ratio (treatment/placebo) of the conditional mark-specific hazard functions.
+#' It factors as the product of the mark density ratio (treatment/placebo) and the ordinary marginal hazard function ignoring mark data.
+#' The mark density ratio is estimated using the method of Qin (1998) and the Robins et al. (1994) augmented inverse probability weighted (IPW)
+#' complete-case estimator, while the marginal hazard ratio is estimated using \code{coxph()} in the \code{survival} package.
+#' Both estimators are consistent and asymptotically normal. The asymptotic distribution of the augmented IPW complete-case estimator 
+#' is detailed in Juraska and Gilbert (2015).
 #'
-#' @return \code{sievePH.AIPW} returns an object of class "sievePH.AIPW" which can be processed by
-#' \code{\link{summary.sievePH.AIPW}} to obtain or print a summary of the results. An object of class
-#' "sievePH.AIPW" is a list containing the following components:
-#' \item{alphaHat}{the estimate for the \eqn{alpha} parameter in the density ratio model}
-#' \item{betaHat}{the estimate for the \eqn{beta} parameter in the density ratio model}
-#' \item{gammaHat}{the estimate for the \eqn{gamma} parameter in the density ratio model}
-#' \item{lambdaHat}{the estimate for \eqn{lambda}, the Lagrange multiplier utilized in
-#' the estimation procedure}
-#' \item{cov}{the covariance matrix for \eqn{alpha}, \eqn{beta}, and \eqn{gamma}}
-#' \item{ve}{a numeric vector of estimates of vaccine efficacy}
-#' \item{mark}{a data frame specifying a multivariate mark (a numeric vector for a univariate mark is allowed)}
-#' \item{tx}{a binary vector indicating the treatment group (1 if treatment, 0 if control)}
-#' \item{nEvents0}{the number of events in the placebo group}
-#' \item{nEvents1}{the number of events in the vaccine group}
-#' \item{coxModel}{the fitted cox regression model for the marginal hazard ratio}
+#' @return An object of class \code{sievePHaipw} which can be processed by
+#' \code{\link{summary.sievePHaipw}} to obtain or print a summary of the results. An object of class
+#' \code{sievePHaipw} is a list containing the following components:
+#' \itemize{
+#' \item \code{DRcoef}: a numeric vector of estimates of coefficients \eqn{\phi} in the weight function \eqn{g(v, \phi)} in the density ratio model
+#' \item \code{DRlambda}: an estimate of the Lagrange multiplier in the profile score functions for \eqn{\phi} (that arises by profiling out the nuisance parameter)
+#' \item \code{DRconverged}: a logical value indicating whether the estimation procedure in the density ratio model converged
+#' \item \code{logHR}: an estimate of the marginal log hazard ratio from \code{coxph()} in the \code{survival} package
+#' \item \code{cov}: the estimated joint covariance matrix of \code{DRcoef} and \code{logHR}
+#' \item \code{coxphFit}: an object returned by the call of \code{coxph()}
+#' \item \code{nPlaEvents}: the number of events observed in the placebo group
+#' \item \code{nPlaEvents}: the number of events observed in the treatment group
+#' \item \code{mark}: the input object
+#' \item \code{tx}: the input object
+#' }
+#' 
+#' @references Juraska, M. and Gilbert, P. B. (2013), Mark-specific hazard ratio model with multivariate continuous marks: an application to vaccine efficacy. \emph{Biometrics} 69(2):328-337.
+#'
+#' Juraska, M., and Gilbert, P. B. (2015). Mark-specific hazard ratio model with missing multivariate marks. \emph{Lifetime data analysis} 22(4): 606-25.
+#'
+#' Qin, J. (1998), Inferences for case-control and semiparametric two-sample density ratio models. \emph{Biometrika} 85, 619-630.
+#'
+#' Robins, J. M., Rotnitzky, A., and Zhao, L. P. (1994). Estimation of regression coefficients when some regressors are not always observed. \emph{Journal of the American statistical Association} 89(427): 846-866.
 #'
 #' @examples
+#' n <- 500
+#' tx <- rep(0:1, each=n/2)
+#' tm <- c(rexp(n/2, 0.1), rexp(n/2, 0.1 * exp(-0.4)))
+#' cens <- runif(n, 0, 15)
+#' eventTime <- pmin(tm, cens, 3)
+#' eventInd <- as.numeric(tm <= pmin(cens, 3))
+#' mark1 <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
+#' mark2 <- ifelse(eventInd==1, c(rbeta(n/2, 1, 3), rbeta(n/2, 5, 1)), NA)
+#'
+#' # fit a model with a univariate mark
+#' fit <- sievePHaipw(eventTime, eventInd, mark1, tx)
+#'
+#' # fit a model with a bivariate mark
+#' fit <- sievePHaipw(eventTime, eventInd, data.frame(mark1, mark2), tx)
+#'
+#' @seealso \code{\link{summary.sievePHaipw}} and \code{\link{testIndepTimeMark}}
 #'
 #' @import survival
 #'
 #' @export
-sievePHaipw <- function(eventTime, eventType, mark, tx, aux, auxMiss) {
+sievePHaipw <- function(eventTime, eventInd, mark, tx, aux, auxMiss) {
   if (is.numeric(mark)){ mark <- data.frame(mark) }
 
-  X <- eventTime
-  d <- eventType
-  V <- mark
-  Z <- tx
-  nEvents0 <- sum(d*(1-Z))                             # number of failures in placebo group
-  nEvents1 <- sum(d*Z)                                 # number of failures in vaccine group
+  nPlaEvents <- sum(eventInd * (1-tx))
+  nTxEvents <- sum(eventInd * tx)
 
-  dRatio <- densRatioAIPW(V[d==1, ], Z[d==1])
+  dRatio <- densRatioAIPW(mark[eventInd==1, ], tx[eventInd==1])
 
+  # fit the Cox proportional hazards model to estimate the marginal hazard ratio
+  phReg <- coxph(Surv(eventTime, eventInd) ~ tx)
+  
+  # the estimate of the marginal log hazard ratio
+  gammaHat <- phReg$coef
+  
+  # the output list
+  out <- list(DRcoef=NA, DRlambda=NA, DRconverged=dRatio$conv, logHR=gammaHat, cov=NA, coxphFit=phReg, nPlaEvents=nPlaEvents, nTxEvents=nTxEvents, mark=mark, tx=tx)
+  
   if (dRatio$conv){
 
-    # Cox proportional hazards model for marginal hazard ratio
-    phReg <- coxph(Surv(X,d)~Z)
-
-    # parameter estimates
+    # a vector of estimates of the density ratio coefficients (alpha, beta1, beta2,..., betak) and the Lagrange multiplier
     thetaHat <- dRatio$coef
-    gammaHat <- phReg$coef
 
     # variance and covariance estimates
-    # order of columns: alpha, beta1, beta2,...betak, lambda, where k is number of marks
+    # order of columns in 'dRatio$var': alpha, beta1, beta2,...betak, lambda, where k is the dimension of the mark
     lastComp <- length(thetaHat)
-    vthetaHat <- dRatio$var[-lastComp,-lastComp]
+    vthetaHat <- dRatio$var[-lastComp, -lastComp]
     vgammaHat <- drop(phReg$var)
-    covThG <- covEstAIPW(X,d,V,Z,thetaHat[-lastComp],thetaHat[lastComp],gammaHat)
+    covThG <- covEstAIPW(eventTime, eventInd, mark, tx, aux, auxMiss, thetaHat[-lastComp], thetaHat[lastComp], gammaHat)
 
-    # covariance matrix for alpha, beta1, gamma
-    Sigma <- cbind(rbind(vthetaHat,covThG), c(covThG,vgammaHat))
-    colnames(Sigma) <- rownames(Sigma) <- c("alpha", "beta1", "gamma")
+    # covariance matrix for alpha, beta1, beta2,..., betak, gamma
+    Sigma <- cbind(rbind(vthetaHat, covThG), c(covThG, vgammaHat))
+    colnames(Sigma) <- rownames(Sigma) <- c("alpha", paste0("beta", 1:NCOL(mark)), "gamma")
 
-    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1, alphaHat=thetaHat[1], betaHat=thetaHat[-c(1, lastComp)], lambdaHat = thetaHat[lastComp], gammaHat = gammaHat,
-                   cov = Sigma, coxModel = phReg)
-  } else {
-    result <- list(mark = V, tx = Z, nEvents0 = nEvents0, nEvents1 = nEvents1)
+    out$DRcoef <- thetaHat[-lastComp]
+    out$DRlambda <- thetaHat[lastComp]
+    out$cov <- Sigma
   }
 
-  class(result) <- "sievePHaipw"
-  return(result)
+  class(out) <- "sievePHaipw"
+  return(out)
 
 }
