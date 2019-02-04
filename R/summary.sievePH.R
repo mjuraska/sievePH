@@ -127,22 +127,24 @@ summary.sievePH <- function(object, markGrid,
 
   if (sieveAlternative == "oneSided") {
 
-    ### 1-sided Wald test of H0: HR(v)=HR (beta=0) vs alternative that beta > 0
-    waldH0 <- betaHat/sqrt(vBetaHat)  ### still univariate
-    pWald.HRconstant <- 1 - pnorm(waldH0)
+    ### one-sided Wald test of H0: HR(v)=HR (beta=0) vs alternative that beta > 0
+    ### A named vector with the following components: the two-sided Wald test p-value, and point estimates of the components of the vector beta
+    ### The labels are 'pWald.beta.2sided' and 'estBeta1', 'estBeta2', etc. (if the dimension of beta is 1, then only 'estBeta')
+    pWald.HRconstant <- 1 - pchisq(drop(t(betaHat) %*% solve(object$cov[-c(1, length(variances)), -c(1, length(variances))]) %*% betaHat), nMark)
+    names(pWald.HRconstant) <- c("pWald.beta.2sided", ifelse(nMark==1, "estBeta", sapply(1:nMark, function(x) paste0("estBeta", x))))
 
-    ### 1-sided likelihood ratio test of H0: HR(v)=HR (beta=0) vs alternative that beta > 0
+    ### one-sided likelihood ratio test of H0: HR(v)=HR (beta=0) vs alternative that beta > 0
     ### A named vector with the following components: the two-sided profile LR test p-value, and point estimates of the components of the vector beta
-    ### the labels are 'pLR.beta.2sided' and 'estBeta1', 'estBeta2', etc. (if the dimension of beta is 1, then only 'estBeta')
+    ### The labels are 'pLR.beta.2sided' and 'estBeta1', 'estBeta2', etc. (if the dimension of beta is 1, then only 'estBeta')
     pLR.HRconstant <- c(pLR.beta.2sided, betaHat)
     names(pLR.HRconstant) <- c("pLR.beta.2sided", ifelse(nMark==1, "estBeta", sapply(1:nMark, function(x) paste0("estBeta", x))))
 
   } else {
 
-    ### 2-sided Wald test of H0: HR(v)=HR (beta=0)
+    ### two-sided Wald test of H0: HR(v)=HR (beta=0)
     pWald.HRconstant <- 1 - pchisq(drop(t(betaHat) %*% solve(object$cov[-c(1, length(variances)), -c(1, length(variances))]) %*% betaHat), nMark)
     
-    ### 2-sided likelihood ratio test of H0: HR(v)=HR (beta=0)
+    ### two-sided likelihood ratio test of H0: HR(v)=HR (beta=0)
     pLR.HRconstant <- pLR.beta.2sided
   }
 
