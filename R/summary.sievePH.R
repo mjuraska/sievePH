@@ -14,13 +14,13 @@ seVE <- function(v, cov, alpha, beta, gamma){
 # 'tx' is a binary vector indicating the treatment group (1 if treatment, 0 if control)
 profileLRtest <- function(mark, tx, thetaHat, lambdaHat){
   mark <- as.matrix(mark)
-  nMark <- NCOL(mark) + 1
+  nMark <- NCOL(mark)
 
   g <- function(theta, mark){ exp(drop(cbind(1, mark) %*% theta)) }
   loglik <- function(theta, lambda, mark){ -sum(log(1 + lambda * (g(theta, mark) - 1))) + sum(tx * log(g(theta, mark))) }
-
-  teststat <- 2 * (loglik(thetaHat, lambdaHat, mark) - loglik(rep(0, nMark), 0, mark))
-  pval <- 1 - pchisq(teststat, nMark - 1)
+  
+  teststat <- 2 * (loglik(thetaHat, lambdaHat, mark) - loglik(rep(0, nMark + 1), 0, mark))
+  pval <- 1 - pchisq(teststat, nMark)
   return(list(teststat=teststat, pval=pval))
 }
 
@@ -115,12 +115,11 @@ summary.sievePH <- function(object, markGrid,
   ### H0 is equivalent to H0*: beta=0 and gamma=0, and H1 is equivalent to H1*: beta!=0 or gamma!=0
   pWald.HRunity.2sided <- 1 - pchisq(drop(t(c(betaHat, gammaHat)) %*% solve(object$cov[-1, -1]) %*% c(betaHat, gammaHat)), nMark + 1)
 
-  ### one-sided weighted Wald-type test of unity of HR(v)
-  ### H00: HR(v)=1 vs H1: HR<1 are HR(v) increasing in each component of v
-  weighted.waldH00 <- (betaHat/vBetaHat - gammaHat/vGammaHat) / sqrt(1/vBetaHat + 1/vGammaHat - 2*cov[3,2]/(vBetaHat*vGammaHat))
+  ### one-sided weighted Wald-type test of H0: HR(v)=1 against H1: HR(v)<1 and HR(v) increasing in each component of v
+  weighted.waldH00 <- (betaHat/vBetaHat - gammaHat/vGammaHat) / sqrt(1/vBetaHat + 1/vGammaHat - 2*object$cov[3,2]/(vBetaHat*vGammaHat))
   pWtWald.HRunity.1sided <- 1 - pnorm(weighted.waldH00)
 
-  ### two-sided Wald test of H0: est=0, where est is alpha, beta, or gamma
+  ### univariate two-sided Wald test of H0: 'est'=0, where 'est' is alpha, gamma, or a component of beta
   waldH0.2sided.pval <- function(est, vEst) {
     testStat <- est / sqrt(vEst)
     return(2*pnorm(-abs(testStat)))
@@ -129,7 +128,7 @@ summary.sievePH <- function(object, markGrid,
   if (sieveAlternative == "oneSided") {
 
     ### 1-sided Wald test of H0: HR(v)=HR (beta=0) vs alternative that beta > 0
-    waldH0 <- betaHat/sqrt(vBetaHat)
+    waldH0 <- betaHat/sqrt(vBetaHat)  ### still univariate
     pWald.HRconstant <- 1 - pnorm(waldH0)
 
     ### 1-sided likelihood ratio test of H0: HR(v)=HR (beta=0) vs alternative that beta > 0
@@ -141,8 +140,8 @@ summary.sievePH <- function(object, markGrid,
   } else {
 
     ### 2-sided Wald test of H0: HR(v)=HR (beta=0)
-    pWald.HRconstant <- waldH0.2sided.pval(betaHat, vBetaHat)
-
+    pWald.HRconstant <- 1 - pchisq(drop(t(betaHat) %*% solve(object$cov[-c(1, length(variances)), -c(1, length(variances))]) %*% betaHat), nMark)
+    
     ### 2-sided likelihood ratio test of H0: HR(v)=HR (beta=0)
     pLR.HRconstant <- pLR.beta.2sided
   }
