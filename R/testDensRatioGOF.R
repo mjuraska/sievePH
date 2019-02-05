@@ -1,7 +1,7 @@
 ### goodness-of-fit test of the validity of a density ratio model (Qin and Zhang, 1997)
 ### can handle univariate and bivariate marks
 ### B = number of bootstrap iterations
-densRatioGOFtest <- function(mark, trt.id, theta=NULL, lambda=NULL, B=1000){
+testDensRatioGOF <- function(mark, trt.id, theta=NULL, lambda=NULL, B=1000){
   ninf <- length(trt.id)   ## number of infections
   n0 <- sum(1-trt.id)      ## number of placebo infections
   n1 <- sum(trt.id)        ## number of vaccine infections
@@ -10,7 +10,7 @@ densRatioGOFtest <- function(mark, trt.id, theta=NULL, lambda=NULL, B=1000){
     theta <- param[-length(param)]
     lambda <- param[length(param)]
   }
-  
+
   g <- function(mark, theta){ exp(drop(cbind(1,mark) %*% theta)) }
   p <- function(mark, theta, lambda, m){ 1/(m*(1+lambda*(g(mark,theta)-1))) }
   F0np <- function(mark, trt.id){
@@ -29,10 +29,10 @@ densRatioGOFtest <- function(mark, trt.id, theta=NULL, lambda=NULL, B=1000){
     }
     return( F0sp.vector )
   }
-  
+
   f0 <- p(mark,theta,lambda,ninf)
   delta <- sqrt(ninf)*max(abs(F0np(mark,trt.id) - F0sp(mark,f0)))
-  
+
   N0.ast <- rmultinom(B,n0,f0)
   N1.ast <- rmultinom(B,n1,f0*g(mark,theta))
   v0.ast <- lapply(1:B, function(iter){
@@ -52,7 +52,7 @@ densRatioGOFtest <- function(mark, trt.id, theta=NULL, lambda=NULL, B=1000){
     return( out )
   })
   z.ast <- rep(0:1,c(n0,n1))
-  
+
   teststat <- sapply(1:B, function(iter){
     v.ast.iter <- rbind(as.matrix(v0.ast[[iter]]),as.matrix(v1.ast[[iter]]))
     param <- densRatio(v.ast.iter, z.ast)$coef
@@ -61,5 +61,5 @@ densRatioGOFtest <- function(mark, trt.id, theta=NULL, lambda=NULL, B=1000){
     sqrt(ninf)*max(abs(F0np(v.ast.iter,z.ast) - F0sp(v.ast.iter,p(v.ast.iter,theta.ast,lambda.ast,ninf))))
   })
   pval <- mean(teststat>=delta)
-  list(teststat=delta, pval=pval, theta=theta, lambda=lambda)
+  return(list(teststat=delta, pval=pval, theta=theta, lambda=lambda))
 }
