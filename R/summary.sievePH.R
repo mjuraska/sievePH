@@ -135,9 +135,10 @@ summary.sievePH <- function(object, markGrid,
 
     ### 1-sided Wald test of H0: HR(v)=HR (i.e., beta=0) vs H1: HR(v) increasing in v (i.e., beta>0)
     waldH0 <- betaHat / sqrt(vBetaHat)
-    ### The labels are 'pWald.beta.2sided' and 'estBeta1', 'estBeta2', etc. (if the dimension of beta is 1, then only 'estBeta')
-    pWald.HRconstant <- 1 - pchisq(drop(t(betaHat) %*% solve(object$cov[-c(1, length(variances)), -c(1, length(variances))]) %*% betaHat), nMark)
-    names(pWald.HRconstant) <- c("pWald.beta.2sided", ifelse(nMark==1, "estBeta", sapply(1:nMark, function(x) paste0("estBeta", x))))
+    pWald.HRconstant <- 1 - pnorm(waldH0)
+    # ### The labels are 'pWald.beta.2sided' and 'estBeta1', 'estBeta2', etc. (if the dimension of beta is 1, then only 'estBeta')
+    # pWald.HRconstant <- 1 - pchisq(drop(t(betaHat) %*% solve(object$cov[-c(1, length(variances)), -c(1, length(variances))]) %*% betaHat), nMark)
+    # names(pWald.HRconstant) <- c("pWald.beta.2sided", ifelse(nMark==1, "estBeta", sapply(1:nMark, function(x) paste0("estBeta", x))))
 
     ### 1-sided likelihood ratio test of H0: HR(v)=HR (i.e., beta=0) vs H1: HR(v) increasing in v (i.e., beta>0)
     ### A named vector with the following components: the two-sided profile LR test p-value, and the point estimate of beta
