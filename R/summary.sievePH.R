@@ -40,7 +40,7 @@ waldH0.2sided.pval <- function(est, vEst){
 #' @return
 #' An object of class \code{summary.sievePH}, which is a list with the following components:
 #' \itemize{
-#' \item \code{coef}: a matrix summarizing point and interval estimates of the density ratio model coefficients and the marginal log hazard ratio (the confidence level is specified by \code{confLevel}), and p-values from the
+#' \item \code{coef}: a data frame summarizing point and interval estimates of the density ratio model coefficients and the marginal log hazard ratio (the confidence level is specified by \code{confLevel}), and p-values from the
 #' two-sided Wald test of the null hypothesis that the parameter equals zero
 #' \item \code{pLR.HRunity.2sided}: a numeric vector with two named components: \code{pLR.dRatio.2sided} is a p-value from the two-sided profile likelihood-ratio test of the null hypothesis \eqn{H_0: \beta=0}, where \eqn{\beta} is the
 #' vector of mark coefficients in the mark density ratio model, and \code{pLR.cox.2sided} is a p-value from the two-sided partial likelihood-ratio test of the null hypothesis \eqn{H_0: gamma=0}, where \eqn{\gamma} is the
@@ -54,7 +54,12 @@ waldH0.2sided.pval <- function(est, vEst){
 #' \item \code{pWald.HRconstant.2sided}: a p-value from the two-sided Wald test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\}. This component is available if \code{sieveAlternative="twoSided"}.
 #' \item \code{pWald.HRconstant.1sided}: a p-value from the one-sided Wald test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\} against the alternative hypothesis \{\eqn{H_1: HR(v)} is increasing in \eqn{v}\}.
 #' This component is available if the mark is univariate and \code{sieveAlternative="oneSided"}.
-#' \item \code{te}: a matrix summarizing point and interval estimates of the parameter of interest specified in \code{contrast} on the grid of mark values in \code{markGrid}. The confidence level is specified by \code{confLevel}.
+#' \item \code{te}: a data frame summarizing point and interval estimates of the mark-specific treatment efficacy on the grid of mark values in \code{markGrid} (available if \code{contrast="te"}). The confidence level is specified
+#' by \code{confLevel}.
+#' \item \code{hr}: a data frame summarizing point and interval estimates of the mark-specific hazard ratio on the grid of mark values in \code{markGrid} (available if \code{contrast="hr"}). The confidence level is specified by
+#' \code{confLevel}.
+#' \item \code{te}: a data frame summarizing point and interval estimates of the mark-specific log hazard ratio on the grid of mark values in \code{markGrid} (available if \code{contrast="loghr"}). The confidence level is specified by
+#' \code{confLevel}.
 #' }
 #'
 #' @references Juraska, M. and Gilbert, P. B. (2013), Mark-specific hazard ratio model with multivariate continuous marks: an application to vaccine efficacy. \emph{Biometrics} 69(2):328–337.
@@ -71,18 +76,23 @@ waldH0.2sided.pval <- function(est, vEst){
 #'
 #' # fit a model with a bivariate mark
 #' fit <- sievePH(eventTime, eventInd, data.frame(mark1, mark2), tx)
-#' summary(fit)
+#' sfit <- summary(fit, markGrid=matrix(c(0.3, 0.3, 0.6, 0.3, 0.3, 0.6, 0.6, 0.6),
+#'                                      ncol=2, byrow=TRUE))
+#' # print the formatted summary
+#' sfit
+#' # treatment efficacy estimates on the grid
+#' sfit$te
 #'
 #' @seealso \code{\link{sievePH}}
 #'
 #' @export
 summary.sievePH <- function(object, markGrid,
-                            contrast = c("ve", "hr", "loghr"),
+                            contrast = c("te", "hr", "loghr"),
                             sieveAlternative = c("twoSided","oneSided"), confLevel = 0.95, ...){
 
   if (missing(markGrid)){ stop("The grid of mark values in 'markGrid' is missing.") }
 
-  contrast <- match.arg(contrast, choices = c("ve", "hr", "loghr"))
+  contrast <- match.arg(contrast, choices = c("te", "hr", "loghr"))
   sieveAlternative <- match.arg(sieveAlternative, choices = c("twoSided","oneSided"))
 
   nMark <- NCOL(object$mark)
@@ -111,6 +121,7 @@ summary.sievePH <- function(object, markGrid,
   ### a named vector with two two-sided p-values, one from the profile LR test for beta and one from the partial LR test for gamma
   ### the components of the vector are named 'pLR.dRatio.2sided' and 'pLR.cox.2sided'
   pLR.HRunity.2sided <- c(pLR.dRatio.2sided, pLR.cox.2sided = phRegSummary$logtest[3])
+  names(pLR.HRunity.2sided) <- c("pLR.dRatio.2sided", "pLR.cox.2sided")
 
   ### two-sided Wald test of H0: HR(v)=1 against H1: HR(v)!=1
   ### H0 is equivalent to H0*: beta=0 and gamma=0, and H1 is equivalent to H1*: beta!=0 or gamma!=0
@@ -125,7 +136,7 @@ summary.sievePH <- function(object, markGrid,
     covBeta <- object$cov[2:(nMark + 1), 2:(nMark + 1)]
     covBeta[lower.tri(covBeta, diag=TRUE)] <- 0
     weighted.waldH00 <- (sum(betaHat / vBetaHat) - gammaHat / vGammaHat) / sqrt(sum(1 / vBetaHat) + 1 / vGammaHat + 2 * drop(t(1 / vBetaHat) %*% covBeta %*% (1 / vBetaHat)) -
-                                                                                  2 * (1 / vGammaHat) * drop(t(1 / vBetaHat) %*% object$cov[2:(nmark + 1), nmark + 2]))
+                                                                                  2 * (1 / vGammaHat) * drop(t(1 / vBetaHat) %*% object$cov[2:(nMark + 1), nMark + 2]))
   }
   pWtWald.HRunity.1sided <- 1 - pnorm(weighted.waldH00)
 
@@ -156,7 +167,7 @@ summary.sievePH <- function(object, markGrid,
   }
 
   # initialize component 'coef' of the output list
-  coef <- matrix(nrow=nMark + 2, ncol=4)
+  coef <- as.data.frame(matrix(nrow=nMark + 2, ncol=4))
   colnames(coef) <- c("Estimate", "LB", "UB", "pWald")
   rownames(coef) <- c("DR Intercept", colnames(object$mark), "Marginal Log HR")
 
@@ -193,14 +204,14 @@ summary.sievePH <- function(object, markGrid,
   }
 
   # assemble the contrast matrix of the output list
-  contrastMatrix <- cbind(markGrid, est, lb, ub)
-  colnames(contrastMatrix) <- c(colnames(object$mark), switch(contrast, te="TE", hr="HR", loghr="Log HR"), "LB", "UB")
+  contrastDF <- data.frame(markGrid, est, lb, ub)
+  colnames(contrastDF) <- c(colnames(object$mark), switch(contrast, te="TE", hr="HR", loghr="LogHR"), "LB", "UB")
 
-  out <- list(coef, pLR.HRunity.2sided, pWald.HRunity.2sided, pWtWald.HRunity.1sided, pLR.HRconstant, pWald.HRconstant, contrastMatrix)
+  out <- list(coef, pLR.HRunity.2sided, pWald.HRunity.2sided, pWtWald.HRunity.1sided, pLR.HRconstant, pWald.HRconstant, contrastDF)
   names(out) <- c("coef", "pLR.HRunity.2sided", "pWald.HRunity.2sided", "pWtWald.HRunity.1sided",
-                  paste0("pLR.HRconstant.", ifelse(sieveAlternative=="twoSided", "2", "1"), "sided"),
-                  paste0("pWald.HRconstant.", ifelse(sieveAlternative=="twoSided", "2", "1"), "sided"),
-                  "contrast")
+                  paste0("pLR.HRconstant.", ifelse(sieveAlternative=="oneSided" & nMark==1, "1", "2"), "sided"),
+                  paste0("pWald.HRconstant.", ifelse(sieveAlternative=="oneSided" & nMark==1, "1", "2"), "sided"),
+                  contrast)
 
   class(out) <- "summary.sievePH"
   return(out)
