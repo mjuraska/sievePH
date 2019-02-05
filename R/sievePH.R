@@ -219,7 +219,7 @@ densRatio <- function(mark, tx){
 #' @import survival
 #'
 #' @export
-sievePH <- function(eventTime, eventInd, mark, tx) {
+sievePH <- function(eventTime, eventInd, mark, tx){
   if (is.numeric(mark)){ mark <- data.frame(mark) }
 
   nPlaEvents <- sum(eventInd * (1-tx))
