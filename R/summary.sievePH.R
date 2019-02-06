@@ -67,7 +67,7 @@ waldH0.2sided.pval <- function(est, vEst){
 #' @examples
 #' n <- 500
 #' tx <- rep(0:1, each=n/2)
-#' tm <- c(rexp(n/2, 0.1), rexp(n/2, 0.1 * exp(-0.4)))
+#' tm <- c(rexp(n/2, 0.2), rexp(n/2, 0.2 * exp(-0.4)))
 #' cens <- runif(n, 0, 15)
 #' eventTime <- pmin(tm, cens, 3)
 #' eventInd <- as.numeric(tm <= pmin(cens, 3))

@@ -8,11 +8,12 @@ VE <- function(v, alpha, beta, gamma){ 1 - exp(alpha + beta*v + gamma) }
 # 'eventType' is the failure indicator (0 if censored, 1 if failure)
 # 'mark' is a data frame (with the same number of rows as the length of 'eventTime') specifying a multivariate mark (a numeric vector for a univariate mark is allowed), with NA for subjects with find=0.
 # 'tx' is the treatment group indicator (1 if treatment, 0 if control)
-# 'auxMiss'
+# 'aux' is a data frame of auxiliary covariates
+# 'formulaMiss' is a formula of the form 'r ~ ...' specifying the logistic regression model for estimating the probability of observing the mark; all variables in '...', if any, except 'r' and 'tx', must be included in 'aux'
 # 'phiHat' is a vector of the alpha and beta estimates
 # 'lambdaHat' is the estimate for lambda in the mark density ratio model
 # 'gammaHat' is the estimate for gamma obtained in the marginal hazards model
-covEstIPW <- function(eventTime, eventType, mark, tx, auxMiss, phiHat, lambdaHat, gammaHat){
+covEstIPW <- function(eventTime, eventType, mark, tx, aux=NULL, formulaMiss, phiHat, lambdaHat, gammaHat){
   # convert either a numeric vector or a data frame into a matrix
   mark <- as.matrix(mark)
 
@@ -28,7 +29,10 @@ covEstIPW <- function(eventTime, eventType, mark, tx, auxMiss, phiHat, lambdaHat
   na.idx <- attr(V.complete,"na.action")
   tx.complete <- tx[eventType==1 & isNA==0]
   tx.f <- tx[eventType==1]
-  auxMiss.f <- auxMiss[eventType==1]
+  if (!is.null(aux)){
+    aux.f <- data.frame(aux[eventType==1, ])
+    colnames(aux.f) <- colnames(aux)
+  }
   eventTime.completeM <- matrix(eventTime.complete, nrow=n, ncol=m.complete, byrow=TRUE)
   VV.complete <- apply(V.complete,1,tcrossprod)
   nmark <- NCOL(V.complete)
@@ -82,7 +86,11 @@ covEstIPW <- function(eventTime, eventType, mark, tx, auxMiss, phiHat, lambdaHat
   jack33 <- sum(eta*(eta-1))/n
 
   r <- apply(V.f, 1, function(row){ ifelse(sum(is.na(row))>0,0,1) })
-  pi.all <- glm(r ~ tx.f*auxMiss.f, family=binomial)$fitted
+
+  mData <- data.frame(r, tx=tx.f)
+  if (!is.null(aux)){ mData <- cbind(mData, aux.f) }
+
+  pi.all <- glm(formulaMiss, family=binomial, data=mData)$fitted
   if (!is.null(na.idx)){
     pi <- pi.all[-na.idx]
   } else {
@@ -93,7 +101,7 @@ covEstIPW <- function(eventTime, eventType, mark, tx, auxMiss, phiHat, lambdaHat
   p <- mean(eventType==1)
   omega <- drop(score1.vect(phiHat,lambdaHat) %*% (score3.vect(gammaHat) + p*l.vect(gammaHat))/n -
                   sum(score3.vect(gammaHat) + p*l.vect(gammaHat))*apply(score1.vect(phiHat,lambdaHat),1,sum)/(n^2))
-  drop(solve(jack(phiHat,lambdaHat))[1:nmark,1:nmark] %*% omega)/(n*jack33)
+  return(drop(solve(jack(phiHat,lambdaHat))[1:nmark,1:nmark] %*% omega)/(n*jack33))
 }
 
 # 'densRatioIPW' applies the mark density ratio model with missing multivariate marks using
@@ -105,8 +113,9 @@ covEstIPW <- function(eventTime, eventType, mark, tx, auxMiss, phiHat, lambdaHat
 #     'conv': a logical value indicating convergence of the estimating functions
 # 'mark' is a data frame representing a multivariate mark variable (a numeric vector for a univariate mark is allowed)
 # 'tx' is the treatment group indicator (1 if treatment, 0 if control)
-# 'aux' is a numeric vector (a single auxilliary covariate allowed)
-densRatioIPW <- function(mark, tx, aux=NULL){
+# 'aux' is a data frame of auxiliary covariates; the rows of 'aux' correspond to the rows of 'mark'
+# 'formulaMiss' is a formula of the form 'r ~ ...' specifying the logistic regression model for estimating the probability of observing the mark; all variables in '...', if any, except 'r' and 'tx', must be included in 'aux'
+densRatioIPW <- function(mark, tx, aux=NULL, formulaMiss){
   # convert either a numeric vector or a data frame into a matrix
   mark <- as.matrix(mark)
 
@@ -156,11 +165,11 @@ densRatioIPW <- function(mark, tx, aux=NULL){
   }
 
   r <- apply(V, 1, function(row){ ifelse(sum(is.na(row))>0,0,1) })
-  if (is.null(aux)){
-    pi.all <- glm(r ~ z, family=binomial)$fitted
-  } else {
-    pi.all <- glm(r ~ z + aux + z*aux, family=binomial)$fitted
-  }
+
+  mData <- data.frame(r, tx)
+  if (!is.null(aux)){ mData <- cbind(mData, aux) }
+
+  pi.all <- glm(formulaMiss, family=binomial, data=mData)$fitted
 
   if (!is.null(na.idx)){
     pi <- pi.all[-na.idx]
@@ -187,16 +196,16 @@ densRatioIPW <- function(mark, tx, aux=NULL){
     U[-na.idx,1:nmark] <- -lambda * t(dG(theta)) * (1/(pi*(1+lambda*(g(theta)-1)))) + t(dG(theta)) * (z.complete/(pi*g(theta)))
     U[-na.idx,nmark+1] <- (g(theta)-1)/(pi*(1+lambda*(g(theta)-1)))
 
-    if (is.null(aux)) {
-      S <- (r-pi.all) * cbind(1,z)
-      resids <- lapply(1:NCOL(U), function(i){ lm(U[,i] ~ S[,1] + S[,2])$resid })
-    } else {
-      S <- (r-pi.all) * cbind(1,z,aux,z*aux)
-      resids <- lapply(1:NCOL(U), function(i){ lm(U[,i] ~ S[,1] + S[,2] + S[,3] + S[,4])$resid })
-    }
+    formulaMissDecomp <- strsplit(strsplit(paste(deparse(formulaMiss), collapse = ""), " *[~] *")[[1]], " *[+] *")
+    formulaScore <- as.formula(paste0("Ui ~ ", paste(formulaMissDecomp[[2]], collapse="+")))
 
-    Resids <- do.call("cbind",resids)
-    crossprod(Resids)/ninf
+    mf <- model.frame(formulaMiss, mData)
+    X <- model.matrix(terms(formulaMiss), mf)
+    S <- (r - pi.all) * X
+    resids <- lapply(1:NCOL(U), function(i, U, S){ lm(formulaScore, data=data.frame(Ui=U[, i], S))$resid }, U=U, S=S)
+
+    Resids <- do.call("cbind", resids)
+    return(crossprod(Resids) / ninf)
   }
 
   JackInv <- try(solve(jack(theta.new,lambda.new)), silent=TRUE)
@@ -207,42 +216,39 @@ densRatioIPW <- function(mark, tx, aux=NULL){
     Var <- NULL
   }
 
-  list(coef=param.new, var=Var, jack=jack11(theta.new,lambda.new), probs=pi, conv=!(class(jackInv)=="try-error" | class(JackInv)=="try-error"))
+  return(list(coef=param.new, var=Var, jack=jack11(theta.new,lambda.new), probs=pi, conv=!(class(jackInv)=="try-error" | class(JackInv)=="try-error")))
 }
 
-
-#' Semiparametric Estimation of Coefficients in a Mark-Specific Proportional Hazards Model
-#' with a Multivariate Continuous Mark, with Missing Values Inferred using Inverse 
-#' Probability Weighting of Complete Cases
+#' Semiparametric Inverse Probability Weighted Complete-Case Estimation of Coefficients in a Mark-Specific Proportional Hazards Model
+#' with a Multivariate Continuous Mark, Missing-at-Random in Some Failures
 #'
-#' \code{sievePHipw} extends the semiparametric estimation method of Juraska and Gilbert (2013) for continuous mark-
-#' specific hazard ratios to accomodate missing at random marks that are univariate or multivariate. The inferential 
-#' procedure is based on inverse probability weighting (IPW) of the complete cases, originally proposed by 
-#' Horvitz and Thompson (1952), where the complete cases are weighted by the inverse of their estimated probabilities 
-#' given their event status, treatment status, and auxiliary covariates. This information is incorporated into weighted 
-#' profile score functions in the semiparametric method of maximum profile likelihood estimation in the treatment-to-placebo 
-#' mark density ratio model (Qin, 1998). \code{sievePHipw} also employs the ordinary method of maximum partial likelihood 
-#' estimation of the overall log hazard ratio in the Cox model.
+#' \code{sievePHipw} implements the semiparametric inverse probability weighted (IPW) complete-case estimation method of Juraska and Gilbert (2015) for the multivariate mark-
+#' specific hazard ratio, with the mark subject to missingness at random. It extends Juraska and Gilbert (2013) by weighting complete cases by the inverse of their estimated
+#' probabilities given auxiliary covariates and/or treatment. The probabilities are estimated by fitting a logistic regression model with a user-specified linear predictor.
+#' Coefficients in the treatment-to-placebo mark density ratio model (Qin, 1998) are estimated by solving the IPW estimating equations. The ordinary method of maximum partial likelihood
+#' estimation is employed for estimating the overall log hazard ratio in the Cox model.
 #'
 #' @param eventTime a numeric vector specifying the observed right-censored event time
 #' @param eventInd a numeric vector indicating the event of interest (1 if event, 0 if right-censored)
-#' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
-#' For subjects with \code{eventInd = 0}, the value(s) in \code{mark} should be set to \code{NA}.
+#' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark subject to missingness at random. Missing mark values should be set to \code{NA}.
+#' For subjects with \code{eventInd = 0}, the value(s) in \code{mark} should also be set to \code{NA}.
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
-#' @param aux a numeric vector (a single auxilliary covariate allowed)
-#' @param auxMiss
+#' @param aux a data frame specifying auxiliary covariates predictive of the probability of observing the mark. The mark missingness model only requires that the auxiliary covariates be observed in
+#' subjects who experienced the event of interest. For subjects with \code{eventInd = 0}, the value(s) in \code{aux} may be set to \code{NA}.
+#' @param formulaMiss a formula object of the format \code{r ~ ...}, where \code{...} specifies the linear predictor in the logistic regression model used for predicting the probability of observing
+#' the mark. All terms in \code{...}, except \code{tx}, must be evaluable in the data frame \code{aux}.
 #'
 #' @details
 #' \code{sievePHipw} considers data from a randomized placebo-controlled treatment efficacy trial with a time-to-event endpoint.
 #' The parameter of interest, the mark-specific hazard ratio, is the ratio (treatment/placebo) of the conditional mark-specific hazard functions.
 #' It factors as the product of the mark density ratio (treatment/placebo) and the ordinary marginal hazard function ignoring mark data.
-#' The mark density ratio is estimated using the method of Qin (1998) and the Horvitz and Thompson (1952) inverse probability weighted (IPW)
-#' complete-case estimator, while the marginal hazard ratio is estimated using \code{coxph()} in the \code{survival} package.
-#' Both estimators are consistent and asymptotically normal. The asymptotic distribution of the IPW complete-case estimator is detailed in Juraska and Gilbert (2015).
-#' 
-#' @return An object of class \code{sievePHipw} which can be processed by
-#' \code{\link{summary.sievePHipw}} to obtain or print a summary of the results. An object of class
-#' \code{sievePHipw} is a list containing the following components:
+#' The mark density ratio is estimated using the IPW complete-case estimation method, extending Qin (1998), and
+#' the marginal hazard ratio is estimated using \code{coxph()} in the \code{survival} package.
+#' The asymptotic properties of the IPW complete-case estimator are detailed in Juraska and Gilbert (2015).
+#'
+#' @return An object of class \code{sievePH} which can be processed by
+#' \code{\link{summary.sievePH}} to obtain or print a summary of the results. An object of class
+#' \code{sievePH} is a list containing the following components:
 #' \itemize{
 #' \item \code{DRcoef}: a numeric vector of estimates of coefficients \eqn{\phi} in the weight function \eqn{g(v, \phi)} in the density ratio model
 #' \item \code{DRlambda}: an estimate of the Lagrange multiplier in the profile score functions for \eqn{\phi} (that arises by profiling out the nuisance parameter)
@@ -255,50 +261,63 @@ densRatioIPW <- function(mark, tx, aux=NULL){
 #' \item \code{mark}: the input object
 #' \item \code{tx}: the input object
 #' }
-#' 
-#' @references Horvitz, D. G., and Thompson, D. J. (1952). A generalization of sampling without replacement from a finite universe. \emph{Journal of the American statistical Association} 47(260): 663-685.
-#' 
+#'
+#' @references Juraska, M., and Gilbert, P. B. (2015), Mark-specific hazard ratio model with missing multivariate marks. \emph{Lifetime Data Analysis} 22(4): 606-25.
+#'
 #' Juraska, M. and Gilbert, P. B. (2013), Mark-specific hazard ratio model with multivariate continuous marks: an application to vaccine efficacy. \emph{Biometrics} 69(2):328-337.
-#' 
-#' Juraska, M., and Gilbert, P. B. (2015). Mark-specific hazard ratio model with missing multivariate marks. \emph{Lifetime data analysis} 22(4): 606-25.
-#' 
+#'
 #' Qin, J. (1998), Inferences for case-control and semiparametric two-sample density ratio models. \emph{Biometrika} 85, 619-630.
 #'
 #' @examples
 #' n <- 500
-#' tx <- rep(0:1, each=n/2)
-#' tm <- c(rexp(n/2, 0.1), rexp(n/2, 0.1 * exp(-0.4)))
+#' tx <- rep(0:1, each=n / 2)
+#' tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(-0.4)))
 #' cens <- runif(n, 0, 15)
 #' eventTime <- pmin(tm, cens, 3)
 #' eventInd <- as.numeric(tm <= pmin(cens, 3))
-#' mark1 <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
-#' mark2 <- ifelse(eventInd==1, c(rbeta(n/2, 1, 3), rbeta(n/2, 5, 1)), NA)
+#' mark1 <- ifelse(eventInd==1, c(rbeta(n / 2, 2, 5), rbeta(n / 2, 2, 2)), NA)
+#' mark2 <- ifelse(eventInd==1, c(rbeta(n / 2, 1, 3), rbeta(n / 2, 5, 1)), NA)
+#' # a continuous auxiliary covariate
+#' A <- (mark1 + 0.4 * runif(n)) / 1.4
+#' linPred <- -0.8 + 0.4 * tx + 0.8 * A
+#' probs <- exp(linPred) / (1 + exp(linPred))
+#' R <- rep(NA, length(probs))
+#' while (sum(R, na.rm=TRUE) < 10){
+#'   R[eventInd==1] <- sapply(probs[eventInd==1], function(p){ rbinom(1, 1, p) })
+#' }
+#' # produce missing-at-random marks
+#' mark1[eventInd==1] <- ifelse(R[eventInd==1]==1, mark1[eventInd==1], NA)
+#' mark2[eventInd==1] <- ifelse(R[eventInd==1]==1, mark2[eventInd==1], NA)
+#
+# # fit a model with a bivariate mark
+# fit <- sievePHipw(eventTime, eventInd, mark=data.frame(mark1, mark2), tx, aux=data.frame(A), formulaMiss=r ~ tx + A + tx:A)
 #'
-#' # fit a model with a univariate mark
-#' fit <- sievePHipw(eventTime, eventInd, mark1, tx)
-#'
-#' # fit a model with a bivariate mark
-#' fit <- sievePHipw(eventTime, eventInd, data.frame(mark1, mark2), tx)
-#'
-#' @seealso \code{\link{summary.sievePHipw}} and \code{\link{testIndepTimeMark}}
+#' @seealso \code{\link{summary.sievePH}}, \code{\link{testIndepTimeMark}} and \code{\link{testDensRatioGOF}}
 #'
 #' @import survival
 #'
 #' @export
-sievePHipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxMiss = NULL) {
+sievePHipw <- function(eventTime, eventInd, mark, tx, aux=NULL, formulaMiss){
   if (is.numeric(mark)){ mark <- data.frame(mark) }
-  
+  if (!is.null(aux)){ if (!is.data.frame(aux)){ stop("'aux' must be a data frame.") } }
+
   nPlaEvents <- sum(eventInd * (1-tx))
   nTxEvents <- sum(eventInd * tx)
 
-  dRatio <- densRatioIPW(mark[eventInd==1, ], tx[eventInd==1], aux)
-  
+  auxForEvents <- aux
+  if (!is.null(aux)){
+    auxForEvents <- data.frame(aux[eventInd==1, ])
+    colnames(auxForEvents) <- colnames(aux)
+  }
+
+  dRatio <- densRatioIPW(mark[eventInd==1, ], tx[eventInd==1], aux=auxForEvents, formulaMiss=formulaMiss)
+
   # fit the Cox proportional hazards model to estimate the marginal hazard ratio
   phReg <- coxph(Surv(eventTime, eventInd) ~ tx)
-  
+
   # the estimate of the marginal log hazard ratio
   gammaHat <- phReg$coef
-  
+
   # the output list
   out <- list(DRcoef=NA, DRlambda=NA, DRconverged=dRatio$conv, logHR=gammaHat, cov=NA, coxphFit=phReg, nPlaEvents=nPlaEvents, nTxEvents=nTxEvents, mark=mark, tx=tx)
 
@@ -312,7 +331,7 @@ sievePHipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxMiss = NULL
     lastComp <- length(thetaHat)
     vthetaHat <- dRatio$var[-lastComp, -lastComp]
     vgammaHat <- drop(phReg$var)
-    covThG <- covEstIPW(eventTime, eventInd, mark, tx, auxMiss, thetaHat[-lastComp], thetaHat[lastComp], gammaHat)
+    covThG <- covEstIPW(eventTime, eventInd, mark, tx, aux=aux, formulaMiss=formulaMiss, thetaHat[-lastComp], thetaHat[lastComp], gammaHat)
 
     # covariance matrix for alpha, beta1, beta2,..., betak, gamma
     Sigma <- cbind(rbind(vthetaHat, covThG), c(covThG, vgammaHat))
@@ -323,6 +342,6 @@ sievePHipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxMiss = NULL
     out$cov <- Sigma
   }
 
-  class(out) <- "sievePHipw"
+  class(out) <- "sievePH"
   return(out)
 }
