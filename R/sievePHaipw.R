@@ -8,14 +8,19 @@ VE <- function(v, alpha, beta, gamma){ 1 - exp(alpha + beta*v + gamma) }
 # 'eventType' is the failure indicator (0 if censored, 1 if failure)
 # 'mark' is a data frame (with the same number of rows as the length of 'eventTime') specifying a multivariate mark (a numeric vector for a univariate mark is allowed), with NA for subjects with find=0.
 # 'tx' is the treatment group indicator (1 if treatment, 0 if control)
-# 'aux' is a numeric vector (a single auxilliary covariate allowed)
-# 'auxMiss'
+# 'aux' is a data frame of auxiliary covariates
+# 'formulaMiss' is a one-sided formula specifying the logistic regression model for estimating the probability of observing the mark; all variables in the formula except 'tx' must be included in 'aux'
+# 'formulaScore' is a one-sided formula object specifying (on the right side of the \code{~} operator) the linear predictor in the linear regression model used for predicting the expected profile score
+# vector (the augmentation term) in the AIPW estimating equations in the density ratio model. All terms in the formula except \code{tx} must be evaluable in the data frame \code{aux}.
 # 'phiHat' is a vector of the alpha and beta estimates
 # 'lambdaHat' is the estimate for lambda in the mark density ratio model
 # 'gammaHat' is the estimate for gamma obtained in the marginal hazards model
-covEstAIPW <- function(eventTime, eventType, mark, tx, aux, auxMiss, phiHat, lambdaHat, gammaHat){
+covEstAIPW <- function(eventTime, eventType, mark, tx, aux=NULL, formulaMiss, formulaScore, phiHat, lambdaHat, gammaHat){
   # convert either a numeric vector or a data frame into a matrix
   mark <- as.matrix(mark)
+
+  formulaMissDecomp <- strsplit(strsplit(paste(deparse(formulaMiss), collapse = ""), " *[~] *")[[1]], " *[+] *")
+  formulaScoreDecomp <- strsplit(strsplit(paste(deparse(formulaScore), collapse = ""), " *[~] *")[[1]], " *[+] *")
 
   n <- length(eventTime)
   isNA <- apply(mark, 1, function(row){ sum(is.na(row)) })
@@ -29,9 +34,11 @@ covEstAIPW <- function(eventTime, eventType, mark, tx, aux, auxMiss, phiHat, lam
   na.idx <- attr(V.complete,"na.action")
   tx.complete <- tx[eventType==1 & isNA==0]
   tx.f <- tx[eventType==1]
-  aux.complete <- aux[eventType==1 & isNA==0]
-  aux.f <- aux[eventType==1]
-  auxMiss.f <- auxMiss[eventType==1]
+  if (!is.null(aux)){
+    aux.complete <- data.frame(aux[eventType==1 & isNA==0, ])
+    aux.f <- data.frame(aux[eventType==1, ])
+    colnames(aux.complete) <- colnames(aux.f) <- colnames(aux)
+  }
   eventTime.completeM <- matrix(eventTime.complete, nrow=n, ncol=m.complete, byrow=TRUE)
   VV.complete <- apply(V.complete,1,tcrossprod)
   nmark <- NCOL(V.complete)
@@ -49,16 +56,24 @@ covEstAIPW <- function(eventTime, eventType, mark, tx, aux, auxMiss, phiHat, lam
   }
   aug.mean1 <- function(phi, lambda){
     U <- score1.complete.vect(phi, lambda)
-    predicted.vals <- sapply(1:NCOL(U), function(col){
-      fit <- lm(U[,col] ~ tx.complete*aux.complete + I(aux.complete^2))
-      predict(fit, data.frame(tx.complete=tx.f, aux.complete=aux.f))
-    })
-    predicted.vals
+    predData <- data.frame(tx=tx.f)
+    if (!is.null(aux)){ predData <- cbind(predData, aux.f) }
+    predicted.vals <- sapply(1:NCOL(U), function(col, formulaScoreDecomp, U, z.complete, aux.complete, predData){
+      trainData <- data.frame(Ucol=U[, col], tx=tx.complete)
+      if (!is.null(aux)){ trainData <- cbind(trainData, aux.complete) }
+      fit <- lm(as.formula(paste0("Ucol ~ ", paste(formulaScoreDecomp[[2]], collapse="+"))), data=trainData)
+      return(predict(fit, predData))
+    }, formulaScoreDecomp=formulaScoreDecomp, U=U, z.complete=z.complete, aux.complete=aux.complete, predData=predData)
+    return(predicted.vals)
   }
   aug.mean2 <- function(phi, lambda){
     U <- score2.complete.vect(phi, lambda)
-    fit <- lm(U ~ tx.complete*aux.complete + I(aux.complete^2))
-    predict(fit, data.frame(tx.complete=tx.f, aux.complete=aux.f))
+    trainData <- data.frame(U=U, tx=tx.complete)
+    if (!is.null(aux)){ trainData <- cbind(trainData, aux.complete) }
+    predData <- data.frame(tx=tx.f)
+    if (!is.null(aux)){ predData <- cbind(predData, aux.f) }
+    fit <- lm(as.formula(paste0("U ~ ", paste(formulaScoreDecomp[[2]], collapse="+"))), data=trainData)
+    return(predict(fit, predData))
   }
   score1.vect <- function(phi, lambda){
     vect <- matrix(0, nrow=m.f, ncol=nmark)
@@ -101,8 +116,12 @@ covEstAIPW <- function(eventTime, eventType, mark, tx, aux, auxMiss, phiHat, lam
     for (i in 1:nmark){
       for (j in 1:nmark){
         resp <- d2U.phi[i,j,]
-        fit <- lm(resp ~ tx.complete*aux.complete + I(aux.complete^2))
-        predicted.vals.jack[i,j,] <- predict(fit, data.frame(tx.complete=tx.f, aux.complete=aux.f))
+        trainData <- data.frame(resp=resp, tx=tx.complete)
+        if (!is.null(aux)){ trainData <- cbind(trainData, aux.complete) }
+        predData <- data.frame(tx=tx.f)
+        if (!is.null(aux)){ predData <- cbind(predData, aux.f) }
+        fit <- lm(as.formula(paste0("resp ~ ", paste(formulaScoreDecomp[[2]], collapse="+"))), data=trainData)
+        predicted.vals.jack[i,j,] <- predict(fit, predData)
       }}
     weighted.predicted.vals.jack <- apply(aperm(aperm(predicted.vals.jack, c(3,1,2))*(1-r/pi.all), c(2,3,1)), c(1,2), sum)
     -lambda*(term1 - lambda*term2) + term3 - term4 + weighted.predicted.vals.jack
@@ -112,16 +131,24 @@ covEstAIPW <- function(eventTime, eventType, mark, tx, aux, auxMiss, phiHat, lam
     predicted.vals.jack <- matrix(0,nrow=m.f,ncol=nmark)
     for (i in 1:nmark){
       resp <- d2U.phi.lambda[,i]
-      fit <- lm(resp ~ tx.complete*aux.complete + I(aux.complete^2))
-      predicted.vals.jack[,i] <- predict(fit, data.frame(tx.complete=tx.f, aux.complete=aux.f))
+      trainData <- data.frame(resp=resp, tx=tx.complete)
+      if (!is.null(aux)){ trainData <- cbind(trainData, aux.complete) }
+      predData <- data.frame(tx=tx.f)
+      if (!is.null(aux)){ predData <- cbind(predData, aux.f) }
+      fit <- lm(as.formula(paste0("resp ~ ", paste(formulaScoreDecomp[[2]], collapse="+"))), data=trainData)
+      predicted.vals.jack[,i] <- predict(fit, predData)
     }
     weighted.predicted.vals.jack <- colSums(predicted.vals.jack*(1-r/pi.all))
     drop(-dG(phi) %*% (1/(pi*(1+lambda*(g(phi)-1))^2))) + weighted.predicted.vals.jack
   }
   jack22 <- function(phi, lambda){
     d2U.lambda <- ((g(phi)-1)/(1+lambda*(g(phi)-1)))^2
-    fit <- lm(d2U.lambda ~ tx.complete*aux.complete + I(aux.complete^2))
-    predicted.vals.jack <- predict(fit, data.frame(tx.complete=tx.f, aux.complete=aux.f))
+    trainData <- data.frame(d2U.lambda=d2U.lambda, tx=tx.complete)
+    if (!is.null(aux)){ trainData <- cbind(trainData, aux.complete) }
+    predData <- data.frame(tx=tx.f)
+    if (!is.null(aux)){ predData <- cbind(predData, aux.f) }
+    fit <- lm(as.formula(paste0("d2U.lambda ~ ", paste(formulaScoreDecomp[[2]], collapse="+"))), data=trainData)
+    predicted.vals.jack <- predict(fit, predData)
     weighted.predicted.vals.jack <- sum(predicted.vals.jack*(1-r/pi.all))
     sum(((g(phi)-1)^2)/(pi*(1+lambda*(g(phi)-1))^2)) + weighted.predicted.vals.jack
   }
@@ -132,7 +159,13 @@ covEstAIPW <- function(eventTime, eventType, mark, tx, aux, auxMiss, phiHat, lam
   jack33 <- sum(eta*(eta-1))/n
 
   r <- apply(V.f, 1, function(row){ ifelse(sum(is.na(row))>0,0,1) })
-  pi.all <- glm(r ~ tx.f*auxMiss.f, family=binomial)$fitted
+
+  mData <- data.frame(r, tx=tx.f)
+  if (!is.null(aux)){ mData <- cbind(mData, aux.f) }
+
+  formulaMiss2sided <- as.formula(paste0("r ~ ", paste(formulaMissDecomp[[2]], collapse="+")))
+
+  pi.all <- glm(formulaMiss2sided, family=binomial, data=mData)$fitted
   if (!is.null(na.idx)){
     pi <- pi.all[-na.idx]
   } else {
@@ -143,7 +176,7 @@ covEstAIPW <- function(eventTime, eventType, mark, tx, aux, auxMiss, phiHat, lam
   p <- mean(eventType==1)
   omega <- drop(score1.vect(phiHat,lambdaHat) %*% (score3.vect(gammaHat) + p*l.vect(gammaHat))/n -
                   sum(score3.vect(gammaHat) + p*l.vect(gammaHat))*apply(score1.vect(phiHat,lambdaHat),1,sum)/(n^2))
-  drop(solve(jack(phiHat,lambdaHat))[1:nmark,1:nmark] %*% omega)/(n*jack33)
+  return(drop(solve(jack(phiHat,lambdaHat))[1:nmark,1:nmark] %*% omega)/(n*jack33))
 }
 
 # 'densRatioAIPW' applies the mark density ratio model with missing multivariate marks using
@@ -156,13 +189,16 @@ covEstAIPW <- function(eventTime, eventType, mark, tx, aux, auxMiss, phiHat, lam
 #     'conv': a logical value indicating convergence of the estimating functions
 # 'mark' is a data frame representing a multivariate mark variable (a numeric vector for a univariate mark is allowed)
 # 'tx' is the treatment group indicator (1 if treatment, 0 if control)
-# 'aux' is a numeric vector and it MUST be specified
-# 'auxMiss' is a numeric vector and it can be left unspecified
-densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
-  if (missing(aux)){ stop("The auxiliary variable 'aux' for predicting the mean profile score is missing.") }
-
+# 'aux' is a data frame of auxiliary covariates; the rows of 'aux' correspond to the rows of 'mark'
+# 'formulaMiss' is a one-sided formula specifying the logistic regression model for estimating the probability of observing the mark; all variables in the formula except 'tx' must be included in 'aux'
+# 'formulaScore' is a one-sided formula object specifying (on the right side of the \code{~} operator) the linear predictor in the linear regression model used for predicting the expected profile score
+# vector (the augmentation term) in the AIPW estimating equations in the density ratio model. All terms in the formula except \code{tx} must be evaluable in the data frame \code{aux}.
+densRatioAIPW <- function(mark, tx, aux=NULL, formulaMiss, formulaScore){
   # convert either a numeric vector or a data frame into a matrix
   mark <- as.matrix(mark)
+
+  formulaMissDecomp <- strsplit(strsplit(paste(deparse(formulaMiss), collapse = ""), " *[~] *")[[1]], " *[+] *")
+  formulaScoreDecomp <- strsplit(strsplit(paste(deparse(formulaScore), collapse = ""), " *[~] *")[[1]], " *[+] *")
 
   V <- cbind(1,mark)
   V.complete <- na.omit(V)
@@ -170,7 +206,10 @@ densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
   na.idx <- attr(V.complete,"na.action")
   if (!is.null(na.idx)){
     z.complete <- z[-na.idx]
-    aux.complete <- aux[-na.idx]
+    if (!is.null(aux)){
+      aux.complete <- data.frame(aux[-na.idx, ])
+      colnames(aux.complete) <- colnames(aux)
+    }
   } else {
     z.complete <- z
     aux.complete <- aux
@@ -195,16 +234,25 @@ densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
   }
   aug.mean1 <- function(theta, lambda){
     U <- fscore.i1(theta, lambda)
-    predicted.vals <- sapply(1:NCOL(U), function(col){
-      fit <- lm(U[,col] ~ z.complete*aux.complete + I(aux.complete^2))
-      predict(fit, data.frame(z.complete=z, aux.complete=aux))
-    })
-    return( predicted.vals )
+
+    predData <- data.frame(tx=z)
+    if (!is.null(aux)){ predData <- cbind(predData, aux) }
+    predicted.vals <- sapply(1:NCOL(U), function(col, formulaScoreDecomp, U, z.complete, aux.complete, predData){
+      trainData <- data.frame(Ucol=U[, col], tx=z.complete)
+      if (!is.null(aux)){ trainData <- cbind(trainData, aux.complete) }
+      fit <- lm(as.formula(paste0("Ucol ~ ", paste(formulaScoreDecomp[[2]], collapse="+"))), data=trainData)
+      return(predict(fit, predData))
+    }, formulaScoreDecomp=formulaScoreDecomp, U=U, z.complete=z.complete, aux.complete=aux.complete, predData=predData)
+    return(predicted.vals)
   }
   aug.mean2 <- function(theta, lambda){
     U <- fscore.i2(theta, lambda)
-    fit <- lm(U ~ z.complete*aux.complete + I(aux.complete^2))
-    predict(fit, data.frame(z.complete=z, aux.complete=aux))
+    trainData <- data.frame(U=U, tx=z.complete)
+    if (!is.null(aux)){ trainData <- cbind(trainData, aux.complete) }
+    predData <- data.frame(tx=z)
+    if (!is.null(aux)){ predData <- cbind(predData, aux) }
+    fit <- lm(as.formula(paste0("U ~ ", paste(formulaScoreDecomp[[2]], collapse="+"))), data=trainData)
+    return(predict(fit, predData))
   }
 
   score1 <- function(theta, lambda){
@@ -232,8 +280,12 @@ densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
     for (i in 1:nmark){
       for (j in 1:nmark){
         resp <- d2U.theta[i,j,]
-        fit <- lm(resp ~ z.complete*aux.complete + I(aux.complete^2))
-        predicted.vals.jack[i,j,] <- predict(fit, data.frame(z.complete=z, aux.complete=aux))
+        trainData <- data.frame(resp=resp, tx=z.complete)
+        if (!is.null(aux)){ trainData <- cbind(trainData, aux.complete) }
+        predData <- data.frame(tx=z)
+        if (!is.null(aux)){ predData <- cbind(predData, aux) }
+        fit <- lm(as.formula(paste0("resp ~ ", paste(formulaScoreDecomp[[2]], collapse="+"))), data=trainData)
+        predicted.vals.jack[i,j,] <- predict(fit, predData)
       }}
     weighted.predicted.vals.jack <- apply(aperm(aperm(predicted.vals.jack, c(3,1,2))*(1-r/pi.all), c(2,3,1)), c(1,2), sum)
 
@@ -244,16 +296,24 @@ densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
     predicted.vals.jack <- matrix(0,nrow=length(z),ncol=nmark)
     for (i in 1:nmark){
       resp <- d2U.theta.lambda[,i]
-      fit <- lm(resp ~ z.complete*aux.complete + I(aux.complete^2))
-      predicted.vals.jack[,i] <- predict(fit, data.frame(z.complete=z, aux.complete=aux))
+      trainData <- data.frame(resp=resp, tx=z.complete)
+      if (!is.null(aux)){ trainData <- cbind(trainData, aux.complete) }
+      predData <- data.frame(tx=z)
+      if (!is.null(aux)){ predData <- cbind(predData, aux) }
+      fit <- lm(as.formula(paste0("resp ~ ", paste(formulaScoreDecomp[[2]], collapse="+"))), data=trainData)
+      predicted.vals.jack[,i] <- predict(fit, predData)
     }
     weighted.predicted.vals.jack <- colSums(predicted.vals.jack*(1-r/pi.all))
     return( drop(-dG(theta) %*% (1/(pi*(1+lambda*(g(theta)-1))^2))) + weighted.predicted.vals.jack )
   }
   jack22 <- function(theta, lambda){
     d2U.lambda <- ((g(theta)-1)/(1+lambda*(g(theta)-1)))^2
-    fit <- lm(d2U.lambda ~ z.complete*aux.complete + I(aux.complete^2))
-    predicted.vals.jack <- predict(fit, data.frame(z.complete=z, aux.complete=aux))
+    trainData <- data.frame(d2U.lambda=d2U.lambda, tx=z.complete)
+    if (!is.null(aux)){ trainData <- cbind(trainData, aux.complete) }
+    predData <- data.frame(tx=z)
+    if (!is.null(aux)){ predData <- cbind(predData, aux) }
+    fit <- lm(as.formula(paste0("d2U.lambda ~ ", paste(formulaScoreDecomp[[2]], collapse="+"))), data=trainData)
+    predicted.vals.jack <- predict(fit, predData)
     weighted.predicted.vals.jack <- sum(predicted.vals.jack*(1-r/pi.all))
     return( sum(((g(theta)-1)^2)/(pi*(1+lambda*(g(theta)-1))^2)) + weighted.predicted.vals.jack )
   }
@@ -263,11 +323,13 @@ densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
   }
 
   r <- apply(V, 1, function(row){ ifelse(sum(is.na(row))>0,0,1) })
-  if (is.null(auxMiss)) {
-    pi.all <- glm(r ~ z, family=binomial)$fitted
-  } else {
-    pi.all <- glm(r ~ z + auxMiss + z*auxMiss, family=binomial)$fitted
-  }
+
+  mData <- data.frame(r, tx)
+  if (!is.null(aux)){ mData <- cbind(mData, aux) }
+
+  formulaMiss2sided <- as.formula(paste0("r ~ ", paste(formulaMissDecomp[[2]], collapse="+")))
+  pi.all <- glm(formulaMiss2sided, family=binomial, data=mData)$fitted
+
   if (!is.null(na.idx)){
     pi <- pi.all[-na.idx]
   } else {
@@ -279,7 +341,7 @@ densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
     param.old <- numeric(nmark+1)
     param.new <- c(numeric(nmark),0.5)
   } else {
-    param.old <- densRatioIPW(mark, tx, aux)$coef
+    param.old <- densRatioIPW(mark, tx, aux, formulaMiss)$coef
     param.new <- param.old + c(numeric(nmark),1e-2)
   }
   while (sum((param.new - param.old)^2)>1e-8){
@@ -299,15 +361,15 @@ densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
     U[,1:nmark] <- U[,1:nmark] + aug.mean1(theta, lambda) * (1-r/pi.all)
     U[-na.idx,nmark+1] <- (g(theta)-1)/(pi*(1+lambda*(g(theta)-1)))
     U[,nmark+1] <- U[,nmark+1] + aug.mean2(theta, lambda) * (1-r/pi.all)
-    if (is.null(auxMiss)) {
-      S <- (r-pi.all) * cbind(1,z)
-      resids <- sapply(1:NCOL(U), function(i){ lm(U[,i] ~ S[,1] + S[,2])$resid })
-    } else {
-      S <- (r-pi.all) * cbind(1,z,auxMiss,z*auxMiss)
-      resids <- sapply(1:NCOL(U), function(i){ lm(U[,i] ~ S[,1] + S[,2] + S[,3] + S[,4])$resid })
-    }
 
-    crossprod(resids)/ninf
+    formulaScore2sided <- as.formula(paste0("Ui ~ ", paste(formulaMissDecomp[[2]], collapse="+")))
+
+    mf <- model.frame(formulaMiss2sided, mData)
+    X <- model.matrix(terms(formulaMiss2sided), mf)
+    S <- (r - pi.all) * X
+    resids <- sapply(1:NCOL(U), function(i, U, S){ lm(formulaScore2sided, data=data.frame(Ui=U[, i], S))$resid }, U=U, S=S)
+
+    return(crossprod(resids) / ninf)
   }
 
   JackInv <- try(solve(jack(theta.new,lambda.new)), silent=TRUE)
@@ -318,54 +380,42 @@ densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
     Var <- NULL
   }
 
-  list(coef=param.new, var=Var, jack=jack11(theta.new,lambda.new), conv=!(class(jackInv)=="try-error" | class(JackInv)=="try-error"))
+  return(list(coef=param.new, var=Var, jack=jack11(theta.new,lambda.new), conv=!(class(jackInv)=="try-error" | class(JackInv)=="try-error")))
 }
 
-
-#' Semiparametric Estimation of Coefficients in a Mark-Specific Proportional Hazards Model
-#' with a Missing Multivariate Continuous Mark, with an Inferential Procedure based on 
-#' Augmentation of the Inverse Probability Weighted Estimating Functions by Leveraging 
-#' Auxiliary Data Predictive of the Mark
+#' Semiparametric Augmented Inverse Probability Weighted Complete-Case Estimation of Coefficients in a Mark-Specific Proportional Hazards Model
+#' with a Multivariate Continuous Mark, Missing-at-Random in Some Failures
 #'
-#' \code{sievePHaipw} conducts estimation and testing of the multivariate mark-specific hazard ratio
-#' model in the competing risks failure time analysis framework for the assessment of mark-specific
-#' vaccine efficacy. It accounts for missing multivariate marks by adding an augmented term to the
-#' inverse probability weighting (IPW) estimating functions and leveraging auxiliary data predictive
-#' of the mark. The method was initially proposed by Robins et al. (1994). Correlations between the
-#' mark and auxiliary data are used to "impute' expected profile score vectors for subjects with
-#' complete and incomplete mark data.
-#' The user can specify whether a one-sided or two-sided hypothesis test is to be performed.
-#' 
-#' \code{sievePHipw} extends the semiparametric estimation method of Juraska and Gilbert (2013) for continuous mark-
-#' specific hazard ratios to accomodate missing at random marks that are univariate or multivariate. The inferential 
-#' procedure, initially proposed by Robins et al. (1994), accounts for missing marks by adding an augmented term to the
-#' inverse probability weighted (IPW) estimating functions and leveraging auxiliary data predictive of the mark. 
-#' Correlations between the mark and auxiliary data are used to "impute" expected profile score vectors for subjects with
-#' complete and incomplete mark data and are incorporated into the semiparametric method of maximum profile likelihood 
-#' estimation in the treatment-to-placebo mark density ratio model (Qin, 1998). The augmented IPW complete-case estimator 
-#' improves efficiency and robustness to mis-specification of the missingness model. \code{sievePHipw} also employs the 
-#' ordinary method of maximum partial likelihood estimation of the overall log hazard ratio in the Cox model.
+#' \code{sievePHaipw} implements the semiparametric augmented inverse probability weighted (AIPW) complete-case estimation method of Juraska and Gilbert (2015) for the multivariate mark-
+#' specific hazard ratio, with the mark subject to missingness at random. It extends Juraska and Gilbert (2013) by (i) weighting complete cases (i.e., subjects with complete marks) by the inverse of their estimated
+#' probabilities given auxiliary covariates and/or treatment, and (ii) adding an augmentation term (the conditional expected profile score given auxiliary covariates and/or treatment) to the IPW estimating equations in the density
+#' ratio model for increased efficiency and robustness to mis-specification of the missingness model (Robins et al., 1994). The probabilities of observing the mark are estimated by fitting a logistic regression model with a user-specified linear predictor.
+#' The mean profile score vector (the augmentation term) in the density ratio model is estimated by fitting a linear regression model with a user-specified linear predictor. Coefficients in the treatment-to-placebo mark density ratio model
+#' (Qin, 1998) are estimated by solving the AIPW estimating equations. The ordinary method of maximum partial likelihood estimation is employed for estimating the overall log hazard ratio in the Cox model.
 #'
 #' @param eventTime a numeric vector specifying the observed right-censored event time
 #' @param eventInd a numeric vector indicating the event of interest (1 if event, 0 if right-censored)
-#' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
-#' For subjects with \code{eventInd = 0}, the value(s) in \code{mark} should be set to \code{NA}.
+#' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark subject to missingness at random. Missing mark values should be set to \code{NA}.
+#' For subjects with \code{eventInd = 0}, the value(s) in \code{mark} should also be set to \code{NA}.
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
-#' @param aux a numeric vector (a single auxilliary covariate allowed)
-#' @param auxMiss 
+#' @param aux a data frame specifying auxiliary covariates predictive of the probability of observing the mark. The mark missingness model only requires that the auxiliary covariates be observed in
+#' subjects who experienced the event of interest. For subjects with \code{eventInd = 0}, the value(s) in \code{aux} may be set to \code{NA}.
+#' @param formulaMiss a one-sided formula object specifying (on the right side of the \code{~} operator) the linear predictor in the logistic regression model used for predicting the probability of observing
+#' the mark. All terms in the formula except \code{tx} must be evaluable in the data frame \code{aux}.
+#' @param formulaScore a one-sided formula object specifying (on the right side of the \code{~} operator) the linear predictor in the linear regression model used for predicting the expected profile score
+#' vector (the augmentation term) in the AIPW estimating equations in the density ratio model. All terms in the formula except \code{tx} must be evaluable in the data frame \code{aux}.
 #'
 #' @details
-#' \code{sievePHipw} considers data from a randomized placebo-controlled treatment efficacy trial with a time-to-event endpoint.
+#' \code{sievePHaipw} considers data from a randomized placebo-controlled treatment efficacy trial with a time-to-event endpoint.
 #' The parameter of interest, the mark-specific hazard ratio, is the ratio (treatment/placebo) of the conditional mark-specific hazard functions.
 #' It factors as the product of the mark density ratio (treatment/placebo) and the ordinary marginal hazard function ignoring mark data.
-#' The mark density ratio is estimated using the method of Qin (1998) and the Robins et al. (1994) augmented inverse probability weighted (IPW)
-#' complete-case estimator, while the marginal hazard ratio is estimated using \code{coxph()} in the \code{survival} package.
-#' Both estimators are consistent and asymptotically normal. The asymptotic distribution of the augmented IPW complete-case estimator 
-#' is detailed in Juraska and Gilbert (2015).
+#' The mark density ratio is estimated using the AIPW complete-case estimation method, following Robins et al. (1994) and extending Qin (1998), and
+#' the marginal hazard ratio is estimated using \code{coxph()} in the \code{survival} package.
+#' The asymptotic properties of the AIPW complete-case estimator are detailed in Juraska and Gilbert (2015).
 #'
-#' @return An object of class \code{sievePHaipw} which can be processed by
-#' \code{\link{summary.sievePHaipw}} to obtain or print a summary of the results. An object of class
-#' \code{sievePHaipw} is a list containing the following components:
+#' @return An object of class \code{sievePH} which can be processed by
+#' \code{\link{summary.sievePH}} to obtain or print a summary of the results. An object of class
+#' \code{sievePH} is a list containing the following components:
 #' \itemize{
 #' \item \code{DRcoef}: a numeric vector of estimates of coefficients \eqn{\phi} in the weight function \eqn{g(v, \phi)} in the density ratio model
 #' \item \code{DRlambda}: an estimate of the Lagrange multiplier in the profile score functions for \eqn{\phi} (that arises by profiling out the nuisance parameter)
@@ -378,53 +428,71 @@ densRatioAIPW <- function(mark, tx, aux, auxMiss=NULL){
 #' \item \code{mark}: the input object
 #' \item \code{tx}: the input object
 #' }
-#' 
-#' @references Juraska, M. and Gilbert, P. B. (2013), Mark-specific hazard ratio model with multivariate continuous marks: an application to vaccine efficacy. \emph{Biometrics} 69(2):328-337.
 #'
-#' Juraska, M., and Gilbert, P. B. (2015). Mark-specific hazard ratio model with missing multivariate marks. \emph{Lifetime data analysis} 22(4): 606-25.
+#' @references Juraska, M., and Gilbert, P. B. (2015), Mark-specific hazard ratio model with missing multivariate marks. \emph{Lifetime Data Analysis} 22(4): 606-25.
+#'
+#' Juraska, M. and Gilbert, P. B. (2013), Mark-specific hazard ratio model with multivariate continuous marks: an application to vaccine efficacy. \emph{Biometrics} 69(2):328-337.
 #'
 #' Qin, J. (1998), Inferences for case-control and semiparametric two-sample density ratio models. \emph{Biometrika} 85, 619-630.
 #'
-#' Robins, J. M., Rotnitzky, A., and Zhao, L. P. (1994). Estimation of regression coefficients when some regressors are not always observed. \emph{Journal of the American statistical Association} 89(427): 846-866.
+#' Robins, J. M., Rotnitzky, A., and Zhao, L. P. (1994), Estimation of regression coefficients when some regressors are not always observed. \emph{Journal of the American Statistical Association} 89(427): 846-866.
 #'
 #' @examples
 #' n <- 500
-#' tx <- rep(0:1, each=n/2)
-#' tm <- c(rexp(n/2, 0.1), rexp(n/2, 0.1 * exp(-0.4)))
+#' tx <- rep(0:1, each=n / 2)
+#' tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(-0.4)))
 #' cens <- runif(n, 0, 15)
 #' eventTime <- pmin(tm, cens, 3)
 #' eventInd <- as.numeric(tm <= pmin(cens, 3))
-#' mark1 <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
-#' mark2 <- ifelse(eventInd==1, c(rbeta(n/2, 1, 3), rbeta(n/2, 5, 1)), NA)
-#'
-#' # fit a model with a univariate mark
-#' fit <- sievePHaipw(eventTime, eventInd, mark1, tx)
+#' mark1 <- ifelse(eventInd==1, c(rbeta(n / 2, 2, 5), rbeta(n / 2, 2, 2)), NA)
+#' mark2 <- ifelse(eventInd==1, c(rbeta(n / 2, 1, 3), rbeta(n / 2, 5, 1)), NA)
+#' # a continuous auxiliary covariate
+#' A <- (mark1 + 0.4 * runif(n)) / 1.4
+#' linPred <- -0.8 + 0.4 * tx + 0.8 * A
+#' probs <- exp(linPred) / (1 + exp(linPred))
+#' R <- rep(NA, length(probs))
+#' while (sum(R, na.rm=TRUE) < 10){
+#'   R[eventInd==1] <- sapply(probs[eventInd==1], function(p){ rbinom(1, 1, p) })
+#' }
+#' # produce missing-at-random marks
+#' mark1[eventInd==1] <- ifelse(R[eventInd==1]==1, mark1[eventInd==1], NA)
+#' mark2[eventInd==1] <- ifelse(R[eventInd==1]==1, mark2[eventInd==1], NA)
 #'
 #' # fit a model with a bivariate mark
-#' fit <- sievePHaipw(eventTime, eventInd, data.frame(mark1, mark2), tx)
+#' fit <- sievePHaipw(eventTime, eventInd, mark=data.frame(mark1, mark2), tx,
+#'                    aux=data.frame(A), formulaMiss= ~ tx * A, formulaScore= ~ tx * A + I(A^2))
 #'
-#' @seealso \code{\link{summary.sievePHaipw}} and \code{\link{testIndepTimeMark}}
+#' @seealso \code{\link{summary.sievePH}}, \code{\link{testIndepTimeMark}} and \code{\link{testDensRatioGOF}}
 #'
 #' @import survival
 #'
 #' @export
-sievePHaipw <- function(eventTime, eventInd, mark, tx, aux, auxMiss) {
+sievePHaipw <- function(eventTime, eventInd, mark, tx, aux=NULL, formulaMiss, formulaScore) {
   if (is.numeric(mark)){ mark <- data.frame(mark) }
+
+  if (!is.null(aux)){ if (!is.data.frame(aux)){ stop("'aux' must be a data frame.") } }
 
   nPlaEvents <- sum(eventInd * (1-tx))
   nTxEvents <- sum(eventInd * tx)
 
-  dRatio <- densRatioAIPW(mark[eventInd==1, ], tx[eventInd==1])
+  auxForEvents <- aux
+  if (!is.null(aux)){
+    auxForEvents <- data.frame(aux[eventInd==1, ])
+    colnames(auxForEvents) <- colnames(aux)
+  }
+
+  dRatio <- densRatioAIPW(mark[eventInd==1, ], tx[eventInd==1], aux=auxForEvents, formulaMiss=formulaMiss, formulaScore=formulaScore)
+
 
   # fit the Cox proportional hazards model to estimate the marginal hazard ratio
   phReg <- coxph(Surv(eventTime, eventInd) ~ tx)
-  
+
   # the estimate of the marginal log hazard ratio
   gammaHat <- phReg$coef
-  
+
   # the output list
   out <- list(DRcoef=NA, DRlambda=NA, DRconverged=dRatio$conv, logHR=gammaHat, cov=NA, coxphFit=phReg, nPlaEvents=nPlaEvents, nTxEvents=nTxEvents, mark=mark, tx=tx)
-  
+
   if (dRatio$conv){
 
     # a vector of estimates of the density ratio coefficients (alpha, beta1, beta2,..., betak) and the Lagrange multiplier
@@ -435,7 +503,7 @@ sievePHaipw <- function(eventTime, eventInd, mark, tx, aux, auxMiss) {
     lastComp <- length(thetaHat)
     vthetaHat <- dRatio$var[-lastComp, -lastComp]
     vgammaHat <- drop(phReg$var)
-    covThG <- covEstAIPW(eventTime, eventInd, mark, tx, aux, auxMiss, thetaHat[-lastComp], thetaHat[lastComp], gammaHat)
+    covThG <- covEstAIPW(eventTime, eventInd, mark, tx, aux=aux, formulaMiss=formulaMiss, formulaScore=formulaScore, thetaHat[-lastComp], thetaHat[lastComp], gammaHat)
 
     # covariance matrix for alpha, beta1, beta2,..., betak, gamma
     Sigma <- cbind(rbind(vthetaHat, covThG), c(covThG, vgammaHat))
@@ -446,7 +514,6 @@ sievePHaipw <- function(eventTime, eventInd, mark, tx, aux, auxMiss) {
     out$cov <- Sigma
   }
 
-  class(out) <- "sievePHaipw"
+  class(out) <- "sievePH"
   return(out)
-
 }

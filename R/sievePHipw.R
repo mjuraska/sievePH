@@ -9,7 +9,7 @@ VE <- function(v, alpha, beta, gamma){ 1 - exp(alpha + beta*v + gamma) }
 # 'mark' is a data frame (with the same number of rows as the length of 'eventTime') specifying a multivariate mark (a numeric vector for a univariate mark is allowed), with NA for subjects with find=0.
 # 'tx' is the treatment group indicator (1 if treatment, 0 if control)
 # 'aux' is a data frame of auxiliary covariates
-# 'formulaMiss' is a formula of the form 'r ~ ...' specifying the logistic regression model for estimating the probability of observing the mark; all variables in '...', if any, except 'r' and 'tx', must be included in 'aux'
+# 'formulaMiss' is a one-sided formula specifying the logistic regression model for estimating the probability of observing the mark; all variables in the formula except 'tx' must be included in 'aux'
 # 'phiHat' is a vector of the alpha and beta estimates
 # 'lambdaHat' is the estimate for lambda in the mark density ratio model
 # 'gammaHat' is the estimate for gamma obtained in the marginal hazards model
@@ -90,7 +90,10 @@ covEstIPW <- function(eventTime, eventType, mark, tx, aux=NULL, formulaMiss, phi
   mData <- data.frame(r, tx=tx.f)
   if (!is.null(aux)){ mData <- cbind(mData, aux.f) }
 
-  pi.all <- glm(formulaMiss, family=binomial, data=mData)$fitted
+  formulaMissDecomp <- strsplit(strsplit(paste(deparse(formulaMiss), collapse = ""), " *[~] *")[[1]], " *[+] *")
+  formulaMiss2sided <- as.formula(paste0("r ~ ", paste(formulaMissDecomp[[2]], collapse="+")))
+
+  pi.all <- glm(formulaMiss2sided, family=binomial, data=mData)$fitted
   if (!is.null(na.idx)){
     pi <- pi.all[-na.idx]
   } else {
@@ -114,7 +117,7 @@ covEstIPW <- function(eventTime, eventType, mark, tx, aux=NULL, formulaMiss, phi
 # 'mark' is a data frame representing a multivariate mark variable (a numeric vector for a univariate mark is allowed)
 # 'tx' is the treatment group indicator (1 if treatment, 0 if control)
 # 'aux' is a data frame of auxiliary covariates; the rows of 'aux' correspond to the rows of 'mark'
-# 'formulaMiss' is a formula of the form 'r ~ ...' specifying the logistic regression model for estimating the probability of observing the mark; all variables in '...', if any, except 'r' and 'tx', must be included in 'aux'
+# 'formulaMiss' is a one-sided formula specifying the logistic regression model for estimating the probability of observing the mark; all variables in the formula except 'tx' must be included in 'aux'
 densRatioIPW <- function(mark, tx, aux=NULL, formulaMiss){
   # convert either a numeric vector or a data frame into a matrix
   mark <- as.matrix(mark)
@@ -169,7 +172,10 @@ densRatioIPW <- function(mark, tx, aux=NULL, formulaMiss){
   mData <- data.frame(r, tx)
   if (!is.null(aux)){ mData <- cbind(mData, aux) }
 
-  pi.all <- glm(formulaMiss, family=binomial, data=mData)$fitted
+  formulaMissDecomp <- strsplit(strsplit(paste(deparse(formulaMiss), collapse = ""), " *[~] *")[[1]], " *[+] *")
+  formulaMiss2sided <- as.formula(paste0("r ~ ", paste(formulaMissDecomp[[2]], collapse="+")))
+
+  pi.all <- glm(formulaMiss2sided, family=binomial, data=mData)$fitted
 
   if (!is.null(na.idx)){
     pi <- pi.all[-na.idx]
@@ -196,13 +202,12 @@ densRatioIPW <- function(mark, tx, aux=NULL, formulaMiss){
     U[-na.idx,1:nmark] <- -lambda * t(dG(theta)) * (1/(pi*(1+lambda*(g(theta)-1)))) + t(dG(theta)) * (z.complete/(pi*g(theta)))
     U[-na.idx,nmark+1] <- (g(theta)-1)/(pi*(1+lambda*(g(theta)-1)))
 
-    formulaMissDecomp <- strsplit(strsplit(paste(deparse(formulaMiss), collapse = ""), " *[~] *")[[1]], " *[+] *")
-    formulaScore <- as.formula(paste0("Ui ~ ", paste(formulaMissDecomp[[2]], collapse="+")))
+    formulaScore2sided <- as.formula(paste0("Ui ~ ", paste(formulaMissDecomp[[2]], collapse="+")))
 
-    mf <- model.frame(formulaMiss, mData)
-    X <- model.matrix(terms(formulaMiss), mf)
+    mf <- model.frame(formulaMiss2sided, mData)
+    X <- model.matrix(terms(formulaMiss2sided), mf)
     S <- (r - pi.all) * X
-    resids <- lapply(1:NCOL(U), function(i, U, S){ lm(formulaScore, data=data.frame(Ui=U[, i], S))$resid }, U=U, S=S)
+    resids <- lapply(1:NCOL(U), function(i, U, S){ lm(formulaScore2sided, data=data.frame(Ui=U[, i], S))$resid }, U=U, S=S)
 
     Resids <- do.call("cbind", resids)
     return(crossprod(Resids) / ninf)
@@ -235,8 +240,8 @@ densRatioIPW <- function(mark, tx, aux=NULL, formulaMiss){
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
 #' @param aux a data frame specifying auxiliary covariates predictive of the probability of observing the mark. The mark missingness model only requires that the auxiliary covariates be observed in
 #' subjects who experienced the event of interest. For subjects with \code{eventInd = 0}, the value(s) in \code{aux} may be set to \code{NA}.
-#' @param formulaMiss a formula object of the format \code{r ~ ...}, where \code{...} specifies the linear predictor in the logistic regression model used for predicting the probability of observing
-#' the mark. All terms in \code{...}, except \code{tx}, must be evaluable in the data frame \code{aux}.
+#' @param formulaMiss a one-sided formula object specifying (on the right side of the \code{~} operator) the linear predictor in the logistic regression model used for predicting the probability of observing
+#' the mark. All terms in the formula except \code{tx} must be evaluable in the data frame \code{aux}.
 #'
 #' @details
 #' \code{sievePHipw} considers data from a randomized placebo-controlled treatment efficacy trial with a time-to-event endpoint.
@@ -288,9 +293,10 @@ densRatioIPW <- function(mark, tx, aux=NULL, formulaMiss){
 #' # produce missing-at-random marks
 #' mark1[eventInd==1] <- ifelse(R[eventInd==1]==1, mark1[eventInd==1], NA)
 #' mark2[eventInd==1] <- ifelse(R[eventInd==1]==1, mark2[eventInd==1], NA)
-#
-# # fit a model with a bivariate mark
-# fit <- sievePHipw(eventTime, eventInd, mark=data.frame(mark1, mark2), tx, aux=data.frame(A), formulaMiss=r ~ tx + A + tx:A)
+#'
+#' # fit a model with a bivariate mark
+#' fit <- sievePHipw(eventTime, eventInd, mark=data.frame(mark1, mark2), tx,
+#'                   aux=data.frame(A), formulaMiss= ~ tx * A)
 #'
 #' @seealso \code{\link{summary.sievePH}}, \code{\link{testIndepTimeMark}} and \code{\link{testDensRatioGOF}}
 #'
