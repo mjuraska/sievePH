@@ -26,7 +26,7 @@ waldH0.2sided.pval <- function(est, vEst){
 #' @param object an object of class \code{sievePH}, usually a result of a call to \code{\link{sievePH}}
 #' @param markGrid a matrix specifying a grid of multivariate mark values, where rows correspond to different values on the (multivariate) grid and columns correspond to components of the mark. A numeric vector is allowed
 #' for univariate marks. The point and interval estimates of the \code{contrast} are calculated on this grid.
-#' @param contrast a character string specifying the parameter of interest. The default value is \code{"te"} (treatment efficacy); other options are \code{"hr"} (hazard ratio) and \code{"loghr"} (log hazard ratio).
+#' @param contrast a character string specifying the treatment effect parameter of interest. The default value is \code{"te"} (treatment efficacy); other options are \code{"hr"} (hazard ratio) and \code{"loghr"} (log hazard ratio).
 #' @param sieveAlternative a character string specifying the alternative hypothesis for the sieve tests, which can be either \code{"twoSided"} (default) or, in case of a univariate mark, \code{"oneSided").
 #' The one-sided option is unavailable for a multivariate mark.
 #' @param confLevel the confidence level (0.95 by default) of reported confidence intervals

@@ -1,3 +1,43 @@
+#' Plotting Mark-Specific Proportional Hazards Model Fits
+#'
+#' \code{plot} method for class \code{summary.sievePH}. For univariate marks, it plots point and interval estimates of the mark-specific treatment effect parameter specified by \code{contrast} in \code{\link{summary.sievePH}}, and,
+#' optionally, scatter/box plots of the observed mark values by treatment. For bivariate marks, plotting is restricted to the point estimate, which is displayed as a surface. No plotting is provided for marks of higher dimensions.
+#'
+#' @param object an object returned by \code{\link{summary.sievePH}}
+#' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
+#' For subjects with a right-censored time-to-event, the value(s) in \code{mark} should be set to \code{NA}.
+#' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
+#' @param xlim a numeric vector of length 2 specifying the x-axis range (\code{NULL} by default)
+#' @param ylim a numeric vector of length 2 specifying the y-axis range (\code{NULL} by default)
+#' @param xtickAt a numeric vector specifing the position of x-axis tickmarks (\code{NULL} by default)
+#' @param xtickLab a numeric vector specifying labels for tickmarks listed in \code{xtickAt}. If \code{NULL} (default), the labels are determined by \code{xtickAt}.
+#' @param ytickAt a numeric vector specifing the position of y-axis tickmarks (\code{NULL} by default)
+#' @param ytickLab a numeric vector specifying labels for tickmarks listed in \code{ytickAt}. If \code{NULL} (default), the labels are determined by \code{ytickAt}.
+#' @param xlab a character string specifying the x-axis label (\code{NULL} by default)
+#' @param ylab a character string specifying the y-axis label (\code{NULL} by default)
+#' @param txLab a character vector of length 2 specifying the placebo and treatment labels (in this order). The default labels are \code{placebo} and \code{treatment}.
+#' @param title a character string specifying the plot title (\code{NULL} by default)
+#'
+#' @return None. The function is called solely for plot generation.
+#'
+#' @examples
+#' n <- 500
+#' tx <- rep(0:1, each=n/2)
+#' tm <- c(rexp(n/2, 0.2), rexp(n/2, 0.2 * exp(-0.4)))
+#' cens <- runif(n, 0, 15)
+#' eventTime <- pmin(tm, cens, 3)
+#' eventInd <- as.numeric(tm <= pmin(cens, 3))
+#' mark <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
+#' markRng <- range(mark, na.rm=TRUE)
+#'
+#' # fit a model with a univariate mark
+#' fit <- sievePH(eventTime, eventInd, mark, tx)
+#' sfit <- summary(fit, markGrid=seq(markRng[1], markRng[2], length.out=10))
+#' plot(sfit, mark, tx)
+#'
+#' @seealso \code{\link{sievePH}}, \code{\link{sievePHipw}}, \code{\link{sievePHaipw}} and \code{\link{summary.sievePH}}
+#'
+#' @export
 plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL, ytickLab=NULL, xlab=NULL, ylab=NULL, txLab=c("Placebo", "Treatment"), title=NULL){
   contrast <- names(object)[length(names(object))]
 
@@ -17,8 +57,9 @@ plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NUL
     }
 
     if (is.null(ylim)){
-      ylim <- range(object[[contrast]][, 2], na.rm=TRUE)
+      ylim <- range(object[[contrast]][, -1], na.rm=TRUE)
     }
+    ySplit <- ylim[2]
 
     # need extra room for box plots on the top
     if (!any(c(is.null(mark), is.null(tx)))){
@@ -58,15 +99,15 @@ plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NUL
     # colRGB <- rgb(colRGB[1], colRGB[2], colRGB[3], alpha=255*0.55, maxColorValue=255)
     # polygon(c(out$v, rev(out$v)), c(ifelse(out$LBve>-1, out$LBve, -1), rev(ifelse(out$UBve<=1, out$UBve, 1))), col=colRGB, border=NA)
 
-    lines(object[[contrast]][, 1], ifelse(object[[contrast]][, 2] >= ylim[1], object[[contrast]][, 2], NA), lwd=4)
-    lines(object[[contrast]][, 1], ifelse(object[[contrast]][, 3] >= ylim[1], object[[contrast]][, 3], NA), lwd=3.5, lty="dashed")
-    lines(object[[contrast]][, 1], ifelse(object[[contrast]][, 4] >= ylim[1], object[[contrast]][, 4], NA), lwd=3.5, lty="dashed")
+    lines(object[[contrast]][, 1], ifelse(object[[contrast]][, 2] >= ylim[1] & object[[contrast]][, 2] <= ySplit, object[[contrast]][, 2], NA), lwd=4)
+    lines(object[[contrast]][, 1], ifelse(object[[contrast]][, 3] >= ylim[1] & object[[contrast]][, 3] <= ySplit, object[[contrast]][, 3], NA), lwd=3.5, lty="dashed")
+    lines(object[[contrast]][, 1], ifelse(object[[contrast]][, 4] >= ylim[1] & object[[contrast]][, 4] <= ySplit, object[[contrast]][, 4], NA), lwd=3.5, lty="dashed")
 
     # text(min(out$v), -0.6, paste0("Marginal Sieve Test P ",ifelse(pMarginalSieve<0.001,"< 0.001",paste0("= ",format(pMarginalSieve,digits=2))),marginalSignifMark), pos=4, cex=cexText)
 
     #legend("bottomleft", fill=colCI, border=colCI, legend="95% Pointwise CI", cex=cexLegend, bty="n")
     #legend("bottomleft", lwd=c(3.5,2), lty=c("dashed","longdash"), legend=c("95% Pointwise CI","Overall Hazard-Ratio PE"), col=c("black","darkorange"), cex=cexLegend, bty="n")
-    legend("bottomleft", lwd=3.5, lty="dashed", legend="95% Pointwise CI", col="black", cex=cexLegend, bty="n")
+    legend(x=xlim[1], y=ifelse(colnames(object[[contrast]])[2]=="TE", ylim[1] + 0.05 * (ylim[2] - ylim[1]), ySplit), lwd=3.5, lty="dashed", legend="95% Pointwise CI", col="black", cex=cexLegend, bty="n")
 
     # add scatter/box plots of the observed mark values by treatment
     if (!any(c(is.null(mark), is.null(tx)))){
