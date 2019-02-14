@@ -9,14 +9,19 @@
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
 #' @param xlim a numeric vector of length 2 specifying the x-axis range (\code{NULL} by default)
 #' @param ylim a numeric vector of length 2 specifying the y-axis range (\code{NULL} by default)
+#' @param zlim a numeric vector of length 2 specifying the z-axis range in a 3-dimensional plot (\code{NULL} by default)
 #' @param xtickAt a numeric vector specifing the position of x-axis tickmarks (\code{NULL} by default)
 #' @param xtickLab a numeric vector specifying labels for tickmarks listed in \code{xtickAt}. If \code{NULL} (default), the labels are determined by \code{xtickAt}.
 #' @param ytickAt a numeric vector specifing the position of y-axis tickmarks (\code{NULL} by default)
 #' @param ytickLab a numeric vector specifying labels for tickmarks listed in \code{ytickAt}. If \code{NULL} (default), the labels are determined by \code{ytickAt}.
 #' @param xlab a character string specifying the x-axis label (\code{NULL} by default)
 #' @param ylab a character string specifying the y-axis label (\code{NULL} by default)
+#' @param zlab a character string specifying the z-axis label in a 3-dimensional plot (\code{NULL} by default)
 #' @param txLab a character vector of length 2 specifying the placebo and treatment labels (in this order). The default labels are \code{placebo} and \code{treatment}.
 #' @param title a character string specifying the plot title (\code{NULL} by default)
+#'
+#' @details
+#' For bivariate marks, \code{markGrid} in \code{\link{summary.sievePH}} must have equally spaced values for each component.
 #'
 #' @return None. The function is called solely for plot generation.
 #'
@@ -38,7 +43,7 @@
 #' @seealso \code{\link{sievePH}}, \code{\link{sievePHipw}}, \code{\link{sievePHaipw}} and \code{\link{summary.sievePH}}
 #'
 #' @export
-plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL, ytickLab=NULL, xlab=NULL, ylab=NULL, txLab=c("Placebo", "Treatment"), title=NULL){
+plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, zlim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL, ytickLab=NULL, xlab=NULL, ylab=NULL, zlab=NULL, txLab=c("Placebo", "Treatment"), title=NULL){
   contrast <- names(object)[length(names(object))]
 
   cexAxis <- 1.3
@@ -121,7 +126,26 @@ plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NUL
 
   # a 3-dimensional plot (a surface) when the mark is bivariate
   } else if (NCOL(object[[contrast]])==5){
-    # STEPHANIE: please fill in using the 'persp' function or something better
+    if (is.null(xlim)){
+      xlim <- range(object[[contrast]][, 1])
+    }
+
+    if (is.null(ylim)){
+      ylim <- range(object[[contrast]][, 2])
+    }
+
+    if (is.null(zlim)){
+      zlim <- range(object[[contrast]][, 3])
+    }
+
+    if (is.null(xlab)){ xlab <- colnames(object[[contrast]])[1] }
+    if (is.null(ylab)){ ylab <- paste0("\n", colnames(object[[contrast]])[2]) }
+    if (is.null(zlab)){ zlab <- switch(colnames(object[[contrast]])[3], TE="\n\nTreatment Efficacy", HR="\n\nHazard Ratio", LogHR="\n\nLog Hazard Ratio") }
+
+    # the first two arguments must be vectors with equally spaced values in ascending order
+    persp(sort(unique(object[[contrast]][, 1])), sort(unique(object[[contrast]][, 2])), getOuterProduct(object[[contrast]], zlim),
+          xlab=xlab, ylab=ylab, zlab=zlab, col="lightgreen", theta=150, phi=20, ticktype="detailed",
+          nticks=5, xlim=xlim, ylim=ylim, zlim=zlim, r=3, expand=0.8, main=title)
   } else {
     stop("Plotting of results is available for univariate and bivariate marks only.")
   }
@@ -136,4 +160,24 @@ plotMarkHoriz <- function(mark, tx, parMar, yLim, txLab=c("Placebo", "Treatment"
           xlab="", ylab="", boxwex=0.8, outline=FALSE, border="black", lwd=2.5, horizontal=TRUE)
   axis(side=2, at=c(0.5,1.5), labels=txLab, cex.axis=cexAxis, las=1)
   points(mark, jitter(tx + 0.5, factor=0.9), col=ifelse(tx==1, "red3", "blue"), pch=ifelse(tx==1, 24, 21), lwd=2, cex=ifelse(tx==1, 1.2, 1.1))
+}
+
+getOuterProduct <- function(df, zlim){
+  mark1 <- sort(unique(df[, 1]))
+  mark2 <- sort(unique(df[, 2]))
+
+  out <- matrix(NA, nrow=length(mark1), ncol=length(mark2))
+  for (i in 1:length(mark1)){
+    for (j in 1:length(mark2)){
+      idx <- which(df[, 1]==mark1[i] & df[, 2]==mark2[j])
+      if (length(idx) > 1){
+        stop("There are replicates on the marker grid.")
+      } else if (length(idx)==1){
+        out[i, j] <- df[idx, 3]
+      }
+
+    }
+  }
+  out <- ifelse(out >= zlim[1] & out <= zlim[2], out, NA)
+  return(out)
 }
