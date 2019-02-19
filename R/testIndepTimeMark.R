@@ -10,31 +10,34 @@
 ####################################################################################
 
 # T: survival time
-# U: mark
+# U=(U1,U2,...,Uk): multivariate mark, where k is the dimension of the mark
 # C: censoring time
 # data: replicates of [X=min(T,C), Delta=I(T<=C), Y=U*Delta]
 
-# input: data[size,3] each row corresponds to a data point (X,Delta,Y)
-#        tu[,2] each row corresponds to the coordinates (t,u) of a point
+# input: data[size,k+2] each row corresponds to a data point (X,Delta,Y)
+#        tu[,k+1] each row corresponds to the coordinates (t,u) of a point
 # output: a vector of the same length as tu, cdf values at (t,u)
 
-ftu <- function(tu, data){
+ftu <- function(tu,data){
   ord <- order(data[, 1], -data[, 2])
   size <- length(data[, 1])
   prob <- numeric(size)
   surv <- 1
   for (i in 1:size){
-    if (data[ord[i], 2]==1){ prob[ord[i]] <- surv / (size - i + 1) }
+    if (data[ord[i], 2]==1){ prob[ord[i]] <- surv/(size - i + 1) }
     surv <- surv - prob[ord[i]]
   }
-  cdf <- sapply(1:NROW(tu), function(j){ sum(prob[data[, 1] <= tu[j, 1] & data[, 3] <= tu[j, 2]], na.rm=TRUE) })
+  cdf <- sapply(1:NROW(tu), function(j){
+    logical.mark <- sapply(2:NCOL(tu), function(col){ data[, col + 1] <= tu[j, col]})
+    sum(prob[data[, 1] <= tu[j, 1] & Reduce("&", as.list(as.data.frame(logical.mark)))], na.rm=TRUE) 
+  })
   return(cdf)
 }
 
 g <- function(tu, data){
   if (is.vector(tu)) tu <- t(as.matrix(tu))
   tu <- na.omit(tu)
-  return(abs(ftu(tu, data) - ftu(cbind(tu[, 1], Inf), data) * ftu(cbind(Inf, tu[, 2]), data[data[, 2]==1, ])))
+  return(abs(ftu(tu, data) - ftu(cbind(tu[, 1], matrix(Inf, NROW(tu), NCOL(tu) - 1)), data) * ftu(cbind(Inf, tu[,-1]), data[data[, 2]==1, ])))
 }
 
 #' Kolmogorov-Smirnov-Type Test of Conditional Independence between the Time-to-Event
@@ -44,8 +47,8 @@ g <- function(tu, data){
 #' as described in Juraska and Gilbert (2013). The conditional independence is a necessary assumption for parameter identifiability in the time-independent density ratio model. A bootstrap
 #' algorithm is used to compute the p-value.
 #'
-#' @param data a data frame restricted to subjects in a given treatment group with the following three columns (in this order): the observed right-censored time to the event of interest,
-#' the event indicator (1 if event, 0 if right-censored), and the univariate mark variable
+#' @param data a data frame restricted to subjects in a given treatment group with the following columns (in this order): the observed right-censored time to the event of interest,
+#' the event indicator (1 if event, 0 if right-censored), and the mark variable (one column for each component, if multivariate)
 #' @param iter the number of bootstrap iterations (1000 by default) used for computing the p-value
 #'
 #' @details
@@ -67,29 +70,36 @@ g <- function(tu, data){
 #' cens <- runif(n, 0, 15)
 #' eventTime <- pmin(tm, cens, 3)
 #' eventInd <- as.numeric(tm <= pmin(cens, 3))
-#' mark <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
+#' mark1 <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
+#' mark2 <- ifelse(eventInd==1, c(rbeta(n/2, 1, 3), rbeta(n/2, 5, 1)), NA)
 #'
-#' testIndepTimeMark(data.frame(eventTime, eventInd, mark)[tx==0, ], iter=20)
+#' # perform the test with a univariate mark
+#' testIndepTimeMark(data.frame(eventTime, eventInd, mark1)[tx==0, ], iter=20)
+#' 
+#' # perform the test with a bivariate mark
+#' testIndepTimeMark(data.frame(eventTime, eventInd, mark1, mark2)[tx==0, ], iter=20)
 #'
 #' @export
 testIndepTimeMark <- function(data, iter=1000){
-  D <- max(g(data[data[, 2]==1, c(1, 3)], data))
+  T <- max(g(data[data[, 2]==1, -2], data))
   n <- NROW(data)
   resamp <- matrix(sample(1:n, n*iter, replace=TRUE), n, iter)
-  obs.mark <- as.vector(data[data[, 2]==1, 3])
-  bD <- sapply(1:iter, function(j){
+  obs.mark <- data[data[, 2]==1, -c(1, 2)]
+  if (is.vector(obs.mark)) obs.mark <- as.matrix(obs.mark)
+  bT <- sapply(1:iter, function(j){
     bdata <- data[resamp[, j], 1:2]
     if (sum(bdata[, 2]) > 1){
       m <- sum(bdata[, 2])
-      bmark <- numeric(n)
-      bmark[which(bdata[, 2]==1)] <- sample(obs.mark, m, replace=TRUE)
+      resamp.mark <- sample(NROW(obs.mark), m, replace=TRUE)
+      bmark <- as.data.frame(matrix(0, n, NCOL(data) - 2))
+      bmark[which(bdata[, 2]==1),] <- obs.mark[resamp.mark, ]
       bdata <- cbind(bdata, bmark)
-      tstat <- max(g(bdata[bdata[, 2]==1, c(1,3)], bdata))
+      tstat <- max(g(bdata[bdata[, 2]==1, -2], bdata))
     } else {
       tstat <- NULL
     }
     return(tstat)
   })
-  if (is.list(bD)){ bT <- do.call("c", lapply(bD, "[", 1)) }
-  return(mean(bD >= D))
+  if (is.list(bT)){ bT <- do.call("c", lapply(bT, "[", 1)) }
+  return(mean(bT >= T))
 }
