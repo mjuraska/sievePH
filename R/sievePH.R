@@ -228,7 +228,7 @@ sievePH <- function(eventTime, eventInd, mark, tx){
   dRatio <- densRatio(mark[eventInd==1, ], tx[eventInd==1])
 
   # fit the Cox proportional hazards model to estimate the marginal hazard ratio
-  phReg <- coxph(Surv(eventTime, eventInd) ~ tx)
+  phReg <- survival::coxph(Surv(eventTime, eventInd) ~ tx)
 
   # the estimate of the marginal log hazard ratio
   gammaHat <- phReg$coef
