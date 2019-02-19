@@ -23,6 +23,7 @@ waldH0.2sided.pval <- function(est, vEst){
 #'
 #' \code{summary} method for an object of class \code{sievePH}.
 #'
+#' @aliases print.summary.sievePH
 #' @param object an object of class \code{sievePH}, usually a result of a call to \code{\link{sievePH}}
 #' @param markGrid a matrix specifying a grid of multivariate mark values, where rows correspond to different values on the (multivariate) grid and columns correspond to components of the mark. A numeric vector is allowed
 #' for univariate marks. The point and interval estimates of the \code{contrast} are calculated on this grid.
@@ -30,7 +31,6 @@ waldH0.2sided.pval <- function(est, vEst){
 #' @param sieveAlternative a character string specifying the alternative hypothesis for the sieve tests, which can be either \code{"twoSided"} (default) or, in case of a univariate mark, \code{"oneSided").
 #' The one-sided option is unavailable for a multivariate mark.
 #' @param confLevel the confidence level (0.95 by default) of reported confidence intervals
-#' @param ... further arguments passed to or from other methods
 #'
 #' @details
 #' \code{print.summary.sievePH} prints a formatted summary of results. Inference about coefficients in the mark-specific proportional hazards model is tabulated. Additionally, a summary is generated
@@ -216,3 +216,30 @@ summary.sievePH <- function(object, markGrid,
   class(out) <- "summary.sievePH"
   return(out)
 }
+
+#' @rdname summary.sievePH
+#' @param x a \code{summary.sievePH} object
+#' @param digits the number of significant digits to use when printing (4 by default)
+#' @param ... further arguments passed to or from other methods
+#' @export
+print.summary.sievePH <- function(x, digits=4, ...){
+  cat("\nCoefficients:\n")
+  print(x$coef, digits=digits, print.gap=2)
+  cat("\n")
+  cat("Tests of H0: HR(v) = 1 for all v:\n")
+  cat("Two-sided likelihood-ratio test:\n")
+  cat("  Density ratio model profile likelihood-ratio test p-value: ", format(x$pLR.HRunity.2sided["pLR.dRatio.2sided"], digits=digits, nsmall=digits), "\n", sep="")
+  cat("  Cox model partial likelihood-ratio test p-value: ", format(x$pLR.HRunity.2sided["pLR.cox.2sided"], digits=digits, nsmall=digits), "\n", sep="")
+  cat("Two-sided Wald test p-value: ", format(x$pWald.HRunity.2sided, digits=digits, nsmall=digits), "\n", sep="")
+  cat("One-sided weighted Wald test p-value: ", format(x$pWtWald.HRunity.1sided, digits=digits, nsmall=digits), "\n\n", sep="")
+  cat("Tests of H0: HR(v) = HR for all v:\n")
+  if (is.null(x$pLR.HRconstant.2sided)){
+    cat("Two-sided likelihood-ratio test p-value: ", format(x$pLR.HRconstant.1sided["pLR.dRatio.2sided"], digits=digits, nsmall=digits), "\n", sep="")
+    cat("  Point estimate of the mark coefficient: ", format(x$pLR.HRconstant.1sided["estBeta"], digits=digits, nsmall=digits), "\n", sep="")
+    cat("One-sided Wald test p-value: ", format(x$pWald.HRconstant.1sided, digits=digits, nsmall=digits), "\n", sep="")
+  } else {
+    cat("Two-sided likelihood-ratio test p-value: ", format(x$pLR.HRconstant.2sided, digits=digits, nsmall=digits), "\n", sep="")
+    cat("Two-sided Wald test p-value: ", format(x$pWald.HRconstant.2sided, digits=digits, nsmall=digits), "\n", sep="")
+  }
+}
+
