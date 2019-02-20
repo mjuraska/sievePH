@@ -3,7 +3,7 @@
 #' \code{plot} method for class \code{summary.sievePH}. For univariate marks, it plots point and interval estimates of the mark-specific treatment effect parameter specified by \code{contrast} in \code{\link{summary.sievePH}}, and,
 #' optionally, scatter/box plots of the observed mark values by treatment. For bivariate marks, plotting is restricted to the point estimate, which is displayed as a surface. No plotting is provided for marks of higher dimensions.
 #'
-#' @param object an object returned by \code{\link{summary.sievePH}}
+#' @param x an object returned by \code{\link{summary.sievePH}}
 #' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
 #' For subjects with a right-censored time-to-event, the value(s) in \code{mark} should be set to \code{NA}.
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
@@ -19,6 +19,7 @@
 #' @param zlab a character string specifying the z-axis label in a 3-dimensional plot (\code{NULL} by default)
 #' @param txLab a character vector of length 2 specifying the placebo and treatment labels (in this order). The default labels are \code{placebo} and \code{treatment}.
 #' @param title a character string specifying the plot title (\code{NULL} by default)
+#' @param ... other arguments to be passed to plotting functions
 #'
 #' @details
 #' For bivariate marks, \code{markGrid} in \code{\link{summary.sievePH}} must have equally spaced values for each component.
@@ -43,8 +44,9 @@
 #' @seealso \code{\link{sievePH}}, \code{\link{sievePHipw}}, \code{\link{sievePHaipw}} and \code{\link{summary.sievePH}}
 #'
 #' @export
-plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, zlim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL, ytickLab=NULL, xlab=NULL, ylab=NULL, zlab=NULL, txLab=c("Placebo", "Treatment"), title=NULL){
-  contrast <- names(object)[length(names(object))]
+plot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, zlim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL, ytickLab=NULL, xlab=NULL, ylab=NULL, zlab=NULL,
+                                 txLab=c("Placebo", "Treatment"), title=NULL, ...){
+  contrast <- names(x)[length(names(x))]
 
   cexAxis <- 1.3
   cexLab <- 1.4
@@ -56,13 +58,13 @@ plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NUL
   par(mar=parMar, oma=rep(0, 4), cex.axis=cexAxis, cex.lab=cexLab, cex.main=cexTitle)
 
   # a 2-dimensional plot only when the mark is univariate
-  if (NCOL(object[[contrast]])==4){
+  if (NCOL(x[[contrast]])==4){
     if (is.null(xlim)){
-      xlim <- range(object[[contrast]][, 1])
+      xlim <- range(x[[contrast]][, 1])
     }
 
     if (is.null(ylim)){
-      ylim <- range(object[[contrast]][, -1], na.rm=TRUE)
+      ylim <- range(x[[contrast]][, -1], na.rm=TRUE)
     }
     ySplit <- ylim[2]
 
@@ -71,10 +73,10 @@ plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NUL
       ylim <- c(ylim[1], ylim[2] + 0.15 * (ylim[2] - ylim[1]))
     }
 
-    if (is.null(xlab)){ xlab <- colnames(object[[contrast]])[1] }
-    if (is.null(ylab)){ ylab <- switch(colnames(object[[contrast]])[2], TE="Treatment Efficacy", HR="Hazard Ratio", LogHR="Log Hazard Ratio") }
+    if (is.null(xlab)){ xlab <- colnames(x[[contrast]])[1] }
+    if (is.null(ylab)){ ylab <- switch(colnames(x[[contrast]])[2], TE="Treatment Efficacy", HR="Hazard Ratio", LogHR="Log Hazard Ratio") }
 
-    plot(object[[contrast]][, 1], object[[contrast]][, 2], xlim=xlim, ylim=ylim, type="n", xlab="", ylab="", xaxt=ifelse(is.null(xtickAt), "s", "n"), yaxt="n", bty="l")
+    plot(x[[contrast]][, 1], x[[contrast]][, 2], xlim=xlim, ylim=ylim, type="n", xlab="", ylab="", xaxt=ifelse(is.null(xtickAt), "s", "n"), yaxt="n", bty="l", ...)
 
     if (!is.null(xtickAt)){
       if (is.null(xtickLab)){ xtickLab <- xtickAt }
@@ -87,7 +89,7 @@ plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NUL
     } else {
       # to avoid overlapping tickmarks
       if (!any(c(is.null(mark), is.null(tx)))){
-        axis(side=2, at=axTicks(2)[axTicks(2) <= 1.1 * max(object[[contrast]][, 4], na.rm=TRUE)])
+        axis(side=2, at=axTicks(2)[axTicks(2) <= 1.1 * max(x[[contrast]][, 4], na.rm=TRUE)])
       }
     }
 
@@ -96,7 +98,7 @@ plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NUL
 
     if (!is.null(title)){ mtext(title, side=3, font=2, line=1, cex=cexTitle, outer=TRUE, at=0, adj=0) }
 
-    abline(h=ifelse(colnames(object[[contrast]])[2]=="HR", 1, 0), col="gray70", lwd=2)
+    abline(h=ifelse(colnames(x[[contrast]])[2]=="HR", 1, 0), col="gray70", lwd=2)
 
     ### point and interval estimates of VE(v)
     # colCI <- "darkgoldenrod2"
@@ -104,15 +106,15 @@ plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NUL
     # colRGB <- rgb(colRGB[1], colRGB[2], colRGB[3], alpha=255*0.55, maxColorValue=255)
     # polygon(c(out$v, rev(out$v)), c(ifelse(out$LBve>-1, out$LBve, -1), rev(ifelse(out$UBve<=1, out$UBve, 1))), col=colRGB, border=NA)
 
-    lines(object[[contrast]][, 1], ifelse(object[[contrast]][, 2] >= ylim[1] & object[[contrast]][, 2] <= ySplit, object[[contrast]][, 2], NA), lwd=4)
-    lines(object[[contrast]][, 1], ifelse(object[[contrast]][, 3] >= ylim[1] & object[[contrast]][, 3] <= ySplit, object[[contrast]][, 3], NA), lwd=3.5, lty="dashed")
-    lines(object[[contrast]][, 1], ifelse(object[[contrast]][, 4] >= ylim[1] & object[[contrast]][, 4] <= ySplit, object[[contrast]][, 4], NA), lwd=3.5, lty="dashed")
+    lines(x[[contrast]][, 1], ifelse(x[[contrast]][, 2] >= ylim[1] & x[[contrast]][, 2] <= ySplit, x[[contrast]][, 2], NA), lwd=4)
+    lines(x[[contrast]][, 1], ifelse(x[[contrast]][, 3] >= ylim[1] & x[[contrast]][, 3] <= ySplit, x[[contrast]][, 3], NA), lwd=3.5, lty="dashed")
+    lines(x[[contrast]][, 1], ifelse(x[[contrast]][, 4] >= ylim[1] & x[[contrast]][, 4] <= ySplit, x[[contrast]][, 4], NA), lwd=3.5, lty="dashed")
 
     # text(min(out$v), -0.6, paste0("Marginal Sieve Test P ",ifelse(pMarginalSieve<0.001,"< 0.001",paste0("= ",format(pMarginalSieve,digits=2))),marginalSignifMark), pos=4, cex=cexText)
 
     #legend("bottomleft", fill=colCI, border=colCI, legend="95% Pointwise CI", cex=cexLegend, bty="n")
     #legend("bottomleft", lwd=c(3.5,2), lty=c("dashed","longdash"), legend=c("95% Pointwise CI","Overall Hazard-Ratio PE"), col=c("black","darkorange"), cex=cexLegend, bty="n")
-    legend(x=xlim[1], y=ifelse(colnames(object[[contrast]])[2]=="TE", ylim[1] + 0.05 * (ylim[2] - ylim[1]), ySplit), lwd=3.5, lty="dashed", legend="95% Pointwise CI", col="black", cex=cexLegend, bty="n")
+    legend(x=xlim[1], y=ifelse(colnames(x[[contrast]])[2]=="TE", ylim[1] + 0.05 * (ylim[2] - ylim[1]), ySplit), lwd=3.5, lty="dashed", legend="95% Pointwise CI", col="black", cex=cexLegend, bty="n")
 
     # add scatter/box plots of the observed mark values by treatment
     if (!any(c(is.null(mark), is.null(tx)))){
@@ -125,25 +127,25 @@ plot.summary.sievePH <- function(object, mark=NULL, tx=NULL, xlim=NULL, ylim=NUL
     }
 
   # a 3-dimensional plot (a surface) when the mark is bivariate
-  } else if (NCOL(object[[contrast]])==5){
+  } else if (NCOL(x[[contrast]])==5){
     if (is.null(xlim)){
-      xlim <- range(object[[contrast]][, 1])
+      xlim <- range(x[[contrast]][, 1])
     }
 
     if (is.null(ylim)){
-      ylim <- range(object[[contrast]][, 2])
+      ylim <- range(x[[contrast]][, 2])
     }
 
     if (is.null(zlim)){
-      zlim <- range(object[[contrast]][, 3])
+      zlim <- range(x[[contrast]][, 3])
     }
 
-    if (is.null(xlab)){ xlab <- colnames(object[[contrast]])[1] }
-    if (is.null(ylab)){ ylab <- paste0("\n", colnames(object[[contrast]])[2]) }
-    if (is.null(zlab)){ zlab <- switch(colnames(object[[contrast]])[3], TE="\n\nTreatment Efficacy", HR="\n\nHazard Ratio", LogHR="\n\nLog Hazard Ratio") }
+    if (is.null(xlab)){ xlab <- colnames(x[[contrast]])[1] }
+    if (is.null(ylab)){ ylab <- paste0("\n", colnames(x[[contrast]])[2]) }
+    if (is.null(zlab)){ zlab <- switch(colnames(x[[contrast]])[3], TE="\n\nTreatment Efficacy", HR="\n\nHazard Ratio", LogHR="\n\nLog Hazard Ratio") }
 
     # the first two arguments must be vectors with equally spaced values in ascending order
-    persp(sort(unique(object[[contrast]][, 1])), sort(unique(object[[contrast]][, 2])), getOuterProduct(object[[contrast]], zlim),
+    persp(sort(unique(x[[contrast]][, 1])), sort(unique(x[[contrast]][, 2])), getOuterProduct(x[[contrast]], zlim),
           xlab=xlab, ylab=ylab, zlab=zlab, col="lightgreen", theta=150, phi=20, ticktype="detailed",
           nticks=5, xlim=xlim, ylim=ylim, zlim=zlim, r=3, expand=0.8, main=title)
   } else {

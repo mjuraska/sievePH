@@ -4,14 +4,14 @@
 \alias{plot.summary.sievePH}
 \title{Plotting Mark-Specific Proportional Hazards Model Fits}
 \usage{
-\method{plot}{summary.sievePH}(object, mark = NULL, tx = NULL,
+\method{plot}{summary.sievePH}(x, mark = NULL, tx = NULL,
   xlim = NULL, ylim = NULL, zlim = NULL, xtickAt = NULL,
   xtickLab = NULL, ytickAt = NULL, ytickLab = NULL, xlab = NULL,
   ylab = NULL, zlab = NULL, txLab = c("Placebo", "Treatment"),
-  title = NULL)
+  title = NULL, ...)
 }
 \arguments{
-\item{object}{an object returned by \code{\link{summary.sievePH}}}
+\item{x}{an object returned by \code{\link{summary.sievePH}}}
 
 \item{mark}{either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
 For subjects with a right-censored time-to-event, the value(s) in \code{mark} should be set to \code{NA}.}
@@ -41,6 +41,8 @@ For subjects with a right-censored time-to-event, the value(s) in \code{mark} sh
 \item{txLab}{a character vector of length 2 specifying the placebo and treatment labels (in this order). The default labels are \code{placebo} and \code{treatment}.}
 
 \item{title}{a character string specifying the plot title (\code{NULL} by default)}
+
+\item{...}{other arguments to be passed to plotting functions}
 }
 \value{
 None. The function is called solely for plot generation.

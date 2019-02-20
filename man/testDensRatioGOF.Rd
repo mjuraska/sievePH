@@ -7,7 +7,7 @@
 testDensRatioGOF(mark, tx, theta = NULL, lambda = NULL, B = 1000)
 }
 \arguments{
-\item{mark}{either a numeric vector specifying a univariate continuous mark or a matrix specifying a multivariate continuous mark, 
+\item{mark}{either a numeric vector specifying a univariate continuous mark or a matrix specifying a multivariate continuous mark,
 completely observed in all cases (i.e., failures). No missing mark values are permitted.}
 
 \item{tx}{a numeric vector indicating the treatment group (1 if treatment, 0 if placebo) in all cases. No missing values are permitted.}
@@ -18,8 +18,17 @@ completely observed in all cases (i.e., failures). No missing mark values are pe
 
 \item{B}{the number of bootstrap iterations (1000 by default)}
 }
+\value{
+Returns a list containing the following components:
+\itemize{
+\item \code{teststat}: the Kolmogorov-Smirnov-type test statistic from the test of validity of the mark density ratio model
+\item \code{pval}: the bootstrap p-value from the test of validity of the mark density ratio model
+\item \code{theta}: the input object, or a numeric vector of estimates of coefficients \eqn{\phi} in the weight function \eqn{g(v, \phi)} in the density ratio model
+\item \code{lambda}: the input object, or an estimate of the Lagrange multiplier in the profile score functions for \eqn{\phi} (that arises by profiling out the nuisance parameter)
+}
+}
 \description{
-\code{testDensRatioGoF} implements the complete-case goodness-of-fit test of Qin and Zhang (1997) for the validity of the mark density ratio model in 
+\code{testDensRatioGoF} implements the complete-case goodness-of-fit test of Qin and Zhang (1997) for the validity of the mark density ratio model in
 Juraska and Gilbert (2013). \code{testDensRatioGoF} can handle univariate and multivariate marks, but the mark data must be fully observed in all failures.
 }
 \examples{

@@ -58,12 +58,12 @@ covEstAIPW <- function(eventTime, eventType, mark, tx, aux=NULL, formulaMiss, fo
     U <- score1.complete.vect(phi, lambda)
     predData <- data.frame(tx=tx.f)
     if (!is.null(aux)){ predData <- cbind(predData, aux.f) }
-    predicted.vals <- sapply(1:NCOL(U), function(col, formulaScoreDecomp, U, z.complete, aux.complete, predData){
+    predicted.vals <- sapply(1:NCOL(U), function(col, formulaScoreDecomp, U, tx.complete, aux.complete, predData){
       trainData <- data.frame(Ucol=U[, col], tx=tx.complete)
       if (!is.null(aux)){ trainData <- cbind(trainData, aux.complete) }
       fit <- lm(as.formula(paste0("Ucol ~ ", paste(formulaScoreDecomp[[2]], collapse="+"))), data=trainData)
       return(predict(fit, predData))
-    }, formulaScoreDecomp=formulaScoreDecomp, U=U, z.complete=z.complete, aux.complete=aux.complete, predData=predData)
+    }, formulaScoreDecomp=formulaScoreDecomp, U=U, tx.complete=tx.complete, aux.complete=aux.complete, predData=predData)
     return(predicted.vals)
   }
   aug.mean2 <- function(phi, lambda){
