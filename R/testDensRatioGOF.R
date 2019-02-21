@@ -27,7 +27,7 @@
 #'
 #' Juraska, M. and Gilbert, P. B. (2013), Mark-specific hazard ratio model with multivariate continuous marks: an application to vaccine efficacy. \emph{Biometrics} 69(2):328-337.
 #'
-#' Qin, J. (1998), Inferences for case-control and semiparametric two-sample density ratio models. \emph{Biometrika} 85, 619–630.
+#' Qin, J. (1998), Inferences for case-control and semiparametric two-sample density ratio models. \emph{Biometrika} 85, 619-630.
 #'
 #' @examples
 #' n <- 500
@@ -43,74 +43,66 @@
 #' testDensRatioGOF(mark1, tx, iter=20)
 #'
 #' # test goodness-of-fit for a bivariate mark
-#' testDensRatioGOF(cbind(mark1, mark2), tx, iter=20)
+#' testDensRatioGOF(data.frame(mark1, mark2), tx, iter=20)
 #'
 #' @export
-testDensRatioGOF <- function(mark, tx, theta=NULL, lambda=NULL, B=1000){
+testDensRatioGOF <- function(mark, tx, DRcoef=NULL, DRlambda=NULL, iter=1000){
+  if (is.vector(mark)) {
+    mark <- mark[eventInd==1]
+  } else {
+    mark <- mark[eventInd==1,]
+  }
+  mark <- as.matrix(mark)
+  tx <- tx[eventInd==1]
+  
   ninf <- length(tx)   ## number of infections
   n0 <- sum(1-tx)      ## number of placebo infections
   n1 <- sum(tx)        ## number of vaccine infections
-  if (any(is.null(theta), is.null(lambda))){
+  if (any(is.null(DRcoef), is.null(DRlambda))){
     param <- densRatio(mark, tx)$coef
-    theta <- param[-length(param)]
-    lambda <- param[length(param)]
+    DRcoef <- param[-length(param)]
+    DRlambda <- param[length(param)]
   }
 
-  g <- function(mark, theta){ exp(drop(cbind(1,mark) %*% theta)) }
-  p <- function(mark, theta, lambda, m){ 1/(m*(1+lambda*(g(mark,theta)-1))) }
+  g <- function(mark, DRcoef){ exp(drop(cbind(1,mark) %*% DRcoef)) }
+  p <- function(mark, DRcoef, DRlambda, m){ 1/(m*(1+DRlambda*(g(mark,DRcoef)-1))) }
   F0np <- function(mark, tx){
-    if (NCOL(as.matrix(mark))==1){
-      F0np.vector <- sapply(mark, function(mark.i){ mean(mark[tx==0]<=mark.i) })
-    } else {
-      F0np.vector <- apply(mark, 1, function(mark.i){
-        mark.vector <- sapply(1:NCOL(as.matrix(mark)), function(col){ mark[tx==0, col] <= mark.i[col] })
-        mean(Reduce("&", as.list(as.data.frame(mark.vector))))
-      })
-    }
+    F0np.vector <- apply(mark, 1, function(mark.i){
+      mark.vector <- sapply(1:NCOL(mark), function(col){ mark[tx==0, col] <= mark.i[col] })
+      mean(Reduce("&", as.list(as.data.frame(mark.vector))))
+    })
     return( F0np.vector )
   }
   F0sp <- function(mark, prob){
-    if (NCOL(as.matrix(mark))==1){
-      F0sp.vector <- sapply(mark, function(mark.i){ sum(prob*ifelse(mark<=mark.i,1,0)) })
-    } else {
-      F0sp.vector <- apply(mark, 1, function(mark.i){
-        mark.vector <- sapply(1:NCOL(as.matrix(mark)), function(col){ mark[, col] <= mark.i[col] })
-        sum(prob*ifelse(Reduce("&", as.list(as.data.frame(mark.vector))),1,0))
-      })
-    }
+    F0sp.vector <- apply(mark, 1, function(mark.i){
+      mark.vector <- sapply(1:NCOL(mark), function(col){ mark[, col] <= mark.i[col] })
+      sum(prob*ifelse(Reduce("&", as.list(as.data.frame(mark.vector))),1,0))
+    })
     return( F0sp.vector )
   }
 
-  f0 <- p(mark,theta,lambda,ninf)
+  f0 <- p(mark,DRcoef,DRlambda,ninf)
   delta <- sqrt(ninf)*max(abs(F0np(mark,tx) - F0sp(mark,f0)))
 
-  N0.ast <- rmultinom(B,n0,f0)
-  N1.ast <- rmultinom(B,n1,f0*g(mark,theta))
-  v0.ast <- lapply(1:B, function(iter){
-    if (NCOL(as.matrix(mark))==1){
-      out <- rep(mark,N0.ast[,iter])
-    } else {
-      out <- cbind(sapply(1:NCOL(as.matrix(mark)), function(col){ rep(mark[, col], N0.ast[, iter])}))
-    }
+  N0.ast <- rmultinom(iter,n0,f0)
+  N1.ast <- rmultinom(iter,n1,f0*g(mark,DRcoef))
+  v0.ast <- lapply(1:iter, function(iter){
+    out <- cbind(sapply(1:NCOL(mark), function(col){ rep(mark[, col], N0.ast[, iter])}))
     return( out )
   })
-  v1.ast <- lapply(1:B, function(iter){
-    if (NCOL(as.matrix(mark))==1){
-      out <- rep(mark,N1.ast[,iter])
-    } else {
-      out <- cbind(sapply(1:NCOL(as.matrix(mark)), function(col){ rep(mark[, col], N1.ast[, iter])}))
-    }
+  v1.ast <- lapply(1:iter, function(iter){
+    out <- cbind(sapply(1:NCOL(mark), function(col){ rep(mark[, col], N1.ast[, iter])}))
     return( out )
   })
   z.ast <- rep(0:1,c(n0,n1))
 
-  teststat <- sapply(1:B, function(iter){
+  teststat <- sapply(1:iter, function(iter){
     v.ast.iter <- rbind(as.matrix(v0.ast[[iter]]),as.matrix(v1.ast[[iter]]))
     param <- densRatio(v.ast.iter, z.ast)$coef
-    theta.ast <- param[-length(param)]
-    lambda.ast <- param[length(param)]
-    sqrt(ninf)*max(abs(F0np(v.ast.iter,z.ast) - F0sp(v.ast.iter,p(v.ast.iter,theta.ast,lambda.ast,ninf))))
+    DRcoef.ast <- param[-length(param)]
+    DRlambda.ast <- param[length(param)]
+    sqrt(ninf)*max(abs(F0np(v.ast.iter,z.ast) - F0sp(v.ast.iter,p(v.ast.iter,DRcoef.ast,DRlambda.ast,ninf))))
   })
   pval <- mean(teststat>=delta)
-  return(list(teststat=delta, pval=pval, theta=theta, lambda=lambda))
+  return(list(teststat=delta, pval=pval, DRcoef=DRcoef, DRlambda=DRlambda))
 }
