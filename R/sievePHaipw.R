@@ -483,7 +483,6 @@ sievePHaipw <- function(eventTime, eventInd, mark, tx, aux=NULL, formulaMiss, fo
 
   dRatio <- densRatioAIPW(mark[eventInd==1, ], tx[eventInd==1], aux=auxForEvents, formulaMiss=formulaMiss, formulaScore=formulaScore)
 
-
   # fit the Cox proportional hazards model to estimate the marginal hazard ratio
   phReg <- coxph(Surv(eventTime, eventInd) ~ tx)
 
@@ -512,6 +511,8 @@ sievePHaipw <- function(eventTime, eventInd, mark, tx, aux=NULL, formulaMiss, fo
     out$DRcoef <- thetaHat[-lastComp]
     out$DRlambda <- thetaHat[lastComp]
     out$cov <- Sigma
+  } else {
+    warning("The estimation method in the density ratio model did not converge.")
   }
 
   class(out) <- "sievePH"

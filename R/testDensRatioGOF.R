@@ -3,6 +3,7 @@
 #' \code{testDensRatioGoF} implements the complete-case goodness-of-fit test of Qin and Zhang (1997) for evaluating the validity of the specified mark density ratio model used for modeling a component of
 #' the mark-specific hazard ratio model in Juraska and Gilbert (2013). Multivariate marks are accommodated. Subjects who experienced the event of interest but their mark is missing are discarded.
 #'
+#' @param eventInd a numeric vector indicating the event of interest (1 if event, 0 if right-censored)
 #' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
 #' For subjects with a right-censored time-to-event, the value(s) in \code{mark} should be set to \code{NA}.
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
@@ -40,28 +41,33 @@
 #' mark2 <- ifelse(eventInd==1, c(rbeta(n/2, 1, 3), rbeta(n/2, 5, 1)), NA)
 #'
 #' # test goodness-of-fit for a univariate mark
-#' testDensRatioGOF(mark1, tx, iter=20)
+#' testDensRatioGOF(eventInd, mark1, tx, iter=20)
 #'
 #' # test goodness-of-fit for a bivariate mark
-#' testDensRatioGOF(data.frame(mark1, mark2), tx, iter=20)
+#' testDensRatioGOF(eventInd, data.frame(mark1, mark2), tx, iter=20)
 #'
 #' @export
-testDensRatioGOF <- function(mark, tx, DRcoef=NULL, DRlambda=NULL, iter=1000){
+testDensRatioGOF <- function(eventInd, mark, tx, DRcoef=NULL, DRlambda=NULL, iter=1000){
   if (is.vector(mark)) {
     mark <- mark[eventInd==1]
   } else {
-    mark <- mark[eventInd==1,]
+    mark <- mark[eventInd==1, ]
   }
   mark <- as.matrix(mark)
   tx <- tx[eventInd==1]
-  
+
   ninf <- length(tx)   ## number of infections
   n0 <- sum(1-tx)      ## number of placebo infections
   n1 <- sum(tx)        ## number of vaccine infections
   if (any(is.null(DRcoef), is.null(DRlambda))){
-    param <- densRatio(mark, tx)$coef
-    DRcoef <- param[-length(param)]
-    DRlambda <- param[length(param)]
+    dRatio <- densRatio(mark, tx)
+    if (!dRatio$conv){
+      stop("The estimation method in the density ratio model did not converge.")
+    } else {
+      param <- dRatio$coef
+      DRcoef <- param[-length(param)]
+      DRlambda <- param[length(param)]
+    }
   }
 
   g <- function(mark, DRcoef){ exp(drop(cbind(1,mark) %*% DRcoef)) }

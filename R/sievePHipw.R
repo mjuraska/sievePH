@@ -346,6 +346,8 @@ sievePHipw <- function(eventTime, eventInd, mark, tx, aux=NULL, formulaMiss){
     out$DRcoef <- thetaHat[-lastComp]
     out$DRlambda <- thetaHat[lastComp]
     out$cov <- Sigma
+  } else {
+    warning("The estimation method in the density ratio model did not converge.")
   }
 
   class(out) <- "sievePH"
