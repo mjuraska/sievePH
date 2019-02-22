@@ -194,7 +194,7 @@ densRatio <- function(mark, tx){
 #' \item \code{cov}: the estimated joint covariance matrix of \code{DRcoef} and \code{logHR}
 #' \item \code{coxphFit}: an object returned by the call of \code{coxph()}
 #' \item \code{nPlaEvents}: the number of events observed in the placebo group
-#' \item \code{nPlaEvents}: the number of events observed in the treatment group
+#' \item \code{nTxEvents}: the number of events observed in the treatment group
 #' \item \code{mark}: the input object
 #' \item \code{tx}: the input object
 #' }
@@ -219,7 +219,7 @@ densRatio <- function(mark, tx){
 #' # fit a model with a bivariate mark
 #' fit <- sievePH(eventTime, eventInd, data.frame(mark1, mark2), tx)
 #'
-#' @seealso \code{\link{summary.sievePH}} and \code{\link{testIndepTimeMark}}
+#' @seealso \code{\link{summary.sievePH}}, \code{\link{plot.summary.sievePH}}, \code{\link{testIndepTimeMark}} and \code{\link{testDensRatioGOF}}
 #'
 #' @import survival
 #'

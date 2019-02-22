@@ -262,7 +262,7 @@ densRatioIPW <- function(mark, tx, aux=NULL, formulaMiss){
 #' \item \code{cov}: the estimated joint covariance matrix of \code{DRcoef} and \code{logHR}
 #' \item \code{coxphFit}: an object returned by the call of \code{coxph()}
 #' \item \code{nPlaEvents}: the number of events observed in the placebo group
-#' \item \code{nPlaEvents}: the number of events observed in the treatment group
+#' \item \code{nTxEvents}: the number of events observed in the treatment group
 #' \item \code{mark}: the input object
 #' \item \code{tx}: the input object
 #' }
@@ -298,7 +298,7 @@ densRatioIPW <- function(mark, tx, aux=NULL, formulaMiss){
 #' fit <- sievePHipw(eventTime, eventInd, mark=data.frame(mark1, mark2), tx,
 #'                   aux=data.frame(A), formulaMiss= ~ tx * A)
 #'
-#' @seealso \code{\link{summary.sievePH}}, \code{\link{testIndepTimeMark}} and \code{\link{testDensRatioGOF}}
+#' @seealso \code{\link{summary.sievePH}}, \code{\link{plot.summary.sievePH}}, \code{\link{testIndepTimeMark}} and \code{\link{testDensRatioGOF}}
 #'
 #' @import survival
 #'

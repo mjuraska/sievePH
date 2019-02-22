@@ -39,7 +39,7 @@ An object of class \code{sievePH} which can be processed by
 \item \code{cov}: the estimated joint covariance matrix of \code{DRcoef} and \code{logHR}
 \item \code{coxphFit}: an object returned by the call of \code{coxph()}
 \item \code{nPlaEvents}: the number of events observed in the placebo group
-\item \code{nPlaEvents}: the number of events observed in the treatment group
+\item \code{nTxEvents}: the number of events observed in the treatment group
 \item \code{mark}: the input object
 \item \code{tx}: the input object
 }
@@ -96,5 +96,5 @@ Qin, J. (1998), Inferences for case-control and semiparametric two-sample densit
 Robins, J. M., Rotnitzky, A., and Zhao, L. P. (1994), Estimation of regression coefficients when some regressors are not always observed. \emph{Journal of the American Statistical Association} 89(427): 846-866.
 }
 \seealso{
-\code{\link{summary.sievePH}}, \code{\link{testIndepTimeMark}} and \code{\link{testDensRatioGOF}}
+\code{\link{summary.sievePH}}, \code{\link{plot.summary.sievePH}}, \code{\link{testIndepTimeMark}} and \code{\link{testDensRatioGOF}}
 }

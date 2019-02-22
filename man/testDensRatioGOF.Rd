@@ -4,56 +4,62 @@
 \alias{testDensRatioGOF}
 \title{Goodness-of-Fit Test of the Validity of a Univariate or Multivariate Mark Density Ratio Model}
 \usage{
-testDensRatioGOF(mark, tx, theta = NULL, lambda = NULL, B = 1000)
+testDensRatioGOF(eventInd, mark, tx, DRcoef = NULL, DRlambda = NULL,
+  iter = 1000)
 }
 \arguments{
-\item{mark}{either a numeric vector specifying a univariate continuous mark or a matrix specifying a multivariate continuous mark,
-completely observed in all cases (i.e., failures). No missing mark values are permitted.}
+\item{eventInd}{a numeric vector indicating the event of interest (1 if event, 0 if right-censored)}
 
-\item{tx}{a numeric vector indicating the treatment group (1 if treatment, 0 if placebo) in all cases. No missing values are permitted.}
+\item{mark}{either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
+For subjects with a right-censored time-to-event, the value(s) in \code{mark} should be set to \code{NA}.}
 
-\item{theta}{a numeric vector of the coefficients \eqn{\phi} in the weight function \eqn{g(v, \phi)} in the density ratio model}
+\item{tx}{a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)}
 
-\item{lambda}{the Lagrange multiplier in the profile score functions for \eqn{\phi} (that arises by profiling out the nuisance parameter)}
+\item{DRcoef}{a numeric vector of the coefficients \eqn{\phi} in the weight function \eqn{g(v, \phi) = \exp\{\phi^T (1, v)\}} in the density ratio model. If \code{NULL} (default), the maximum profile likelihood estimates (Qin, 1998)
+of the coefficients are computed.}
 
-\item{B}{the number of bootstrap iterations (1000 by default)}
+\item{DRlambda}{the Lagrange multiplier in the profile score functions for \eqn{\phi} (that arises by profiling out the nuisance parameter). If \code{NULL} (default), the maximum profile likelihood estimate (Qin, 1998)
+of the Lagrange multiplier is computed.}
+
+\item{iter}{the number of bootstrap iterations (1000 by default)}
 }
 \value{
 Returns a list containing the following components:
 \itemize{
-\item \code{teststat}: the Kolmogorov-Smirnov-type test statistic from the test of validity of the mark density ratio model
-\item \code{pval}: the bootstrap p-value from the test of validity of the mark density ratio model
-\item \code{theta}: the input object, or a numeric vector of estimates of coefficients \eqn{\phi} in the weight function \eqn{g(v, \phi)} in the density ratio model
-\item \code{lambda}: the input object, or an estimate of the Lagrange multiplier in the profile score functions for \eqn{\phi} (that arises by profiling out the nuisance parameter)
+\item \code{teststat}: the value of the Kolmogorov-Smirnov-type test statistic
+\item \code{pval}: the bootstrap p-value from the Kolmogorov-Smirnov-type test of validity of the mark density ratio model
+\item \code{DRcoef}: the input object if different from \code{NULL} or a numeric vector of estimates of coefficients \eqn{\phi} in the weight function \eqn{g(v, \phi)} in the density ratio model
+\item \code{DRlambda}: the input object if different from \code{NULL} or an estimate of the Lagrange multiplier in the profile score functions for \eqn{\phi}
 }
 }
 \description{
-\code{testDensRatioGoF} implements the complete-case goodness-of-fit test of Qin and Zhang (1997) for the validity of the mark density ratio model in
-Juraska and Gilbert (2013). \code{testDensRatioGoF} can handle univariate and multivariate marks, but the mark data must be fully observed in all failures.
+\code{testDensRatioGoF} implements the complete-case goodness-of-fit test of Qin and Zhang (1997) for evaluating the validity of the specified mark density ratio model used for modeling a component of
+the mark-specific hazard ratio model in Juraska and Gilbert (2013). Multivariate marks are accommodated. Subjects who experienced the event of interest but their mark is missing are discarded.
+}
+\details{
+\code{testDensRatioGoF} performs a goodness-of-fit test for the exponential form of the weight function, i.e., \eqn{g(v, \phi) = \exp\{\phi^T (1, v)\}}. Other weight functions are not considered.
 }
 \examples{
 n <- 500
 tx <- rep(0:1, each=n/2)
-tm <- c(rexp(n/2, 0.1), rexp(n/2, 0.1 * exp(-0.4)))
+tm <- c(rexp(n/2, 0.2), rexp(n/2, 0.2 * exp(-0.4)))
 cens <- runif(n, 0, 15)
 eventTime <- pmin(tm, cens, 3)
 eventInd <- as.numeric(tm <= pmin(cens, 3))
 mark1 <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
 mark2 <- ifelse(eventInd==1, c(rbeta(n/2, 1, 3), rbeta(n/2, 5, 1)), NA)
 
-mark1 <- mark1[eventInd==1]
-mark2 <- mark2[eventInd==1]
-tx <- tx[eventInd==1]
+# test goodness-of-fit for a univariate mark
+testDensRatioGOF(eventInd, mark1, tx, iter=20)
 
-# perform the test with a univariate mark
-testDensRatioGOF(mark1, tx, B=20)
-
-# perform the test with a bivariate mark
-testDensRatioGOF(cbind(mark1, mark2), tx, B=20)
+# test goodness-of-fit for a bivariate mark
+testDensRatioGOF(eventInd, data.frame(mark1, mark2), tx, iter=20)
 
 }
 \references{
+Qin, J., & Zhang, B. (1997). A goodness-of-fit test for logistic regression models based on case-control data. \emph{Biometrika}, 84(3), 609-618.
+
 Juraska, M. and Gilbert, P. B. (2013), Mark-specific hazard ratio model with multivariate continuous marks: an application to vaccine efficacy. \emph{Biometrics} 69(2):328-337.
 
-Qin, J., & Zhang, B. (1997). A goodness-of-fit test for logistic regression models based on case-control data. \emph{Biometrika}, 84(3), 609-618.
+Qin, J. (1998), Inferences for case-control and semiparametric two-sample density ratio models. \emph{Biometrika} 85, 619-630.
 }

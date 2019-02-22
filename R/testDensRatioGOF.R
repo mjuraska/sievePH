@@ -14,12 +14,12 @@
 #' @param iter the number of bootstrap iterations (1000 by default)
 #'
 #' @details
-#' \code{testDensRatioGoF} performs a goodness-of-fit test for the exponential form of the weight function, i.e., \eqn{g(v, \phi) = \exp\{\phi^T (1, v)\}. Other weight functions are not considered.
+#' \code{testDensRatioGoF} performs a goodness-of-fit test for the exponential form of the weight function, i.e., \eqn{g(v, \phi) = \exp\{\phi^T (1, v)\}}. Other weight functions are not considered.
 #'
 #' @return Returns a list containing the following components:
 #' \itemize{
 #' \item \code{teststat}: the value of the Kolmogorov-Smirnov-type test statistic
-#' \item \code{pval}: the bootstrap p-value from the test of validity of the mark density ratio model
+#' \item \code{pval}: the bootstrap p-value from the Kolmogorov-Smirnov-type test of validity of the mark density ratio model
 #' \item \code{DRcoef}: the input object if different from \code{NULL} or a numeric vector of estimates of coefficients \eqn{\phi} in the weight function \eqn{g(v, \phi)} in the density ratio model
 #' \item \code{DRlambda}: the input object if different from \code{NULL} or an estimate of the Lagrange multiplier in the profile score functions for \eqn{\phi}
 #' }

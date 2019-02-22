@@ -43,7 +43,7 @@ waldH0.2sided.pval <- function(est, vEst){
 #' \item \code{coef}: a data frame summarizing point and interval estimates of the density ratio model coefficients and the marginal log hazard ratio (the confidence level is specified by \code{confLevel}), and p-values from the
 #' two-sided Wald test of the null hypothesis that the parameter equals zero
 #' \item \code{pLR.HRunity.2sided}: a numeric vector with two named components: \code{pLR.dRatio.2sided} is a p-value from the two-sided profile likelihood-ratio test of the null hypothesis \eqn{H_0: \beta=0}, where \eqn{\beta} is the
-#' vector of mark coefficients in the mark density ratio model, and \code{pLR.cox.2sided} is a p-value from the two-sided partial likelihood-ratio test of the null hypothesis \eqn{H_0: gamma=0}, where \eqn{\gamma} is the
+#' vector of mark coefficients in the mark density ratio model, and \code{pLR.cox.2sided} is a p-value from the two-sided partial likelihood-ratio test of the null hypothesis \eqn{H_0: \gamma=0}, where \eqn{\gamma} is the
 #' marginal log hazard ratio in the Cox model. The two p-values are intended for the use of the Simes (1986) procedure as described on page 4 in Juraska and Gilbert (2013).
 #' \item \code{pWald.HRunity.2sided}: a p-value from the two-sided Wald test of the null hypothesis \{\eqn{H_0: HR(v)=1} for all \eqn{v}\}
 #' \item \code{pWtWald.HRunity.1sided}: a p-value from the one-sided weighted Wald test of the null hypothesis \{\eqn{H_0: HR(v)=1} for all \eqn{v}\} against the alternative hypothesis \{\eqn{H_1: HR < 1} and \eqn{HR(v)} is
