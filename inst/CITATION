@@ -4,6 +4,6 @@ citEntry(entry = "Manual",
          title = "sievePH: Sieve Analysis Methods for Proportional Hazards Models",
          author = "Michal Juraska",
          year = "2019",
-         note = "R package version 1.0.0",
-         textVersion = "Michal Juraska (2019). sievePH: Sieve Analysis Methods for Proportional Hazards Models. R package version 1.0.0."
+         note = "R package version 1.0.1",
+         textVersion = "Michal Juraska (2019). sievePH: Sieve Analysis Methods for Proportional Hazards Models. R package version 1.0.1."
 )

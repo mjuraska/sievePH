@@ -5,8 +5,15 @@
 \title{Semiparametric Augmented Inverse Probability Weighted Complete-Case Estimation of Coefficients in a Mark-Specific Proportional Hazards Model
 with a Multivariate Continuous Mark, Missing-at-Random in Some Failures}
 \usage{
-sievePHaipw(eventTime, eventInd, mark, tx, aux = NULL, formulaMiss,
-  formulaScore)
+sievePHaipw(
+  eventTime,
+  eventInd,
+  mark,
+  tx,
+  aux = NULL,
+  formulaMiss,
+  formulaScore
+)
 }
 \arguments{
 \item{eventTime}{a numeric vector specifying the observed right-censored event time}

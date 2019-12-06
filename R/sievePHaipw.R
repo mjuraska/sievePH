@@ -347,7 +347,7 @@ densRatioAIPW <- function(mark, tx, aux=NULL, formulaMiss, formulaScore){
   while (sum((param.new - param.old)^2)>1e-8){
     param.old <- param.new
     jackInv <- try(solve(jack(param.old[-(nmark+1)],param.old[nmark+1])), silent=TRUE)
-    if (class(jackInv)!="try-error"){
+    if (!inherits(jackInv, "try-error")){
       param.new <- param.old - drop(jackInv %*% score(param.old[-(nmark+1)],param.old[nmark+1]))
     }
     if (sum(is.nan(param.new))>0) break
@@ -373,14 +373,14 @@ densRatioAIPW <- function(mark, tx, aux=NULL, formulaMiss, formulaScore){
   }
 
   JackInv <- try(solve(jack(theta.new,lambda.new)), silent=TRUE)
-  if (class(JackInv)!="try-error"){
+  if (!inherits(JackInv, "try-error")){
     Var <- ninf * JackInv %*% Resid(theta.new,lambda.new) %*% JackInv
     names(param.new) <- rownames(Var) <- colnames(Var) <- c("alpha",paste("beta",1:(nmark-1),sep=""),"lambda")
   } else {
     Var <- NULL
   }
 
-  return(list(coef=param.new, var=Var, jack=jack11(theta.new,lambda.new), conv=!(class(jackInv)=="try-error" | class(JackInv)=="try-error")))
+  return(list(coef=param.new, var=Var, jack=jack11(theta.new,lambda.new), conv=!(inherits(jackInv, "try-error") | inherits(JackInv, "try-error"))))
 }
 
 #' Semiparametric Augmented Inverse Probability Weighted Complete-Case Estimation of Coefficients in a Mark-Specific Proportional Hazards Model

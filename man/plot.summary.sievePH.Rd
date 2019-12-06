@@ -4,11 +4,24 @@
 \alias{plot.summary.sievePH}
 \title{Plotting Mark-Specific Proportional Hazards Model Fits}
 \usage{
-\method{plot}{summary.sievePH}(x, mark = NULL, tx = NULL,
-  xlim = NULL, ylim = NULL, zlim = NULL, xtickAt = NULL,
-  xtickLab = NULL, ytickAt = NULL, ytickLab = NULL, xlab = NULL,
-  ylab = NULL, zlab = NULL, txLab = c("Placebo", "Treatment"),
-  title = NULL, ...)
+\method{plot}{summary.sievePH}(
+  x,
+  mark = NULL,
+  tx = NULL,
+  xlim = NULL,
+  ylim = NULL,
+  zlim = NULL,
+  xtickAt = NULL,
+  xtickLab = NULL,
+  ytickAt = NULL,
+  ytickLab = NULL,
+  xlab = NULL,
+  ylab = NULL,
+  zlab = NULL,
+  txLab = c("Placebo", "Treatment"),
+  title = NULL,
+  ...
+)
 }
 \arguments{
 \item{x}{an object returned by \code{\link{summary.sievePH}}}

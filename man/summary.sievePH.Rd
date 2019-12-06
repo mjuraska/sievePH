@@ -5,9 +5,14 @@
 \alias{print.summary.sievePH}
 \title{Summarizing Mark-Specific Proportional Hazards Model Fits}
 \usage{
-\method{summary}{sievePH}(object, markGrid, contrast = c("te", "hr",
-  "loghr"), sieveAlternative = c("twoSided", "oneSided"),
-  confLevel = 0.95, ...)
+\method{summary}{sievePH}(
+  object,
+  markGrid,
+  contrast = c("te", "hr", "loghr"),
+  sieveAlternative = c("twoSided", "oneSided"),
+  confLevel = 0.95,
+  ...
+)
 
 \method{print}{summary.sievePH}(x, digits = 4, ...)
 }

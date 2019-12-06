@@ -4,8 +4,14 @@
 \alias{testDensRatioGOF}
 \title{Goodness-of-Fit Test of the Validity of a Univariate or Multivariate Mark Density Ratio Model}
 \usage{
-testDensRatioGOF(eventInd, mark, tx, DRcoef = NULL, DRlambda = NULL,
-  iter = 1000)
+testDensRatioGOF(
+  eventInd,
+  mark,
+  tx,
+  DRcoef = NULL,
+  DRlambda = NULL,
+  iter = 1000
+)
 }
 \arguments{
 \item{eventInd}{a numeric vector indicating the event of interest (1 if event, 0 if right-censored)}
