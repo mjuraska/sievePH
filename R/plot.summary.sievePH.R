@@ -118,10 +118,10 @@ plot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, zl
 
     # add scatter/box plots of the observed mark values by treatment
     if (!any(c(is.null(mark), is.null(tx)))){
-      par(fig=c(0,1,0.85,1), new=TRUE)
+      par(fig=c(0,1,0.8,1), new=TRUE)
 
       data <- na.omit(cbind(mark, tx))
-      plotMarkHoriz(data[, 1], data[, 2], parMar=c(0, parMar[-1]), yLim=xlim, txLab=txLab)
+      plotMarkHoriz(data[, 1], data[, 2], parMar=c(0.5, parMar[-1]), yLim=xlim, txLab=txLab)
 
       par(fig=c(0,1,0,1))
     }
@@ -161,7 +161,7 @@ plotMarkHoriz <- function(mark, tx, parMar, yLim, txLab=c("Placebo", "Treatment"
   boxplot(mark ~ as.factor(tx), at=c(0.5,1.5), xlim=c(0,2), ylim=c(yLim[1], yLim[2]), frame.plot=FALSE, xaxt="n", yaxt="n",
           xlab="", ylab="", boxwex=0.8, outline=FALSE, border="black", lwd=2.5, horizontal=TRUE)
   axis(side=2, at=c(0.5,1.5), labels=txLab, cex.axis=cexAxis, las=1)
-  points(mark, jitter(tx + 0.5, factor=0.9), col=ifelse(tx==1, "red3", "blue"), pch=ifelse(tx==1, 24, 21), lwd=2, cex=ifelse(tx==1, 1.2, 1.1))
+  points(mark, jitter(tx + 0.5, factor=0.6), col=ifelse(tx==1, "red3", "blue"), bg="white", pch=ifelse(tx==1, 24, 21), lwd=1.3, cex=ifelse(tx==1, 0.9, 0.8))
 }
 
 getOuterProduct <- function(df, zlim){
