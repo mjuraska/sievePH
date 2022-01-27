@@ -6,7 +6,7 @@ VE <- function(v, alpha, beta, gamma){ 1 - exp(alpha + beta*v + gamma) }
 # the augmented IPW scenario, using Theorem 1 in Juraska and Gilbert (2013, Biometrics)
 # 'eventTime' is the observed time, defined as the minimum of failure, censoring, and study times
 # 'eventType' is the failure indicator (0 if censored, 1 if failure)
-# 'mark' is a data frame (with the same number of rows as the length of 'eventTime') specifying a multivariate mark (a numeric vector for a univariate mark is allowed), with NA for subjects with find=0.
+# 'mark' is a data frame (with the same number of rows as the length of 'eventTime') specifying a multivariate mark (a numeric vector for a univariate mark is allowed), with NA for subjects with eventType=0.
 # 'tx' is the treatment group indicator (1 if treatment, 0 if control)
 # 'aux' is a data frame of auxiliary covariates
 # 'formulaMiss' is a one-sided formula specifying the logistic regression model for estimating the probability of observing the mark; all variables in the formula except 'tx' must be included in 'aux'
@@ -86,7 +86,7 @@ covEstAIPW <- function(eventTime, eventType, mark, tx, aux=NULL, formulaMiss, fo
   eta <- drop(xi(gammaHat)/zeta(gammaHat))
   score3.vect <- function(gamma){ tx.f-eta }
   l.vect <- function(gamma){
-    survprob.vect <- c(1, summary(survfit(Surv(eventTime,eventType)~1))$surv)
+    survprob.vect <- c(1, summary(survfit(Surv(eventTime,eventType)~1), times=sort(eventTime.f))$surv)
     surv.increm <- survprob.vect[-length(survprob.vect)] - survprob.vect[-1]
     eventTime.fMsq <- eventTime.fM[1:m.f,]
     crossprod(eventTime.f>=eventTime.fMsq, surv.increm*(tx.f*exp(gamma*tx.f) - eta*exp(gamma*tx.f))/zeta(gamma))
