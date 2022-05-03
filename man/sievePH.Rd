@@ -5,7 +5,7 @@
 \title{Semiparametric Estimation of Coefficients in a Mark-Specific Proportional Hazards
 Model with a Multivariate Continuous Mark, Fully Observed in All Failures}
 \usage{
-sievePH(eventTime, eventInd, mark, tx)
+sievePH(eventTime, eventInd, mark, tx, strata = NULL)
 }
 \arguments{
 \item{eventTime}{a numeric vector specifying the observed right-censored time to the event of interest}
@@ -16,6 +16,8 @@ sievePH(eventTime, eventInd, mark, tx)
 No missing values are permitted for subjects with \code{eventInd = 1}. For subjects with \code{eventInd = 0}, the value(s) in \code{mark} should be set to \code{NA}.}
 
 \item{tx}{a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)}
+
+\item{strata}{a numeric vector specifying baseline strata (\code{NULL} by default). If specified, a stratified Cox model is fit for estimating the marginal hazard ratio (i.e., a separate baseline hazard is assumed for each stratum). No stratification is used in estimation of the mark density ratio.}
 }
 \value{
 An object of class \code{sievePH} which can be processed by

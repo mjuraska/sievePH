@@ -5,7 +5,15 @@
 \title{Semiparametric Inverse Probability Weighted Complete-Case Estimation of Coefficients in a Mark-Specific Proportional Hazards Model
 with a Multivariate Continuous Mark, Missing-at-Random in Some Failures}
 \usage{
-sievePHipw(eventTime, eventInd, mark, tx, aux = NULL, formulaMiss)
+sievePHipw(
+  eventTime,
+  eventInd,
+  mark,
+  tx,
+  aux = NULL,
+  strata = NULL,
+  formulaMiss
+)
 }
 \arguments{
 \item{eventTime}{a numeric vector specifying the observed right-censored event time}
@@ -17,8 +25,9 @@ For subjects with \code{eventInd = 0}, the value(s) in \code{mark} should also b
 
 \item{tx}{a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)}
 
-\item{aux}{a data frame specifying auxiliary covariates predictive of the probability of observing the mark. The mark missingness model only requires that the auxiliary covariates be observed in
-subjects who experienced the event of interest. For subjects with \code{eventInd = 0}, the value(s) in \code{aux} may be set to \code{NA}.}
+\item{aux}{a data frame specifying auxiliary covariates predictive of the probability of observing the mark. The mark missingness model only requires that the auxiliary covariates be observed in subjects who experienced the event of interest. For subjects with \code{eventInd = 0}, the value(s) in \code{aux} may be set to \code{NA}.}
+
+\item{strata}{a numeric vector specifying baseline strata (\code{NULL} by default). If specified, a stratified Cox model is fit for estimating the marginal hazard ratio (i.e., a separate baseline hazard is assumed for each stratum). No stratification is used in estimation of the mark density ratio.}
 
 \item{formulaMiss}{a one-sided formula object specifying (on the right side of the \code{~} operator) the linear predictor in the logistic regression model used for predicting the probability of observing
 the mark. All terms in the formula except \code{tx} must be evaluable in the data frame \code{aux}.}
