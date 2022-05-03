@@ -175,6 +175,7 @@ densRatio <- function(mark, tx){
 #' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
 #' No missing values are permitted for subjects with \code{eventInd = 1}. For subjects with \code{eventInd = 0}, the value(s) in \code{mark} should be set to \code{NA}.
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
+#' @param strata a numeric vector specifying baseline strata (\code{NULL} by default). If specified, a stratified Cox model is fit for estimating the marginal hazard ratio (i.e., a separate baseline hazard is assumed for each stratum). No stratification is used in estimation of the mark density ratio.
 #'
 #' @details
 #' \code{sievePH} considers data from a randomized placebo-controlled treatment efficacy trial with a time-to-event endpoint.
@@ -224,7 +225,7 @@ densRatio <- function(mark, tx){
 #' @import survival
 #'
 #' @export
-sievePH <- function(eventTime, eventInd, mark, tx){
+sievePH <- function(eventTime, eventInd, mark, tx, strata=NULL){
   if (is.numeric(mark)){ mark <- data.frame(mark) }
 
   nPlaEvents <- sum(eventInd * (1-tx))
@@ -233,7 +234,8 @@ sievePH <- function(eventTime, eventInd, mark, tx){
   dRatio <- densRatio(mark[eventInd==1, ], tx[eventInd==1])
 
   # fit the Cox proportional hazards model to estimate the marginal hazard ratio
-  phReg <- survival::coxph(Surv(eventTime, eventInd) ~ tx)
+  fm.coxph <- as.formula(paste0("Surv(eventTime, eventInd) ~ tx", ifelse(is.null(strata), "", " + strata(strata)")))
+  phReg <- survival::coxph(fm.coxph)
 
   # the estimate of the marginal log hazard ratio
   gammaHat <- phReg$coef

@@ -238,8 +238,8 @@ densRatioIPW <- function(mark, tx, aux=NULL, formulaMiss){
 #' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark subject to missingness at random. Missing mark values should be set to \code{NA}.
 #' For subjects with \code{eventInd = 0}, the value(s) in \code{mark} should also be set to \code{NA}.
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
-#' @param aux a data frame specifying auxiliary covariates predictive of the probability of observing the mark. The mark missingness model only requires that the auxiliary covariates be observed in
-#' subjects who experienced the event of interest. For subjects with \code{eventInd = 0}, the value(s) in \code{aux} may be set to \code{NA}.
+#' @param aux a data frame specifying auxiliary covariates predictive of the probability of observing the mark. The mark missingness model only requires that the auxiliary covariates be observed in subjects who experienced the event of interest. For subjects with \code{eventInd = 0}, the value(s) in \code{aux} may be set to \code{NA}.
+#' @param strata a numeric vector specifying baseline strata (\code{NULL} by default). If specified, a stratified Cox model is fit for estimating the marginal hazard ratio (i.e., a separate baseline hazard is assumed for each stratum). No stratification is used in estimation of the mark density ratio.
 #' @param formulaMiss a one-sided formula object specifying (on the right side of the \code{~} operator) the linear predictor in the logistic regression model used for predicting the probability of observing
 #' the mark. All terms in the formula except \code{tx} must be evaluable in the data frame \code{aux}.
 #'
@@ -303,7 +303,7 @@ densRatioIPW <- function(mark, tx, aux=NULL, formulaMiss){
 #' @import survival
 #'
 #' @export
-sievePHipw <- function(eventTime, eventInd, mark, tx, aux=NULL, formulaMiss){
+sievePHipw <- function(eventTime, eventInd, mark, tx, aux=NULL, strata=NULL, formulaMiss){
   if (is.numeric(mark)){ mark <- data.frame(mark) }
   if (!is.null(aux)){ if (!is.data.frame(aux)){ stop("'aux' must be a data frame.") } }
 
@@ -319,7 +319,8 @@ sievePHipw <- function(eventTime, eventInd, mark, tx, aux=NULL, formulaMiss){
   dRatio <- densRatioIPW(mark[eventInd==1, ], tx[eventInd==1], aux=auxForEvents, formulaMiss=formulaMiss)
 
   # fit the Cox proportional hazards model to estimate the marginal hazard ratio
-  phReg <- coxph(Surv(eventTime, eventInd) ~ tx)
+  fm.coxph <- as.formula(paste0("Surv(eventTime, eventInd) ~ tx", ifelse(is.null(strata), "", " + strata(strata)")))
+  phReg <- survival::coxph(fm.coxph)
 
   # the estimate of the marginal log hazard ratio
   gammaHat <- phReg$coef
