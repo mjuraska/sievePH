@@ -55,7 +55,8 @@ library(ggplot2)
 ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL,
                                    ytickLab=NULL, xlab=NULL, ylab=NULL, axisLabSize = 15, tickLabSize = 14, legendLabSize = 12,
                                    txLab=c("Placebo", "Treatment"), txLabSize = 5, boxplotWidth = 0.8, jitterFactor = NULL, jitterSeed = 0,
-                                   title=NULL, titleSize = 16, subtitle=NULL, subtitleSize=10, estLineSize=1.6, ciLineSize=1.2, pointSize=1.7, ...){
+                                   title=NULL, titleSize = 16, subtitle=NULL, subtitleSize=10, estLineSize=1.6, ciLineSize=1.2, pointSize=1.7,
+                                   bottomPlotMargin=c(-0.5, 0.3, 0, 0), topPlotMargin=c(0, 0.3, -0.12, 1.83), ...){
 
   contrast <- names(x)[length(names(x))]
   if (is.null(xlab)){ xlab <- colnames(x[[contrast]])[1] }
@@ -92,7 +93,7 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
           axis.title.y = element_text(size = axisLabSize, margin = margin(r = 10)),
           axis.text.x = element_text(size = tickLabSize, colour = "black"),
           axis.text.y = element_text(size = tickLabSize, colour = "black"),
-          plot.margin=unit(c(-0.5, 0.13, 0, 0), "cm"))
+          plot.margin=unit(bottomPlotMargin, "cm"))
 
   # Add x-axis limits, ticks and labels
   if (is.null(xtickAt) && is.null(xtickLab)){
@@ -135,8 +136,8 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
   }
   p2 <- p2 + scale_shape_manual(name = "", labels = c("0" = txLab[1], "1" = txLab[2]), values = c(21, 24)) +
     scale_color_manual(name="", values = c("red3", "blue"), breaks = c("1", "0"))
-  p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "0", label = txLab[1], size = txLabSize, hjust = 1, check_overlap = T)
-  p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "1", label = txLab[2], size = txLabSize, hjust = 1, check_overlap = T)
+  p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "0", label = txLab[1], size = txLabSize, hjust = 1, check_overlap = TRUE)
+  p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "1", label = txLab[2], size = txLabSize, hjust = 1, check_overlap = TRUE)
 
   if (is.null(xtickAt)){
     p2 <- p2 + scale_x_continuous(limits = xlim, breaks = scales::pretty_breaks(n = 5), labels = NULL)
@@ -166,7 +167,7 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
           plot.subtitle = element_text(size = subtitleSize, hjust = 0.5),
           axis.text.y = element_blank(),
           axis.ticks.x = element_blank(),
-          plot.margin=unit(c(0, 0.13, -0.12, 2), "lines")
+          plot.margin=unit(topPlotMargin, "lines")
     ) + coord_cartesian(clip = "off")
 
   p <- ggpubr::ggarrange(p2, p1, heights = c(0.33, 0.67), ncol=1, nrow=2, align = "v")
