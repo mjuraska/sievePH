@@ -53,9 +53,9 @@ library(ggplot2)
 #'
 #' @export
 ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL,
-                                   ytickLab=NULL, xlab=NULL, ylab=NULL, axisLabSize = 15, tickLabSize = 14, legendLabSize = 10,
+                                   ytickLab=NULL, xlab=NULL, ylab=NULL, axisLabSize = 15, tickLabSize = 14, legendLabSize = 12,
                                    txLab=c("Placebo", "Treatment"), txLabSize = 5, boxplotWidth = 0.8, jitterFactor = NULL, jitterSeed = 0,
-                                   title=NULL, titleSize = 16, subtitle=NULL, subtitleSize=10, lineSize=1.6, ...){
+                                   title=NULL, titleSize = 16, subtitle=NULL, subtitleSize=10, estLineSize=1.6, ciLineSize=1.2, pointSize=1.7, ...){
 
   contrast <- names(x)[length(names(x))]
   if (is.null(xlab)){ xlab <- colnames(x[[contrast]])[1] }
@@ -70,20 +70,21 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
     ylim <- range(fit[, -1], na.rm=TRUE)
   }
 
-  p1 <- ggplot(fit)+
-    geom_line(aes(x = mark, y = EST), linetype = "solid", size = lineSize) +
+  p1 <- ggplot(fit) +
+    geom_hline(yintercept=0, color="gray70", size=1) +
+    geom_line(aes(x = mark, y = EST), linetype = "solid", size = estLineSize) +
     geom_line(aes(x = mark, y = LB, linetype = '95% Pointwise CI', size = '95% Pointwise CI')) +
     geom_line(aes(x = mark, y = UB, linetype = '95% Pointwise CI', size = '95% Pointwise CI')) +
     scale_linetype_manual(name="", labels = c('95% Pointwise CI'), values = c('95% Pointwise CI'= "dashed")) +
-    scale_size_manual(name="", labels = c('95% Pointwise CI'), values = c('95% Pointwise CI'= lineSize)) +
+    scale_size_manual(name="", labels = c('95% Pointwise CI'), values = c('95% Pointwise CI'= ciLineSize)) +
     xlab(xlab) +
     ylab(ylab) +
     theme_bw() +
     theme(legend.key.size = unit(0.65, "cm"),
           legend.margin=margin(grid::unit(0,"cm")),
           legend.text=element_text(size=legendLabSize),
-          legend.position = c(0,0.02),
-          legend.justification = c(0, 0),
+          legend.position = c(0.96, 1.08),
+          legend.justification = c(1, 1),
           legend.key = element_blank(),
           legend.key.width = unit(1.4,"cm"),
           legend.background = element_blank(),
@@ -91,7 +92,7 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
           axis.title.y = element_text(size = axisLabSize, margin = margin(r = 10)),
           axis.text.x = element_text(size = tickLabSize, colour = "black"),
           axis.text.y = element_text(size = tickLabSize, colour = "black"),
-          plot.margin=unit(c(-0.5,0,0,0), "cm"))
+          plot.margin=unit(c(-0.5, 0.13, 0, 0), "cm"))
 
   # Add x-axis limits, ticks and labels
   if (is.null(xtickAt) && is.null(xtickLab)){
@@ -126,14 +127,14 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
   p2 <- ggplot(data) +
     geom_boxplot(aes(x = mark, y = tx), width = boxplotWidth, fill = "gray80", color = "black", lwd = 0.8, outlier.shape = NA, data = data)
   if (is.null(jitterFactor)){
-    p2 <- p2 + geom_jitter(aes(x = mark, y = tx, shape = as.factor(tx), color = as.factor(tx)), alpha = 1, size = 1.7,
+    p2 <- p2 + geom_jitter(aes(x = mark, y = tx, shape = as.factor(tx), color = as.factor(tx)), alpha = 1, size = pointSize,
                            width = 0, fill = "white", stroke = 1, data = data)
   } else {
-    p2 <- p2 + geom_jitter(aes(x = mark, y = tx, shape = as.factor(tx), color = as.factor(tx)), alpha = 1,size = 1.7, height = jitterFactor,
+    p2 <- p2 + geom_jitter(aes(x = mark, y = tx, shape = as.factor(tx), color = as.factor(tx)), alpha = 1,size = pointSize, height = jitterFactor,
                 width = 0, fill = "white", stroke = 1, data = data)
   }
   p2 <- p2 + scale_shape_manual(name = "", labels = c("0" = txLab[1], "1" = txLab[2]), values = c(21, 24)) +
-    scale_color_manual(name="", values = c("red", "blue"), breaks = c("1", "0"))
+    scale_color_manual(name="", values = c("red3", "blue"), breaks = c("1", "0"))
   p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "0", label = txLab[1], size = txLabSize, hjust = 1, face="plain")
   p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "1", label = txLab[2], size = txLabSize, hjust = 1, face="plain")
 
@@ -165,7 +166,7 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
           plot.subtitle = element_text(size = subtitleSize, hjust = 0.5),
           axis.text.y = element_blank(),
           axis.ticks.x = element_blank(),
-          plot.margin=unit(c(0, 0, -0.12, 2.7), "lines")
+          plot.margin=unit(c(0, 0.13, -0.12, 2), "lines")
     ) + coord_cartesian(clip = "off")
 
   p <- ggpubr::ggarrange(p2, p1, heights = c(0.33, 0.67), ncol=1, nrow=2, align = "v")
