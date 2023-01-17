@@ -56,7 +56,7 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
                                    ytickLab=NULL, xlab=NULL, ylab=NULL, axisLabSize = 15, tickLabSize = 14, legendLabSize = 12,
                                    txLab=c("Placebo", "Treatment"), txLabSize = 5, boxplotWidth = 0.8, jitterFactor = NULL, jitterSeed = 0,
                                    title=NULL, titleSize = 16, subtitle=NULL, subtitleSize=10, estLineSize=1.6, ciLineSize=1.2, pointSize=1.7,
-                                   bottomPlotMargin=c(-0.5, 0.3, 0, 0), topPlotMargin=c(0, 0.3, -0.12, 1.83), ...){
+                                   bottomPlotMargin=c(-0.5, 0.3, 0, 0), topPlotMargin=c(0, 0.3, -0.12, 1.83), plotHeights=c(0.33, 0.67), ...){
 
   contrast <- names(x)[length(names(x))]
   if (is.null(xlab)){ xlab <- colnames(x[[contrast]])[1] }
@@ -170,7 +170,7 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
           plot.margin=unit(topPlotMargin, "lines")
     ) + coord_cartesian(clip = "off")
 
-  p <- ggpubr::ggarrange(p2, p1, heights = c(0.33, 0.67), ncol=1, nrow=2, align = "v")
+  p <- ggpubr::ggarrange(p2, p1, heights = plotHeights, ncol=1, nrow=2, align = "v")
   #p <- p2+p1+patchwork::plot_layout(ncol=1,heights = c(1,2))
 
   return(p)
