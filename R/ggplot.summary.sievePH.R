@@ -23,6 +23,7 @@
 #' @jitter.height a numeric number specifying the amount of vertical jitter (\code{NULL} by default: this means the jitter values will occupy 80% of the implied bins.  
 #' @jitter.seed a numeric number setting the seed of R's random number generator for jitter (\code{0} by default)
 #' @param title a character string specifying the plot title (\code{NULL} by default)
+#' @param subtitle a character string specifying a plot subtitle (\code{NULL} by default)
 #' @param title.size a numeric number specifying font of the plot title (\code{16} by default)
 
 #' @param ... other arguments to be passed to plotting functions
@@ -51,7 +52,7 @@
 ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL, 
                                    ytickLab=NULL, xlab=NULL, ylab=NULL, axis.title.size = 15, axis.text.size = 14, legend.text.size = 10,
                                    txLab=c("Placebo", "Treatment"), txLab.size = 5, boxplot.width = 0.8, jitter.height = NULL, jitter.seed = 0, 
-                                   title=NULL, title.size = 16, ...){
+                                   title=NULL, title.size = 16, subtitle = NULL, subtitle.size = 10, ...){
   library(ggpubr)
   library(ggplot2)
   
@@ -140,7 +141,18 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
   }else{
     p2 <- p2 +scale_x_continuous(limits = xlim, breaks = xtickAt, labels = NULL)
   }
-
+  if(!is.null(subtitle)){
+    p2 <- p2 + labs(subtitle = subtitle)
+  }
+  
+  if(!is.null(title)){
+    p2 <- p2 + labs(title = title)
+    
+  }
+  # if(!is.null(title) & !is.null(subtitle)){
+  #   p <- ggpubr::annotate_figure(p, top = ggpubr::text_grob(title, size = title.size, face = "bold", vjust = 1.2, hjust = 0.2))
+  #   
+  # }
   p2 <- p2 +
     xlab("")+
     ylab("")+
@@ -148,7 +160,9 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
     theme_bw()+
     guides(shape = "none")+
     guides(color="none")+
-    theme(axis.text.y = element_blank(),
+    theme(plot.title = element_text(size = title.size, hjust = 0.5, face = "bold"),
+          plot.subtitle = element_text(size = subtitle.size, hjust = 0.5),
+          axis.text.y = element_blank(),
           axis.ticks.x = element_blank(),
           plot.margin=unit(c(1,1,-0.12,2.7), "lines")
     )+coord_cartesian(clip = "off")
@@ -158,10 +172,10 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
   
   p <- ggpubr::ggarrange(p2,p1,heights = c(0.33,0.67),ncol=1,nrow=2,align = "v")
   #p <- p2+p1+patchwork::plot_layout(ncol=1,heights = c(1,2))
-   if(!is.null(title)){
-     p <- ggpubr::annotate_figure(p, top = ggpubr::text_grob(title, 
-                                             color = "black", face = "bold", size = title.size, vjust = 1))
-   }
+  
+  
+  
+  
   
   
   return(p)
