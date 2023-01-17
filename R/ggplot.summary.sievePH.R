@@ -55,7 +55,7 @@ library(ggplot2)
 ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL,
                                    ytickLab=NULL, xlab=NULL, ylab=NULL, axisLabSize = 15, tickLabSize = 14, legendLabSize = 10,
                                    txLab=c("Placebo", "Treatment"), txLabSize = 5, boxplotWidth = 0.8, jitterFactor = NULL, jitterSeed = 0,
-                                   title=NULL, titleSize = 16, subtitle=NULL, subtitleSize=10, ...){
+                                   title=NULL, titleSize = 16, subtitle=NULL, subtitleSize=10, lineSize=1.6, ...){
 
   contrast <- names(x)[length(names(x))]
   if (is.null(xlab)){ xlab <- colnames(x[[contrast]])[1] }
@@ -71,11 +71,11 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
   }
 
   p1 <- ggplot(fit)+
-    geom_line(aes(x = mark, y = EST), linetype = "solid", size = 1.6) +
+    geom_line(aes(x = mark, y = EST), linetype = "solid", size = lineSize) +
     geom_line(aes(x = mark, y = LB, linetype = '95% Pointwise CI', size = '95% Pointwise CI')) +
     geom_line(aes(x = mark, y = UB, linetype = '95% Pointwise CI', size = '95% Pointwise CI')) +
     scale_linetype_manual(name="", labels = c('95% Pointwise CI'), values = c('95% Pointwise CI'= "dashed")) +
-    scale_size_manual(name="", labels = c('95% Pointwise CI'), values = c('95% Pointwise CI'= 1.2)) +
+    scale_size_manual(name="", labels = c('95% Pointwise CI'), values = c('95% Pointwise CI'= lineSize)) +
     xlab(xlab) +
     ylab(ylab) +
     theme_bw() +
@@ -91,7 +91,7 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
           axis.title.y = element_text(size = axisLabSize, margin = margin(r = 10)),
           axis.text.x = element_text(size = tickLabSize, colour = "black"),
           axis.text.y = element_text(size = tickLabSize, colour = "black"),
-          plot.margin=unit(c(-0.5,1,1,1), "cm"))
+          plot.margin=unit(c(-0.5,0,0,0), "cm"))
 
   # Add x-axis limits, ticks and labels
   if (is.null(xtickAt) && is.null(xtickLab)){
@@ -134,8 +134,8 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
   }
   p2 <- p2 + scale_shape_manual(name = "", labels = c("0" = txLab[1], "1" = txLab[2]), values = c(21, 24)) +
     scale_color_manual(name="", values = c("red", "blue"), breaks = c("1", "0"))
-  p2 <- p2 + geom_text(x = min(xlim) - 0.07*(xlim[2] - xlim[1]), y = "0", label = txLab[1], size = txLabSize, hjust = 1)
-  p2 <- p2 + geom_text(x = min(xlim) - 0.07*(xlim[2] - xlim[1]), y = "1", label = txLab[2], size = txLabSize, hjust = 1)
+  p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "0", label = txLab[1], size = txLabSize, hjust = 1, face="plain")
+  p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "1", label = txLab[2], size = txLabSize, hjust = 1, face="plain")
 
   if (is.null(xtickAt)){
     p2 <- p2 + scale_x_continuous(limits = xlim, breaks = scales::pretty_breaks(n = 5), labels = NULL)
@@ -165,7 +165,7 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
           plot.subtitle = element_text(size = subtitleSize, hjust = 0.5),
           axis.text.y = element_blank(),
           axis.ticks.x = element_blank(),
-          plot.margin=unit(c(1,1,-0.12,2.7), "lines")
+          plot.margin=unit(c(0, 0, -0.12, 2.7), "lines")
     ) + coord_cartesian(clip = "off")
 
   p <- ggpubr::ggarrange(p2, p1, heights = c(0.33, 0.67), ncol=1, nrow=2, align = "v")
