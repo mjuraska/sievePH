@@ -72,9 +72,9 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
 
   p1 <- ggplot(fit) +
     geom_hline(yintercept=0, color="gray70", size=1) +
-    geom_line(aes(x = mark, y = EST), linetype = "solid", size = estLineSize) +
-    geom_line(aes(x = mark, y = LB, linetype = '95% Pointwise CI', size = '95% Pointwise CI')) +
-    geom_line(aes(x = mark, y = UB, linetype = '95% Pointwise CI', size = '95% Pointwise CI')) +
+    geom_line(aes(x = mark, y = EST), linetype = "solid", size = estLineSize, na.rm = TRUE) +
+    geom_line(aes(x = mark, y = LB, linetype = '95% Pointwise CI', size = '95% Pointwise CI'), na.rm = TRUE) +
+    geom_line(aes(x = mark, y = UB, linetype = '95% Pointwise CI', size = '95% Pointwise CI'), na.rm = TRUE) +
     scale_linetype_manual(name="", labels = c('95% Pointwise CI'), values = c('95% Pointwise CI'= "dashed")) +
     scale_size_manual(name="", labels = c('95% Pointwise CI'), values = c('95% Pointwise CI'= ciLineSize)) +
     xlab(xlab) +
