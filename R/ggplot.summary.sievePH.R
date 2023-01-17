@@ -28,7 +28,7 @@ library(ggplot2)
 #' @param title a character string specifying the plot title (\code{NULL} by default)
 #' @param titleSize a numeric number specifying font of the plot title (\code{16} by default)
 #' @param subtitle a character string specifying the plot subtitle (\code{NULL} by default)
-#' @param subtitle.size a numeric number specifying font of the plot subtitle (\code{10} by default)
+#' @param subtitleSize a numeric number specifying font of the plot subtitle (\code{10} by default)
 #' @param ... other arguments to be passed to plotting functions
 #' @details
 #'
@@ -55,7 +55,7 @@ library(ggplot2)
 ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL,
                                    ytickLab=NULL, xlab=NULL, ylab=NULL, axisLabSize = 15, tickLabSize = 14, legendLabSize = 10,
                                    txLab=c("Placebo", "Treatment"), txLabSize = 5, boxplotWidth = 0.8, jitterFactor = NULL, jitterSeed = 0,
-                                   title=NULL, titleSize = 16, subtitle=NULL, subtitle.size=10, ...){
+                                   title=NULL, titleSize = 16, subtitle=NULL, subtitleSize=10, ...){
 
   contrast <- names(x)[length(names(x))]
   if (is.null(xlab)){ xlab <- colnames(x[[contrast]])[1] }
@@ -87,98 +87,90 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
           legend.key = element_blank(),
           legend.key.width = unit(1.4,"cm"),
           legend.background = element_blank(),
-          axis.title.x = element_text(size = axisLabSize, margin = margin(t = 10 )),
-          axis.title.y = element_text(size = axisLabSize, margin = margin(r = 10 )),
+          axis.title.x = element_text(size = axisLabSize, margin = margin(t = 10)),
+          axis.title.y = element_text(size = axisLabSize, margin = margin(r = 10)),
           axis.text.x = element_text(size = tickLabSize, colour = "black"),
           axis.text.y = element_text(size = tickLabSize, colour = "black"),
           plot.margin=unit(c(-0.5,1,1,1), "cm"))
 
-  #Add x-axis limits, ticks and labels
-  if(is.null(xtickAt) & is.null(xtickLab)){
-    p1 <- p1 +scale_x_continuous(limits = xlim, breaks = scales::pretty_breaks(n = 5))
+  # Add x-axis limits, ticks and labels
+  if (is.null(xtickAt) && is.null(xtickLab)){
+    p1 <- p1 + scale_x_continuous(limits = xlim, breaks = scales::pretty_breaks(n = 5))
 
-  }else if (!is.null(xtickAt) & is.null(xtickLab)){
-    p1 <- p1 +scale_x_continuous(limits = xlim, breaks = xtickAt, labels = xtickAt)
+  } else if (!is.null(xtickAt) && is.null(xtickLab)){
+    p1 <- p1 + scale_x_continuous(limits = xlim, breaks = xtickAt, labels = xtickAt)
 
-  }else if (is.null(xtickAt) & !is.null(xtickLab)){
-    p1 <- p1 +scale_x_continuous(limits = xlim, breaks = xtickLab, labels = xtickLab)
+  }else if (is.null(xtickAt) && !is.null(xtickLab)){
+    p1 <- p1 + scale_x_continuous(limits = xlim, breaks = xtickLab, labels = xtickLab)
 
-  }else {
-    p1 <- p1 +scale_x_continuous(limits = xlim, breaks = xtickAt, labels = xtickLab)
+  } else {
+    p1 <- p1 + scale_x_continuous(limits = xlim, breaks = xtickAt, labels = xtickLab)
   }
 
-  #Add y-axis limits, ticks and labels
-  if(is.null(ytickAt) & is.null(ytickLab)){
-    p1 <- p1 +scale_y_continuous(limits = ylim, breaks = scales::pretty_breaks(n = 5))
+  # Add y-axis limits, ticks and labels
+  if (is.null(ytickAt) && is.null(ytickLab)){
+    p1 <- p1 + scale_y_continuous(limits = ylim, breaks = scales::pretty_breaks(n = 5))
 
-  }else if (!is.null(ytickAt) & is.null(ytickLab)){
-    p1 <- p1 +scale_y_continuous(limits = ylim, breaks = ytickAt, labels = ytickAt)
+  } else if (!is.null(ytickAt) && is.null(ytickLab)){
+    p1 <- p1 + scale_y_continuous(limits = ylim, breaks = ytickAt, labels = ytickAt)
 
-  }else if (is.null(ytickAt) & !is.null(ytickLab)){
-    p1 <- p1 +scale_y_continuous(limits = ylim, breaks = ytickLab, labels = ytickLab)
+  } else if (is.null(ytickAt) && !is.null(ytickLab)){
+    p1 <- p1 + scale_y_continuous(limits = ylim, breaks = ytickLab, labels = ytickLab)
 
-  }else {
-    p1 <- p1 +scale_y_continuous(limits = ylim, breaks = ytickAt, labels = ytickLab)
+  } else {
+    p1 <- p1 + scale_y_continuous(limits = ylim, breaks = ytickAt, labels = ytickLab)
   }
 
   data <- data.frame("tx" = as.factor(tx), "mark" = mark)
   set.seed(jitterSeed)
-  p2 <- ggplot(data)+
-    geom_boxplot(aes(x = mark, y = tx), width = boxplotWidth, fill = "gray80",color = "black", lwd = 0.8, outlier.shape = NA, data = data)
-  if(is.null(jitterFactor)){
-    p2 <- p2 + geom_jitter(aes(x = mark, y = tx, shape = as.factor(tx), color = as.factor(tx)), alpha = 1,size = 1.7,
-                           width = 0, fill = "white",  stroke = 1, data = data)
-  }else{
+  p2 <- ggplot(data) +
+    geom_boxplot(aes(x = mark, y = tx), width = boxplotWidth, fill = "gray80", color = "black", lwd = 0.8, outlier.shape = NA, data = data)
+  if (is.null(jitterFactor)){
+    p2 <- p2 + geom_jitter(aes(x = mark, y = tx, shape = as.factor(tx), color = as.factor(tx)), alpha = 1, size = 1.7,
+                           width = 0, fill = "white", stroke = 1, data = data)
+  } else {
     p2 <- p2 + geom_jitter(aes(x = mark, y = tx, shape = as.factor(tx), color = as.factor(tx)), alpha = 1,size = 1.7, height = jitterFactor,
-                width = 0, fill = "white",  stroke = 1, data = data)
+                width = 0, fill = "white", stroke = 1, data = data)
   }
-  p2 <- p2 +  scale_shape_manual(name = "", labels = c("0" = txLab[1], "1" = txLab[2]), values = c(21,24))+
-    scale_color_manual(name="", values = c("red","blue"), breaks = c("1","0"))
-  p2 <- p2 + geom_text(x = min(xlim)-0.07*(xlim[2]-xlim[1]), y = "0", label = txLab[1], size = txLabSize, hjust = 1)
-  p2 <- p2 + geom_text(x = min(xlim)-0.07*(xlim[2]-xlim[1]), y = "1", label = txLab[2], size = txLabSize, hjust = 1)
+  p2 <- p2 + scale_shape_manual(name = "", labels = c("0" = txLab[1], "1" = txLab[2]), values = c(21, 24)) +
+    scale_color_manual(name="", values = c("red", "blue"), breaks = c("1", "0"))
+  p2 <- p2 + geom_text(x = min(xlim) - 0.07*(xlim[2] - xlim[1]), y = "0", label = txLab[1], size = txLabSize, hjust = 1)
+  p2 <- p2 + geom_text(x = min(xlim) - 0.07*(xlim[2] - xlim[1]), y = "1", label = txLab[2], size = txLabSize, hjust = 1)
 
-  if(is.null(xtickAt)){
-    p2 <- p2 +scale_x_continuous(limits = xlim, breaks = scales::pretty_breaks(n = 5),labels = NULL)
-  }else{
-    p2 <- p2 +scale_x_continuous(limits = xlim, breaks = xtickAt, labels = NULL)
+  if (is.null(xtickAt)){
+    p2 <- p2 + scale_x_continuous(limits = xlim, breaks = scales::pretty_breaks(n = 5), labels = NULL)
+  } else {
+    p2 <- p2 + scale_x_continuous(limits = xlim, breaks = xtickAt, labels = NULL)
   }
-  if(!is.null(subtitle)){
+  if (!is.null(subtitle)){
     p2 <- p2 + labs(subtitle = subtitle)
   }
-  
-  if(!is.null(title)){
+
+  if (!is.null(title)){
     p2 <- p2 + labs(title = title)
-    
+
   }
   # if(!is.null(title) & !is.null(subtitle)){
   #   p <- ggpubr::annotate_figure(p, top = ggpubr::text_grob(title, size = title.size, face = "bold", vjust = 1.2, hjust = 0.2))
-  #   
+  #
   # }
   p2 <- p2 +
-    xlab("")+
-    ylab("")+
-    scale_y_discrete(labels = c("1" = txLab[2], "0" = txLab[1]),breaks = c("1", "0"))+
-    theme_bw()+
-    guides(shape = "none")+
-    guides(color="none")+
-    theme(plot.title = element_text(size = title.size, hjust = 0.5, face = "bold"),
-          plot.subtitle = element_text(size = subtitle.size, hjust = 0.5),
+    xlab("") +
+    ylab("") +
+    scale_y_discrete(labels = c("1" = txLab[2], "0" = txLab[1]), breaks = c("1", "0")) +
+    theme_bw() +
+    guides(shape = "none") +
+    guides(color = "none") +
+    theme(plot.title = element_text(size = titleSize, hjust = 0.5, face = "bold"),
+          plot.subtitle = element_text(size = subtitleSize, hjust = 0.5),
           axis.text.y = element_blank(),
           axis.ticks.x = element_blank(),
           plot.margin=unit(c(1,1,-0.12,2.7), "lines")
-    )+coord_cartesian(clip = "off")
+    ) + coord_cartesian(clip = "off")
 
-
-
-
-  p <- ggpubr::ggarrange(p2,p1,heights = c(0.33,0.67),ncol=1,nrow=2,align = "v")
+  p <- ggpubr::ggarrange(p2, p1, heights = c(0.33, 0.67), ncol=1, nrow=2, align = "v")
   #p <- p2+p1+patchwork::plot_layout(ncol=1,heights = c(1,2))
-  
-  
-  
-  
-  
-  
+
   return(p)
 }
 
