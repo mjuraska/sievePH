@@ -125,18 +125,18 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
   data <- data.frame("tx" = as.factor(tx), "mark" = mark)
   set.seed(jitterSeed)
   p2 <- ggplot(data) +
-    geom_boxplot(aes(x = mark, y = tx), width = boxplotWidth, fill = "gray80", color = "black", lwd = 0.8, outlier.shape = NA, data = data)
+    geom_boxplot(aes(x = mark, y = tx), width = boxplotWidth, fill = "gray80", color = "black", lwd = 0.8, outlier.shape = NA, na.rm = TRUE, data = data)
   if (is.null(jitterFactor)){
     p2 <- p2 + geom_jitter(aes(x = mark, y = tx, shape = as.factor(tx), color = as.factor(tx)), alpha = 1, size = pointSize,
-                           width = 0, fill = "white", stroke = 1, data = data)
+                           width = 0, fill = "white", stroke = 1, na.rm = TRUE, data = data)
   } else {
     p2 <- p2 + geom_jitter(aes(x = mark, y = tx, shape = as.factor(tx), color = as.factor(tx)), alpha = 1,size = pointSize, height = jitterFactor,
-                width = 0, fill = "white", stroke = 1, data = data)
+                width = 0, fill = "white", stroke = 1, na.rm = TRUE, data = data)
   }
   p2 <- p2 + scale_shape_manual(name = "", labels = c("0" = txLab[1], "1" = txLab[2]), values = c(21, 24)) +
     scale_color_manual(name="", values = c("red3", "blue"), breaks = c("1", "0"))
-  p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "0", label = txLab[1], size = txLabSize, hjust = 1, face="plain")
-  p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "1", label = txLab[2], size = txLabSize, hjust = 1, face="plain")
+  p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "0", label = txLab[1], size = txLabSize, hjust = 1, check_overlap = T)
+  p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "1", label = txLab[2], size = txLabSize, hjust = 1, check_overlap = T)
 
   if (is.null(xtickAt)){
     p2 <- p2 + scale_x_continuous(limits = xlim, breaks = scales::pretty_breaks(n = 5), labels = NULL)
