@@ -23,9 +23,9 @@
 #' @jitter.height a numeric number specifying the amount of vertical jitter (\code{NULL} by default: this means the jitter values will occupy 80% of the implied bins.  
 #' @jitter.seed a numeric number setting the seed of R's random number generator for jitter (\code{0} by default)
 #' @param title a character string specifying the plot title (\code{NULL} by default)
-#' @param subtitle a character string specifying a plot subtitle (\code{NULL} by default)
+#' @param subtitle a character string specifying the plot subtitle (\code{NULL} by default)
 #' @param title.size a numeric number specifying font of the plot title (\code{16} by default)
-
+#' @param subtitle.size a numeric number specifying font of the plot subtitle (\code{10} by default)
 #' @param ... other arguments to be passed to plotting functions
 #' @details
 #'
