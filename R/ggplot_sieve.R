@@ -1,17 +1,14 @@
-library(ggpubr)
-library(ggplot2)
-
-#' Plotting Univariate Mark-Specific Proportional Hazards Model Fits Using ggplot
+#' Plotting Univariate Mark-Specific Proportional Hazards Model Fits Using \code{ggplot}
 #'
-#' \code{ggplot} method for class \code{summary.sievePH} for univariate marks. Point and interval estimates of the mark-specific treatment effect parameter specified by component  \code{contrast} in \code{\link{summary.sievePH}} are plotted, together with scatter/box plots of the observed mark values by treatment.
+#' \code{ggplot}-style plotting for univariate marks. Point and interval estimates of the mark-specific treatment effect parameter specified by component  \code{contrast} in \code{\link{summary.sievePH}} are plotted, together with scatter and box plots of the observed mark values by treatment.
 #' @param x an object returned by \code{\link{summary.sievePH}}
 #' @param mark a numeric vector specifying a univariate continuous mark. For subjects with a right-censored time-to-event, the value(s) in \code{mark} should be set to \code{NA}.
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
 #' @param xlim a numeric vector of length 2 specifying the x-axis range (\code{NULL} by default)
 #' @param ylim a numeric vector of length 2 specifying the y-axis range (\code{NULL} by default)
-#' @param xtickAt a numeric vector specifing the position of x-axis tickmarks (\code{NULL} by default)
+#' @param xtickAt a numeric vector specifying the position of x-axis tickmarks (\code{NULL} by default)
 #' @param xtickLab a numeric vector specifying labels for tickmarks listed in \code{xtickAt}. If \code{NULL} (default), the labels are determined by \code{xtickAt}.
-#' @param ytickAt a numeric vector specifing the position of y-axis tickmarks (\code{NULL} by default)
+#' @param ytickAt a numeric vector specifying the position of y-axis tickmarks (\code{NULL} by default)
 #' @param ytickLab a numeric vector specifying labels for tickmarks listed in \code{ytickAt}. If \code{NULL} (default), the labels are determined by \code{ytickAt}.
 #' @param tickLabSize a numeric value specifying the font size of tickmark labels along both axes in the bottom panel (\code{14} by default)
 #' @param xlab a character string specifying the x-axis label (\code{NULL} by default)
@@ -20,7 +17,7 @@ library(ggplot2)
 #' @param title a character string specifying the plot title (\code{NULL} by default)
 #' @param titleSize a numeric value specifying the font size of the plot title (\code{16} by default)
 #' @param subtitle a character string specifying the plot subtitle (\code{NULL} by default)
-#' @param subtitleSize a numeric value specifying the font ize of the plot subtitle (\code{10} by default)
+#' @param subtitleSize a numeric value specifying the font size of the plot subtitle (\code{10} by default)
 #' @param txLab a character vector of length 2 specifying the placebo and treatment labels (in this order). The default labels are \code{placebo} and \code{treatment}.
 #' @param txLabSize a numeric value specifying the font size of labels \code{txLab} (\code{5} by default)
 #' @param legendLabSize a numeric value specifying the font size of legend labels in the bottom panel (\code{11} by default)
@@ -33,9 +30,8 @@ library(ggplot2)
 #' @param bottomPlotMargin a numeric vector, using cm as the unit, passed on to argument \code{plot.margin} in \code{theme()} for the bottom panel (\code{c(-0.5, 0.3, 0, 0)} by default)
 #' @param topPlotMargin a numeric vector, using \code{"lines"} as the unit, passed on to argument \code{plot.margin} in \code{theme()} for the top panel (\code{c(0, 0.3, -0.12, 1.83)} by default)
 #' @param plotHeights a numeric vector specifying relative heights of the top and bottom panels (\code{c(0.33, 0.67)} by default) passed on to argument \code{heights} in \code{ggpubr::ggarrange()}
-#' @param ... other arguments to be passed to plotting functions
 #'
-#' @return A ggplot object.
+#' @return A \code{ggplot} object.
 #'
 #' @examples
 #' n <- 500
@@ -50,19 +46,23 @@ library(ggplot2)
 #' # fit a model with a univariate mark
 #' fit <- sievePH(eventTime, eventInd, mark, tx)
 #' sfit <- summary(fit, markGrid=seq(markRng[1], markRng[2], length.out=10))
-#' print(ggplot(sfit, mark, tx))
+#' print(ggplot_sieve(sfit, mark, tx))
 #'
 #' @seealso \code{\link{plot.summary.sievePH}}, \code{\link{sievePH}} and \code{\link{summary.sievePH}}
 #'
+#' @import scales
+#' @import ggplot2
+#' @import ggpubr
+#'
 #' @export
-ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL,
-                                   ytickLab=NULL, tickLabSize = 14, xlab=NULL, ylab=NULL, axisLabSize = 15,
-                                   title=NULL, titleSize = 16, subtitle=NULL, subtitleSize=10,
-                                   txLab=c("Placebo", "Treatment"), txLabSize = 5, legendLabSize = 12,
-                                   estLineSize=1.6, ciLineSize=1.2, boxplotWidth = 0.8,
-                                   jitterFactor = 0.1, jitterSeed = 0, pointSize=1.7,
-                                   bottomPlotMargin=c(-0.5, 0.3, 0, 0), topPlotMargin=c(0, 0.3, -0.12, 1.83),
-                                   plotHeights=c(0.33, 0.67), ...){
+ggplot_sieve <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NULL, xtickLab=NULL, ytickAt=NULL,
+                         ytickLab=NULL, tickLabSize = 14, xlab=NULL, ylab=NULL, axisLabSize = 15,
+                         title=NULL, titleSize = 16, subtitle=NULL, subtitleSize=10,
+                         txLab=c("Placebo", "Treatment"), txLabSize = 5, legendLabSize = 12,
+                         estLineSize=1.6, ciLineSize=1.2, boxplotWidth = 0.8,
+                         jitterFactor = 0.1, jitterSeed = 0, pointSize=1.7,
+                         bottomPlotMargin=c(-0.5, 0.3, 0, 0), topPlotMargin=c(0, 0.3, -0.12, 1.83),
+                         plotHeights=c(0.33, 0.67)){
 
   contrast <- names(x)[length(names(x))]
 
@@ -72,15 +72,14 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
     if (is.null(ylab)){ ylab <- switch(colnames(x[[contrast]])[2], TE="Treatment Efficacy", HR="Hazard Ratio", LogHR="Log Hazard Ratio") }
 
     fit <- x[[contrast]]
-    colnames(fit) <- c("mark", "EST", "LB", "UB")
     if (is.null(xlim)){ xlim <- range(fit[, 1]) }
     if (is.null(ylim)){ ylim <- range(fit[, -1], na.rm=TRUE) }
 
-    p1 <- ggplot(fit) +
+    p1 <- ggplot2::ggplot(fit) +
       geom_hline(yintercept=ifelse(colnames(x[[contrast]])[2]=="HR", 1, 0), color="gray70", size=1) +
-      geom_line(aes(x = mark, y = EST), linetype = "solid", size = estLineSize, na.rm = TRUE) +
-      geom_line(aes(x = mark, y = LB, linetype = '95% Pointwise CI', size = '95% Pointwise CI'), na.rm = TRUE) +
-      geom_line(aes(x = mark, y = UB, linetype = '95% Pointwise CI', size = '95% Pointwise CI'), na.rm = TRUE) +
+      geom_line(aes_string(x = "mark", y = colnames(fit)[2]), linetype = "solid", size = estLineSize, na.rm = TRUE) +
+      geom_line(aes_string(x = "mark", y = "LB", linetype = "'95% Pointwise CI'", size = "'95% Pointwise CI'"), na.rm = TRUE) +
+      geom_line(aes_string(x = "mark", y = "UB", linetype = "'95% Pointwise CI'", size = "'95% Pointwise CI'"), na.rm = TRUE) +
       scale_linetype_manual(name="", labels = c('95% Pointwise CI'), values = c('95% Pointwise CI'= "dashed")) +
       scale_size_manual(name="", labels = c('95% Pointwise CI'), values = c('95% Pointwise CI'= ciLineSize)) +
       xlab(xlab) +
@@ -130,7 +129,7 @@ ggplot.summary.sievePH <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, 
 
     data <- data.frame("tx" = as.factor(tx), "mark" = mark)
     set.seed(jitterSeed)
-    p2 <- ggplot(data) +
+    p2 <- ggplot2::ggplot(data) +
       geom_boxplot(aes(x = mark, y = tx), width = boxplotWidth, fill = "gray80", color = "black", lwd = 0.8, outlier.shape = NA, na.rm = TRUE, data = data)
     if (is.null(jitterFactor)){
       p2 <- p2 + geom_jitter(aes(x = mark, y = tx, shape = as.factor(tx), color = as.factor(tx)), alpha = 1, size = pointSize,
