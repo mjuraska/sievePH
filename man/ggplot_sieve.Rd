@@ -25,11 +25,14 @@ ggplot_sieve(
   txLab = c("Placebo", "Treatment"),
   txLabSize = 5,
   legendLabSize = 12,
+  legendPosition = c(0.96, 1.08),
+  legendJustification = c(1, 1),
   estLineSize = 1.6,
   ciLineSize = 1.2,
   boxplotWidth = 0.8,
   jitterFactor = 0.1,
   jitterSeed = 0,
+  pointColor = c("blue", "red3"),
   pointSize = 1.7,
   bottomPlotMargin = c(-0.5, 0.3, 0, 0),
   topPlotMargin = c(0, 0.3, -0.12, 1.83),
@@ -77,6 +80,10 @@ ggplot_sieve(
 
 \item{legendLabSize}{a numeric value specifying the font size of legend labels in the bottom panel (\code{11} by default)}
 
+\item{legendPosition}{a numeric vector of length 2 specifying the position of the legend in the bottom panel (\code{c(0.96, 1.08)} by default), passed on to argument \code{legend.position} in \code{theme()}}
+
+\item{legendJustification}{a numeric vector of length 2 specifying the justification of the legend in the bottom panel (\code{c(1, 1)} by default), passed on to argument \code{legend.justification} in \code{theme()}}
+
 \item{estLineSize}{a numeric value specifying the line width for the point estimate of the mark-specific treatment effect (\code{1.6} by default)}
 
 \item{ciLineSize}{a numeric value specifying the line width for the confidence limits for the mark-specific treatment effect (\code{1.2} by default)}
@@ -86,6 +93,8 @@ ggplot_sieve(
 \item{jitterFactor}{a numeric value specifying the amount of vertical jitter (\code{0.1} by default)}
 
 \item{jitterSeed}{a numeric value setting the seed of R's random number generator for jitter in the scatter plot (\code{0} by default)}
+
+\item{pointColor}{a character vector of length 2 color-coding the placebo and treatment group (in this order) in the scatter plot (\code{c("blue", "red3")} by default)}
 
 \item{pointSize}{a numeric value specifying the size of data points in the scatter plot (\code{1.7} by default)}
 

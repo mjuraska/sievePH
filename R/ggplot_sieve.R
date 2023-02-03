@@ -21,11 +21,14 @@
 #' @param txLab a character vector of length 2 specifying the placebo and treatment labels (in this order). The default labels are \code{placebo} and \code{treatment}.
 #' @param txLabSize a numeric value specifying the font size of labels \code{txLab} (\code{5} by default)
 #' @param legendLabSize a numeric value specifying the font size of legend labels in the bottom panel (\code{11} by default)
+#' @param legendPosition a numeric vector of length 2 specifying the position of the legend in the bottom panel (\code{c(0.96, 1.08)} by default), passed on to argument \code{legend.position} in \code{theme()}
+#' @param legendJustification a numeric vector of length 2 specifying the justification of the legend in the bottom panel (\code{c(1, 1)} by default), passed on to argument \code{legend.justification} in \code{theme()}
 #' @param estLineSize a numeric value specifying the line width for the point estimate of the mark-specific treatment effect (\code{1.6} by default)
 #' @param ciLineSize a numeric value specifying the line width for the confidence limits for the mark-specific treatment effect (\code{1.2} by default)
 #' @param boxplotWidth a numeric value specifying the width of each box in the box plot (\code{0.8}) by default
 #' @param jitterFactor a numeric value specifying the amount of vertical jitter (\code{0.1} by default)
 #' @param jitterSeed a numeric value setting the seed of R's random number generator for jitter in the scatter plot (\code{0} by default)
+#' @param pointColor a character vector of length 2 color-coding the placebo and treatment group (in this order) in the scatter plot (\code{c("blue", "red3")} by default)
 #' @param pointSize a numeric value specifying the size of data points in the scatter plot (\code{1.7} by default)
 #' @param bottomPlotMargin a numeric vector, using cm as the unit, passed on to argument \code{plot.margin} in \code{theme()} for the bottom panel (\code{c(-0.5, 0.3, 0, 0)} by default)
 #' @param topPlotMargin a numeric vector, using \code{"lines"} as the unit, passed on to argument \code{plot.margin} in \code{theme()} for the top panel (\code{c(0, 0.3, -0.12, 1.83)} by default)
@@ -59,9 +62,10 @@ ggplot_sieve <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NU
                          ytickLab=NULL, tickLabSize = 14, xlab=NULL, ylab=NULL, axisLabSize = 15,
                          title=NULL, titleSize = 16, subtitle=NULL, subtitleSize=10,
                          txLab=c("Placebo", "Treatment"), txLabSize = 5, legendLabSize = 12,
+                         legendPosition=c(0.96, 1.08), legendJustification=c(1, 1),
                          estLineSize=1.6, ciLineSize=1.2, boxplotWidth = 0.8,
-                         jitterFactor = 0.1, jitterSeed = 0, pointSize=1.7,
-                         bottomPlotMargin=c(-0.5, 0.3, 0, 0), topPlotMargin=c(0, 0.3, -0.12, 1.83),
+                         jitterFactor = 0.1, jitterSeed = 0, pointColor=c("blue", "red3"),
+                         pointSize=1.7, bottomPlotMargin=c(-0.5, 0.3, 0, 0), topPlotMargin=c(0, 0.3, -0.12, 1.83),
                          plotHeights=c(0.33, 0.67)){
 
   contrast <- names(x)[length(names(x))]
@@ -88,8 +92,8 @@ ggplot_sieve <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NU
       theme(legend.key.size = unit(0.65, "cm"),
             legend.margin=margin(grid::unit(0,"cm")),
             legend.text=element_text(size=legendLabSize),
-            legend.position = c(0.96, 1.08),
-            legend.justification = c(1, 1),
+            legend.position = legendPosition,
+            legend.justification = legendJustification,
             legend.key = element_blank(),
             legend.key.width = unit(1.4,"cm"),
             legend.background = element_blank(),
@@ -139,7 +143,7 @@ ggplot_sieve <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NU
                              width = 0, fill = "white", stroke = 1, na.rm = TRUE, data = data)
     }
     p2 <- p2 + scale_shape_manual(name = "", labels = c("0" = txLab[1], "1" = txLab[2]), values = c(21, 24)) +
-      scale_color_manual(name="", values = c("red3", "blue"), breaks = c("1", "0"))
+      scale_color_manual(name="", values = pointColor, breaks = c("0", "1"))
     p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "0", label = txLab[1], size = txLabSize, hjust = 1, check_overlap = TRUE)
     p2 <- p2 + geom_text(x = min(xlim) - 0.07 * (xlim[2] - xlim[1]), y = "1", label = txLab[2], size = txLabSize, hjust = 1, check_overlap = TRUE)
 
