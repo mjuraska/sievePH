@@ -1,3 +1,6 @@
+#' @importFrom Rcpp evalCpp
+NULL
+
 #' Nonparametric Kernel-Smoothed Stratified Mark-Specific Proportional Hazards Model with a Univariate Continuous Mark, Missing-at-Random in Some Failures
 #'
 #' \code {cmprskPHContinMark} implements estimation methods of Sun and Gilbert (2012) and hypothesis testing methods of Gilbert and Sun (2015) for a mark-specific
@@ -95,7 +98,7 @@
 #'                           a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
 #' }
 #'
-#' @import plyr
+#' @importFrom plyr laply
 #'
 #' @export
 kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = NULL, nboot = 500, missmethod,
