@@ -11,9 +11,9 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// EpankerCplusplus
-double EpankerCplusplus(double tk, double tvalue, double hband, double delt);
-RcppExport SEXP _sievePH_EpankerCplusplus(SEXP tkSEXP, SEXP tvalueSEXP, SEXP hbandSEXP, SEXP deltSEXP) {
+// Epankercplusplus
+double Epankercplusplus(double tk, double tvalue, double hband, double delt);
+RcppExport SEXP _sievePH_Epankercplusplus(SEXP tkSEXP, SEXP tvalueSEXP, SEXP hbandSEXP, SEXP deltSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -21,7 +21,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type tvalue(tvalueSEXP);
     Rcpp::traits::input_parameter< double >::type hband(hbandSEXP);
     Rcpp::traits::input_parameter< double >::type delt(deltSEXP);
-    rcpp_result_gen = Rcpp::wrap(EpankerCplusplus(tk, tvalue, hband, delt));
+    rcpp_result_gen = Rcpp::wrap(Epankercplusplus(tk, tvalue, hband, delt));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -115,7 +115,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_sievePH_EpankerCplusplus", (DL_FUNC) &_sievePH_EpankerCplusplus, 4},
+    {"_sievePH_Epankercplusplus", (DL_FUNC) &_sievePH_Epankercplusplus, 4},
     {"_sievePH_estpcomcplusplus", (DL_FUNC) &_sievePH_estpcomcplusplus, 9},
     {"_sievePH_estpipwcplusplus", (DL_FUNC) &_sievePH_estpipwcplusplus, 11},
     {"_sievePH_estpaugcplusplus", (DL_FUNC) &_sievePH_estpaugcplusplus, 14},

@@ -1,10 +1,10 @@
-#' @importFrom Rcpp evalCpp
+#' @useDynLib sievePH, .registration = TRUE
 NULL
 
 #' Nonparametric Kernel-Smoothed Stratified Mark-Specific Proportional Hazards
 #' Model with a Univariate Continuous Mark, Missing-at-Random in Some Failures
 #'
-#' \code {cmprskPHContinMark} implements estimation methods of Sun and Gilbert
+#' \code{kernel_sievePH} implements estimation methods of Sun and Gilbert
 #' (2012) and hypothesis testing methods of Gilbert and Sun (2015) for a
 #' mark-specific proportional hazards model accommodating that some failures
 #' have a missing mark. The methods allow separate baseline mark-specific hazard
@@ -13,15 +13,15 @@ NULL
 #' approaches.
 #'
 #' @param eventTime a numeric vector specifying the observed right-censored
-#'   event time
+#'   event time.
 #' @param eventInd a numeric vector indicating the event of interest (1 if
-#'   event, 0 if right-censored)
+#'   event, 0 if right-censored).
 #' @param mark a numeric vector specifying a univariate continuous mark subject
 #'   to missingness at random. Missing mark values should be set to \code{NA}.
 #'   For subjects with \code{eventInd = 0}, the value in \code{mark} should also
 #'   be set to \code{NA}.
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0
-#'   if placebo)
+#'   if placebo).
 #' @param aux a numeric vector specifying a binary auxiliary covariate
 #'   predictive of the probability of observing the mark or the value of the
 #'   mark The mark missingness model only requires that the auxiliary covariates
@@ -37,14 +37,13 @@ NULL
 #'   stratum.
 #' @param nboot number of bootstrap iterations for simulating the distribution
 #'   of test statistics for testing \eqn{H_{10}} vs. \eqn{H_{1a}} or
-#'   \eqn{H_{1m}} and \eqn{H_{20}} vs. \eqn{H_{2a}} or \eqn{H_{2m}}
-#' @param missmethod a character string for the estimation procedure to use.
-#'   Available missing-mark methods include \code{CC}, \code{IPW}, and \code
-#'   {AIPW}.
+#'   \eqn{H_{1m}} and \eqn{H_{20}} vs. \eqn{H_{2a}} or \eqn{H_{2m}}.
+#' @param missmethod a character string for the estimation procedure to use. 
+#'   Available missing-mark methods include \code{CC}, \code{IPW}, and \code{AIPW}.
 #' @param tau a numeric value specifying the end of the follow-up period for
-#'   conducting the analysis
+#'   conducting the analysis.
 #' @param tband a numeric value between 0 and \code{tau} specifying the
-#'   bandwidth of the kernel smoothing function over the failure time
+#'   bandwidth of the kernel smoothing function over the failure time.
 #' @param hband a numeric value between 0 and 1 specifying the bandwidth of the
 #'   kernel smoothing function over the mark. Larger bandwidths are recommended
 #'   for higher percentages of missing marks.
@@ -57,27 +56,26 @@ NULL
 #'   \eqn{\in [a, b]}; \code{b} needs to be \code{1/nvgrid} multiplied by an
 #'   integer.
 #' @param ntgrid an integer value specifying the number of equally spaced time
-#'   points for which the mark-specific baseline hazard functions are evaluated
+#'   points for which the mark-specific baseline hazard functions are evaluated.
 #' @param nvgrid an integer value specifying the number of equally spaced mark
 #'   values between the minimum and maximum of the observed mark values for
-#'   which the treatment effects are evaluated
+#'   which the treatment effects are evaluated.
 #' @param confLevel the confidence level (0.95 by default) of reported
-#'   confidence intervals
+#'   confidence intervals.
 #' @param seed an integer specifying the random number generation seed for
-#'   reproducing the test statistics and p-values
+#'   reproducing the test statistics and p-values.
 #'
 #' @details
-#' \code {cmprskPHContinMark} analyzes data from a randomized placebo-controlled
-#' trial that evaluates treatment efficacy for a time-to-event endpoint with a
-#' continuous mark. The parameter of interest is the ratio of the conditional
-#' mark-specific hazard functions (treatment/placebo), which is based on a
-#' stratified mark-specific proportional hazards model. This model assumes no
-#' parametric form for the baseline hazard function nor the treatment effect
-#' across different mark values. For data with missing marks, two estimation
-#' procedures are implemented. The first one uses inverse probability weighting
-#' (IPW) of the complete-case estimator, which leverages auxiliary predictors of
-#' whether the mark is observed, whereas the second one augments the IPW
-#' complete-case estimator with auxiliary predictors of the missing mark value.
+#' \code{kernel_sievePH} analyzes data from a randomized placebo-controlled trial
+#' that evaluates treatment efficacy for a time-to-event endpoint with a
+#' continuous mark. The parameter of interest is the ratio of the conditional 
+#' mark-specific hazard functions (treatment/placebo), which is based on a stratified 
+#' mark-specific proportional hazards model. This model assumes no parametric 
+#' form for the baseline hazard function nor the treatment effect across different 
+#' mark values. For data with missing marks, two estimation procedures are implemented. 
+#' The first one uses inverse probability weighting (IPW) of the complete-case estimator, 
+#' which leverages auxiliary predictors of whether the mark is observed, whereas the second 
+#' one augments the IPW complete-case estimator with auxiliary predictors of the missing mark value.
 #'
 #' @return A list containing the following components:
 #' \itemize{
@@ -170,8 +168,9 @@ NULL
 #'                           missmethod = "AIPW", tau = 3, tband = 0.5, hband = 0.3,
 #'                           a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
 #' \donttest{
-#' # complete-case estimation discards rows with a missing mark; also, no
-#' auxiliary covariate is needed
+#' # complete-case estimation discards rows with a missing mark; also, no auxiliary
+#' # covariate is needed
+#' 
 #' fit <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
 #'                           missmethod = "CC", tau = 3, tband = 0.5, hband = 0.3,
 #'                           a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
@@ -295,7 +294,9 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
     covart[ks, 1, 1:n_ks] <- tx[1:n_ks]
     time[ks, 1:n_ks] <- eventTime[1:n_ks]
     censor[ks, 1:n_ks] <- eventInd[1:n_ks]
-    Ax[ks, 1:n_ks] <- aux[1:n_ks]
+    if(!is.null(aux)){
+      Ax[ks, 1:n_ks] <- aux[1:n_ks]
+    }
     R[ks, 1:n_ks] <- 1-is.na(mark[1:n_ks])
     # Important For all eventInd ==0, R is set as 1
     R[ks,eventInd==0] <- 1
@@ -310,7 +311,9 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
       time[ks, 1:n_ks] <- eventTime[indice_ks]
       censor[ks, 1:n_ks] <- eventInd[indice_ks]
       markm[ks, 1:n_ks] <- vV[indice_ks]
-      Ax[ks, 1:n_ks] <- aux[indice_ks]
+      if(!is.null(aux)){
+        Ax[ks, 1:n_ks] <- aux[indice_ks]
+      }
       R[ks, 1:n_ks] <- 1-is.na(mark[indice_ks])
       # Important For all eventInd ==0, R is set as 1
       R[ks,censor[ks, 1:n_ks]==0] <- 1
@@ -1040,10 +1043,10 @@ estpvry <- function(tau, KK, N, NP, X, ZT, DELTA) {
 
         }else{
           S0[i] <- sum(exp(BZt[L, 1]))
-          S1[1:NP, i] <-  Zt[ks, 1:NP, L] %*% exp(BZt[L, 1])
+          S1[1:NP, i] <-  ZT[ks, 1:NP, L] %*% exp(BZt[L, 1])
           for(J in 1:NP){
             for(K in 1:NP){
-              S2[J, K] <- t(exp(BZt[L, 1]))%*%(Zt[ks,J , L]*Zt[ks,K , L])
+              S2[J, K] <- t(exp(BZt[L, 1]))%*%(ZT[ks,J , L]*ZT[ks,K , L])
             }
           }
         }

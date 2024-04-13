@@ -1,9 +1,10 @@
 #include <RcppArmadillo.h>
 
+
 // [[Rcpp::depends(RcppArmadillo)]]
 
 // [[Rcpp::export]]
-double EpankerCplusplus(double tk, double tvalue, double hband, double delt) {
+double Epankercplusplus(double tk, double tvalue, double hband, double delt) {
   double result = 0.0;
 
   if (std::abs(tk - tvalue) < hband) {
@@ -170,7 +171,7 @@ Rcpp::List estpipwcplusplus(double tau, int KK, arma::ivec N, double TBAND, int 
           double TEMPB = 0.0;
           for (int ii = 0; ii < N(ks); ii++) {
             if (X(ks, ii) <= tau && S0(ii, 0) > 0.00000001) {
-              TEMPB += EpankerCplusplus(X(ks, ii), X(ks, i), TBAND, CENSOR(ks, ii)) * DELTA(ks, ii) * WGHT(ks, ii) / S0(ii, 0);
+              TEMPB += Epankercplusplus(X(ks, ii), X(ks, i), TBAND, CENSOR(ks, ii)) * DELTA(ks, ii) * WGHT(ks, ii) / S0(ii, 0);
             }
           }
           LAMBDA0(ks, i) = TEMPB;
@@ -266,7 +267,7 @@ Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
           for (int II = 0; II < N(ks); II++) {
             if (X(ks, II) <= tau) {
               if (S0(ks, II) > 0.00000001) {
-                TEMPB += EpankerCplusplus(X(ks, II), X(ks, I), TBAND, CENSOR(ks, II)) * (WGHT(ks, II) * DELTA(ks, II) + (1.0 - WGHT(ks, II)) * CENSOR(ks, II) * DRHOipw(ks, II)) / S0(ks, II);
+                TEMPB += Epankercplusplus(X(ks, II), X(ks, I), TBAND, CENSOR(ks, II)) * (WGHT(ks, II) * DELTA(ks, II) + (1.0 - WGHT(ks, II)) * CENSOR(ks, II) * DRHOipw(ks, II)) / S0(ks, II);
               }
             }
           }
@@ -288,7 +289,7 @@ Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
       for (int I = 0; I < N(ks); I++) {
         if (X(ks, I) <= tau) {
           if (S0(ks, I) > 0.00000001) {
-            TEMPB += EpankerCplusplus(X(ks, I), tvalue, TBAND, CENSOR(ks, I)) * (WGHT(ks, I) * DELTA(ks, I) / S0(ks, I) + (1.0 - WGHT(ks, I)) * CENSOR(ks, I) * DRHOipw(ks, I) / S0(ks, I));
+            TEMPB += Epankercplusplus(X(ks, I), tvalue, TBAND, CENSOR(ks, I)) * (WGHT(ks, I) * DELTA(ks, I) / S0(ks, I) + (1.0 - WGHT(ks, I)) * CENSOR(ks, I) * DRHOipw(ks, I) / S0(ks, I));
           }
         }
       }
