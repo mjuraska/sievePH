@@ -60,14 +60,16 @@ stratum.}
 of test statistics for testing \eqn{H_{10}} vs. \eqn{H_{1a}} or
 \eqn{H_{1m}} and \eqn{H_{20}} vs. \eqn{H_{2a}} or \eqn{H_{2m}}.}
 
-\item{missmethod}{a character string for the estimation procedure to use. 
-Available missing-mark methods include \code{CC}, \code{IPW}, and \code{AIPW}.}
+\item{missmethod}{a character string for the estimation procedure to use.
+Available missing-mark methods include \code{CC}, \code{IPW}, and
+\code{AIPW}.}
 
-\item{formulaMiss}{a one-sided formula object specifying (on the right side of 
-the \code{~} operator) the linear predictor in the logistic regression model used 
-for predicting the probability of observing the mark. Available variables to be used
-in the formula include \code{eventTime}, \code{tx}, and \code{aux} (must not have NAs if used). 
-\code{formulaMiss} (\code{NULL} by default) must be provided for \code{IPW} and \code{AIPW} methods.}
+\item{formulaMiss}{a one-sided formula object specifying (on the right side
+of the \code{~} operator) the linear predictor in the logistic regression
+model used for predicting the probability of observing the mark. Available
+variables to be used in the formula include \code{eventTime}, \code{tx},
+and \code{aux} (must not have NAs if used). \code{formulaMiss} (\code{NULL}
+by default) must be provided for \code{IPW} and \code{AIPW} methods.}
 
 \item{tau}{a numeric value specifying the end of the follow-up period for
 conducting the analysis.}
@@ -168,16 +170,17 @@ complete-case, inverse-probability weighting (IPW), or augmented IPW (AIPW)
 approaches.
 }
 \details{
-\code{kernel_sievePH} analyzes data from a randomized placebo-controlled trial
-that evaluates treatment efficacy for a time-to-event endpoint with a
-continuous mark. The parameter of interest is the ratio of the conditional 
-mark-specific hazard functions (treatment/placebo), which is based on a stratified 
-mark-specific proportional hazards model. This model assumes no parametric 
-form for the baseline hazard function nor the treatment effect across different 
-mark values. For data with missing marks, two estimation procedures are implemented. 
-The first one uses inverse probability weighting (IPW) of the complete-case estimator, 
-which leverages auxiliary predictors of whether the mark is observed, whereas the second 
-one augments the IPW complete-case estimator with auxiliary predictors of the missing mark value.
+\code{kernel_sievePH} analyzes data from a randomized placebo-controlled
+trial that evaluates treatment efficacy for a time-to-event endpoint with a
+continuous mark. The parameter of interest is the ratio of the conditional
+mark-specific hazard functions (treatment/placebo), which is based on a
+stratified mark-specific proportional hazards model. This model assumes no
+parametric form for the baseline hazard function nor the treatment effect
+across different mark values. For data with missing marks, two estimation
+procedures are implemented. The first one uses inverse probability weighting
+(IPW) of the complete-case estimator, which leverages auxiliary predictors of
+whether the mark is observed, whereas the second one augments the IPW
+complete-case estimator with auxiliary predictors of the missing mark value.
 }
 \examples{
 set.seed(20240410)
@@ -201,26 +204,26 @@ while (sum(R, na.rm = TRUE) < 10){
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 fit <- kernel_sievePH(eventTime, eventInd, mark, tx, A, nboot = 50,
-                      missmethod = "AIPW", formulaMiss = ~ eventTime, tau = 3, 
-                      tband = 0.5, hband = 0.3, a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
+                      missmethod = "AIPW", formulaMiss = ~ eventTime,
+                      tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
+                      ntgrid = 20, nvgrid = 20)
 \donttest{
-# complete-case estimation discards rows with a missing mark; also, no auxiliary
-# covariate is needed
-
+# complete-case estimation discards rows with a missing mark;
+# also, no auxiliary covariate is needed
 fit <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
-                          missmethod = "CC", tau = 3, tband = 0.5, hband = 0.3,
-                          a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
+                      missmethod = "CC", tau = 3, tband = 0.5, hband = 0.3,
+                      a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
 }
 
 }
 \references{
-Gilbert, P. B., and Sun, Y. (2015). Inferences on relative failure rates in
+Gilbert, P. B. and Sun, Y. (2015). Inferences on relative failure rates in
 stratified mark-specific proportional hazards models with missing marks, with
 application to human immunodeficiency virus vaccine efficacy trials.
 \emph{Journal of the Royal Statistical Society Series C: Applied Statistics},
 64(1), 49-73.
 
-Sun, Y., & Gilbert, P. B. (2012). Estimation of stratified mark‐specific
+Sun, Y. and Gilbert, P. B. (2012). Estimation of stratified mark‐specific
 proportional hazards models with missing marks. \emph{Scandinavian Journal of
 Statistics}, 39(1), 34-52.
 }
