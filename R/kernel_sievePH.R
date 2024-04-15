@@ -40,6 +40,11 @@ NULL
 #'   \eqn{H_{1m}} and \eqn{H_{20}} vs. \eqn{H_{2a}} or \eqn{H_{2m}}.
 #' @param missmethod a character string for the estimation procedure to use. 
 #'   Available missing-mark methods include \code{CC}, \code{IPW}, and \code{AIPW}.
+#' @param formulaMiss a one-sided formula object specifying (on the right side of 
+#' the \code{~} operator) the linear predictor in the logistic regression model used 
+#' for predicting the probability of observing the mark. Available variables to be used
+#' in the formula include \code{eventTime}, \code{tx}, and \code{aux} (must not have NAs if used). 
+#' \code{formulaMiss} (\code{NULL} by default) must be provided for \code{IPW} and \code{AIPW} methods.
 #' @param tau a numeric value specifying the end of the follow-up period for
 #'   conducting the analysis.
 #' @param tband a numeric value between 0 and \code{tau} specifying the
@@ -165,8 +170,8 @@ NULL
 #' # a missing-at-random mark
 #' mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 #' fit <- kernel_sievePH(eventTime, eventInd, mark, tx, A, nboot = 50,
-#'                           missmethod = "AIPW", tau = 3, tband = 0.5, hband = 0.3,
-#'                           a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
+#'                       missmethod = "AIPW", formulaMiss = ~ eventTime, tau = 3, 
+#'                       tband = 0.5, hband = 0.3, a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
 #' \donttest{
 #' # complete-case estimation discards rows with a missing mark; also, no auxiliary
 #' # covariate is needed
@@ -179,7 +184,7 @@ NULL
 #' @importFrom plyr laply
 #'
 #' @export
-kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = NULL, nboot = 500, missmethod,
+kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = NULL, nboot = 500, missmethod, formulaMiss = NULL,
                                tau, tband, hband, a, b, ntgrid = 100, nvgrid = 100, confLevel = 0.95, seed = 62648) {
 
 
@@ -195,7 +200,7 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
     nauxiliary = 1
     missmark = 1
   }else{
-    print("Missing-Mark Method Missing")
+    stop("Missing-Mark Method Missing")
   }
 
   a0 <- a
@@ -334,27 +339,38 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
 
   # setup the covariates for logit regression for R:
 
-  # Assuming kk, nsamp, time, censor, and missmark are already defined
-
-  # Define ncovR
-  ncovR <- 2
-
-  # Create covartR array
   n_max <- max(nsamp)
-  covartR <- array(0, dim = c(kk, ncovR, n_max))
-  for(ks in 1:kk){
-    covartR[ks,1,1:nsamp[ks]] <- 1
-    covartR[ks,2,1:nsamp[ks]] <- time[ks,1:nsamp[ks]]
-
-  }
-
-  psiRse <- matrix(0, nrow = kk, ncol = ncovR)
   # Handle missmark
   if (missmark == 0) {
     R <- matrix(1, nrow = kk, ncol = n_max)
     wght <- R
   } else {
-
+    # Assuming kk, nsamp, time, censor, and missmark are already defined
+    if(is.null(formulaMiss)){stop("`formulaMiss` must be provided")}
+    formulaMissDecomp <- strsplit(strsplit(paste(deparse(formulaMiss), collapse = ""), " *[~] *")[[1]], " *[+] *")[[2]]
+    formulaMissNew <- as.formula(paste0("R ~ ", paste(formulaMissDecomp, collapse="+")))
+    # Define ncovR
+    ncovR <- length(formulaMissDecomp)+1
+    
+    # Create covartR array
+    covartR <- array(0, dim = c(kk, ncovR, n_max))
+    for(ks in 1:kk){
+      if(!is.null(aux)){ 
+        availabledf <- data.frame("R" = R[ks, 1:nsamp[ks]],"eventTime" = time[ks, 1:nsamp[ks]], 
+                                  "tx" = covart[ks, 1, 1:nsamp[ks]], "aux" = Ax[ks, 1:nsamp[ks]])
+        if("aux" %in% formulaMissDecomp & sum(is.na(aux))>0){stop("`aux` must not have NAs")}
+      }else{
+        availabledf <- data.frame("R" = R[ks, 1:nsamp[ks]], "eventTime" = time[ks, 1:nsamp[ks]], "tx" = covart[ks, 1, 1:nsamp[ks]])
+        if("aux" %in% formulaMissDecomp){stop("`aux` is not available")}
+      }
+      
+      mf <- model.frame(formulaMissNew, availabledf)
+      covartR[ks,1:ncovR,1:nsamp[ks]] <- model.matrix(terms(formulaMissNew ), mf)
+      
+    }
+    
+    psiRse <- matrix(0, nrow = kk, ncol = ncovR)
+    
     estplogitans <- estplogit(kk, nsamp, ncovR, covartR, R, censor)
     psiR <- estplogitans$PSI
     psiRvar <- estplogitans$FVAR

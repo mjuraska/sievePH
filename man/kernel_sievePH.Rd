@@ -14,6 +14,7 @@ kernel_sievePH(
   strata = NULL,
   nboot = 500,
   missmethod,
+  formulaMiss = NULL,
   tau,
   tband,
   hband,
@@ -61,6 +62,12 @@ of test statistics for testing \eqn{H_{10}} vs. \eqn{H_{1a}} or
 
 \item{missmethod}{a character string for the estimation procedure to use. 
 Available missing-mark methods include \code{CC}, \code{IPW}, and \code{AIPW}.}
+
+\item{formulaMiss}{a one-sided formula object specifying (on the right side of 
+the \code{~} operator) the linear predictor in the logistic regression model used 
+for predicting the probability of observing the mark. Available variables to be used
+in the formula include \code{eventTime}, \code{tx}, and \code{aux} (must not have NAs if used). 
+\code{formulaMiss} (\code{NULL} by default) must be provided for \code{IPW} and \code{AIPW} methods.}
 
 \item{tau}{a numeric value specifying the end of the follow-up period for
 conducting the analysis.}
@@ -194,8 +201,8 @@ while (sum(R, na.rm = TRUE) < 10){
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 fit <- kernel_sievePH(eventTime, eventInd, mark, tx, A, nboot = 50,
-                          missmethod = "AIPW", tau = 3, tband = 0.5, hband = 0.3,
-                          a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
+                      missmethod = "AIPW", formulaMiss = ~ eventTime, tau = 3, 
+                      tband = 0.5, hband = 0.3, a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
 \donttest{
 # complete-case estimation discards rows with a missing mark; also, no auxiliary
 # covariate is needed
