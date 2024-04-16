@@ -109,12 +109,14 @@ NULL
 #' testing \deqn{H_{20}} vs. \deqn{H_{2a}}: HR depends on v \eqn{\in [a, b]}
 #' (general alternative). Columns \code{TSUP2m} and \code{Tint2m} include test
 #' statistics and p-values for testing \deqn{H_{20}} vs. \deqn{H_{2m}}: HR
-#' increases as v increases \eqn{\in [a, b]} (monotone alternative). Columns
-#' \code{TSUP2} and \code{TSUP2m} are for tests based on extensions of
-#' Kolmogorov-Smirnov tests. Columns \code{Tint2} and \code{Tint2m} are for
-#' tests based on generalizations of Cramer-von Mises tests--integration-based
-#' tests.
-#'
+#' increases as v increases \eqn{\in [a, b]} (monotone alternative). Test 
+#' statistics in columns \code{TSUP2} and \code{TSUP2m} are extensions of the 
+#' classic Kolmogorov-Smirnov supremum-based test statistic for testing the 
+#' goodness of fit of a distribution function. Test statistics in columns 
+#' \code{Tint2} and \code{Tint2m} are generalizations of the integration-based 
+#' Cramer-von Mises test statistic for testing the goodness of fit of a 
+#' distribution function. \code{Tint2} and \code{Tint2m} involve 
+#' integration of deviations over the whole range of the mark.
 #' \item \code{te}: a data frame summarizing point and interval estimates of the
 #' mark-specific treatment efficacy on the grid of mark values defined by
 #' \code{nvgrid}. The confidence level is specified by \code{confLevel}.
@@ -200,7 +202,11 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
     nauxiliary = 0
     missmark = 1
   }else if (missmethod == "AIPW"){
-    nauxiliary = 1
+    if(is.null(aux)){
+      nauxiliary = 0
+    }else{
+      nauxiliary = 1
+    }
     missmark = 1
   }else{
     stop("Missing-Mark Method Missing")
@@ -505,14 +511,15 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
 
   betaipw <- matrix(0,ncol = nvgrid,nrow = ncov)
   seipw <- matrix(0,ncol = nvgrid,nrow = ncov)
-  LAMBDA0 <- array(0, dim = c(kk, max(nsamp), nvgrid))
+  LAMBDA0ipw <- array(0, dim = c(kk, max(nsamp), nvgrid))
 
   betaaug <- matrix(0,ncol = nvgrid,nrow = ncov)
   seaug <- matrix(0,ncol = nvgrid,nrow = ncov)
-
+  LAMBDA0aug <- array(0, dim = c(kk, max(nsamp), nvgrid))
+  
   betaofv <- array(0, dim = c(ncov, nvgrid))
   SigmaInv <- array(0, dim = c(ncov, ncov,nvgrid))
-
+ 
   # baseline hazard functions:
   Lamktv0 <- array(0, dim = c(kk, ntgrid, nvgrid))
 
@@ -549,7 +556,7 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
 
     betaipw[,ispot] <- ipwfit$BETA
     seipw[,ispot] <- sqrt(diag(ipwfit$var))
-    LAMBDA0[,,ispot] <- ipwfit$LAMBDA0
+    LAMBDA0ipw[,,ispot] <- ipwfit$LAMBDA0
   }
 
 
@@ -585,8 +592,8 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
           }
 
           #the original fortran code had LAMBDA0 for nvgrid only
-          LAMBDAIPW[ks, valid_indices, ispot] <- LAMBDA0[ks, valid_indices,ispot] * exp(BZIPW[valid_indices,1])
-          CLAMBDAIPW[ks, valid_indices] <- CLAMBDAIPW[ks, valid_indices] + LAMBDA0[ks, valid_indices,ispot] * exp(BZIPW[valid_indices,1]) * G[ks,valid_indices,ispot]*vstep
+          LAMBDAIPW[ks, valid_indices, ispot] <- LAMBDA0ipw[ks, valid_indices,ispot] * exp(BZIPW[valid_indices,1])
+          CLAMBDAIPW[ks, valid_indices] <- CLAMBDAIPW[ks, valid_indices] + LAMBDA0ipw[ks, valid_indices,ispot] * exp(BZIPW[valid_indices,1]) * G[ks,valid_indices,ispot]*vstep
         }
       }
     }
@@ -623,6 +630,7 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
       for (ks in 1:kk) {
         valid_indices <- which((time[ks, 1:nsamp[ks]] <= tau) & (censor[ks, 1:nsamp[ks]] > 0.5) & (CLAMBDAIPW[ks, 1:nsamp[ks]] > 0.00000001))
         deltak[ks, ] <- Epanker(markm[ks, ], vspot, hband, censor[ks, ])
+        #Set DRHOipw to zero for ipw inference 
         DRHOipw[ks, valid_indices] <- CKLAMBDAIPW[ks, valid_indices, ispot] / CLAMBDAIPW[ks, valid_indices]
         DRHOipw[ks, !valid_indices] <- 0.0
       }
@@ -649,9 +657,10 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
       betaofv[, ispot] <- betaaug[, ispot]
       SigmaInv[, , ispot] <- estpaug_result$F
 
+      
       # calculate the baseline hazard functions:
       Lamktv0[, , ispot] <- estpaug_result$LAMBDAk0
-      LAMBDA0 <- estpaug_result$LAMBDA0
+      LAMBDA0aug <- estpaug_result$LAMBDA0
       # CALCULATE CLAMBDA(KS,I)= $\int_0^1 \lambda_k(t,u|z) h_k(a|t,u,z) du$ AT $W_{ki}=(T_{ki},Z_{ki})$:
       for (ks in 1:kk) {
         valid_indices <- which((time[ks, 1:nsamp[ks]] <= tau) & (censor[ks, 1:nsamp[ks]] > 0.5))
@@ -663,8 +672,8 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
         }
 
 
-        LAMBDAUG[ks, valid_indices, ispot] <- LAMBDA0[ks, valid_indices] * exp(BZaug)
-        CLAMBDAUG[ks, valid_indices] <- CLAMBDAUG[ks, valid_indices] + G[ks, valid_indices, ispot] * LAMBDA0[ks, valid_indices] * exp(BZaug) * vstep
+        LAMBDAUG[ks, valid_indices, ispot] <- LAMBDA0aug[ks, valid_indices] * exp(BZaug)
+        CLAMBDAUG[ks, valid_indices] <- CLAMBDAUG[ks, valid_indices] + G[ks, valid_indices, ispot] * LAMBDA0aug[ks, valid_indices] * exp(BZaug) * vstep
       }
 
       # estimate of VE(v):
@@ -984,17 +993,36 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
     colnames(cBproc1.df) <- c("Mark", "Standardized mark","Observed", paste0("S", 1:nboot))
     cBproc2.df <- data.frame(cbind(te$mark[(iskipa2):nvgrid],vstep*((iskipa2):nvgrid),cBproc2[iskipa2:nvgrid], cBproc2s[iskipa2:nvgrid, ]))
     colnames(cBproc2.df) <- c("Mark", "Standardized mark", "Observed", paste0("S", 1:nboot))
+    
+    if(missmethod == "CC"){
+      estBeta = data.frame("mark" = te$mark,
+                           "betacom" = t(betacom),
+                           "secom" = t(secom))
+    }else if (missmethod == "IPW"){
+      estBeta = data.frame("mark" = te$mark,
+                           "betaipw" = t(betaipw),
+                           "seipw" = t(seipw))
+    }else if (missmethod == "AIPW"){
+      estBeta = data.frame("mark" = te$mark,
+                           "betaaug" = t(betaaug),
+                           "seaug" = t(seaug))
+    }
+    
+    
     return(list("cBproc1" = cBproc1.df,
                 "cBproc2" = cBproc2.df,
                 "H10" = ans10,
                 "H20" = ans20,
                 "te" = te,
-                "estBeta" = data.frame("mark" = te$mark,"betacom" = t(betacom),
-                                   "secom" = t(secom),
-                                   "betaipw" = t(betaipw),
-                                   "seipw" = t(seipw),
-                                   "betaaug" = t(betaaug),
-                                   "seaug" = t(seaug))
+                "estBeta" = estBeta,
+                "estBetacheck" = data.frame("mark" = te$mark,
+                                            "betacom" = t(betacom),
+                                            "secom" = t(secom),
+                                            "betaipw" = t(betaipw),
+                                            "seipw" = t(seipw),
+                                            "betaaug" = t(betaaug),
+                                            "seaug" = t(seaug)
+                                            )
                 ))
 
 }

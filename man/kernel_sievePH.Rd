@@ -129,12 +129,14 @@ values in \eqn{[a2, b]}, where \eqn{a2 = a + 3*(b-a)/nvgrid}. Columns
 testing \deqn{H_{20}} vs. \deqn{H_{2a}}: HR depends on v \eqn{\in [a, b]}
 (general alternative). Columns \code{TSUP2m} and \code{Tint2m} include test
 statistics and p-values for testing \deqn{H_{20}} vs. \deqn{H_{2m}}: HR
-increases as v increases \eqn{\in [a, b]} (monotone alternative). Columns
-\code{TSUP2} and \code{TSUP2m} are for tests based on extensions of
-Kolmogorov-Smirnov tests. Columns \code{Tint2} and \code{Tint2m} are for
-tests based on generalizations of Cramer-von Mises tests--integration-based
-tests.
-
+increases as v increases \eqn{\in [a, b]} (monotone alternative). Test 
+statistics in columns \code{TSUP2} and \code{TSUP2m} are extensions of the 
+classic Kolmogorov-Smirnov supremum-based test statistic for testing the 
+goodness of fit of a distribution function. Test statistics in columns 
+\code{Tint2} and \code{Tint2m} are generalizations of the integration-based 
+Cramer-von Mises test statistic for testing the goodness of fit of a 
+distribution function. \code{Tint2} and \code{Tint2m} involve 
+integration of deviations over the whole range of the mark.
 \item \code{te}: a data frame summarizing point and interval estimates of the
 mark-specific treatment efficacy on the grid of mark values defined by
 \code{nvgrid}. The confidence level is specified by \code{confLevel}.
