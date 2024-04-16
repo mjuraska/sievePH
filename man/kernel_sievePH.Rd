@@ -205,14 +205,21 @@ while (sum(R, na.rm = TRUE) < 10){
 }
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
-fit <- kernel_sievePH(eventTime, eventInd, mark, tx, A, nboot = 50,
+# AIPW estimation, auxiliary covariate is used (not required)
+fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A, nboot = 50,
                       missmethod = "AIPW", formulaMiss = ~ eventTime,
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
                       ntgrid = 20, nvgrid = 20)
 \donttest{
+#IPW estimation, no auxiliary covariate is used
+fitipw <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
+                      missmethod = "IPW", formulaMiss = ~ eventTime,
+                      tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
+                      ntgrid = 20, nvgrid = 20)
+
 # complete-case estimation discards rows with a missing mark;
 # also, no auxiliary covariate is needed
-fit <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
+fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
                       missmethod = "CC", tau = 3, tband = 0.5, hband = 0.3,
                       a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
 }

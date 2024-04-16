@@ -174,14 +174,15 @@ NULL
 #' }
 #' # a missing-at-random mark
 #' mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
-#' fit <- kernel_sievePH(eventTime, eventInd, mark, tx, A, nboot = 50,
+#' # AIPW estimation, auxiliary covariate is used (not required)
+#' fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A, nboot = 50,
 #'                       missmethod = "AIPW", formulaMiss = ~ eventTime,
 #'                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
 #'                       ntgrid = 20, nvgrid = 20)
 #' \donttest{
 #' # complete-case estimation discards rows with a missing mark;
 #' # also, no auxiliary covariate is needed
-#' fit <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
+#' fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
 #'                       missmethod = "CC", tau = 3, tband = 0.5, hband = 0.3,
 #'                       a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
 #' }
@@ -444,7 +445,7 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
     covartG[ks,4,1:nsamp[ks]] <- markm[ks,1:nsamp[ks]]
   }
 
-  # Compute cenG
+  # Compute cenG; the logistic regression is only based on cases with observed marks
   cenG <- censor * R
 
   if (nauxiliary == 1) {
@@ -470,6 +471,7 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
 
         vspot <- (1:nvgrid)*vstep
         phi <- exp(ei + psiG[ks, ncovG] * vspot) / (1+exp(ei + psiG[ks, ncovG] * vspot))
+        #Ax is binary
         G [ks,i,1:nvgrid]<- phi * Ax[ks,i] + (1 - phi) * (1 - Ax[ks,i])
 
       }
@@ -630,15 +632,12 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
       for (ks in 1:kk) {
         valid_indices <- which((time[ks, 1:nsamp[ks]] <= tau) & (censor[ks, 1:nsamp[ks]] > 0.5) & (CLAMBDAIPW[ks, 1:nsamp[ks]] > 0.00000001))
         deltak[ks, ] <- Epanker(markm[ks, ], vspot, hband, censor[ks, ])
-        #Set DRHOipw to zero for ipw inference 
         DRHOipw[ks, valid_indices] <- CKLAMBDAIPW[ks, valid_indices, ispot] / CLAMBDAIPW[ks, valid_indices]
         DRHOipw[ks, !valid_indices] <- 0.0
       }
 
       # initial value
       betaaug0 <- betaipw[, ispot]
-
-
       #estpaug_result <- estpaug(tau, tstep, ntgrid, tband, kk, nsamp, ncov, time, covart, censor, deltak, wght, DRHOipw, betaaug0)
       estpaug_result = estpaugcplusplus(tau, tstep, ntgrid, tband, kk, nsamp, ncov, time, covart, censor, deltak, wght, DRHOipw, betaaug0)
       betaaug[, ispot] <- estpaug_result$BETA
