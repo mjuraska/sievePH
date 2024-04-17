@@ -40,7 +40,7 @@ ggplot_sieve(
 )
 }
 \arguments{
-\item{x}{an object returned by \code{\link{summary.sievePH}}}
+\item{x}{an object returned by \code{\link{summary.sievePH}} or \code{\link{summary.kernel_sievePH}}}
 
 \item{mark}{a numeric vector specifying a univariate continuous mark. For subjects with a right-censored time-to-event, the value(s) in \code{mark} should be set to \code{NA}.}
 
@@ -108,10 +108,11 @@ ggplot_sieve(
 A \code{ggplot} object.
 }
 \description{
-\code{ggplot}-style plotting for univariate marks. Point and interval estimates of the mark-specific treatment effect parameter specified by component  \code{contrast} in \code{\link{summary.sievePH}} are plotted, together with scatter and box plots of the observed mark values by treatment.
+\code{ggplot}-style plotting for univariate marks. Point and interval estimates of the mark-specific treatment effect parameter specified by component 
+\code{contrast} in \code{\link{summary.sievePH}} or \code{\link{summary.kernel_sievePH}} are plotted, together with scatter and box plots of the observed mark values by treatment.
 }
 \examples{
-n <- 500
+n <- 200
 tx <- rep(0:1, each=n/2)
 tm <- c(rexp(n/2, 0.2), rexp(n/2, 0.2 * exp(-0.4)))
 cens <- runif(n, 0, 15)
@@ -120,12 +121,20 @@ eventInd <- as.numeric(tm <= pmin(cens, 3))
 mark <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
 markRng <- range(mark, na.rm=TRUE)
 
-# fit a model with a univariate mark
+# fit a model with a univariate mark using the sievePH method
 fit <- sievePH(eventTime, eventInd, mark, tx)
 sfit <- summary(fit, markGrid=seq(markRng[1], markRng[2], length.out=10))
 print(ggplot_sieve(sfit, mark, tx))
 
+# fit a model with a univariate mark using the kernel_sievePH method
+fit <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
+                      missmethod = "CC",
+                      tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
+                      ntgrid = 20, nvgrid = 20)
+sfit <- summary(fit)
+print(ggplot_sieve(sfit, mark, tx))
+
 }
 \seealso{
-\code{\link{plot.summary.sievePH}}, \code{\link{sievePH}} and \code{\link{summary.sievePH}}
+\code{\link{plot.summary.sievePH}}, \code{\link{sievePH}}, \code{\link{summary.sievePH}}, \code{\link{kernel_sievePH}}, \code{\link{summary.kernel_sievePH}}
 }

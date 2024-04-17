@@ -1,11 +1,11 @@
 #' Plotting Mark-Specific Proportional Hazards Model Fits
 #'
-#' \code{plot} method for class \code{summary.sievePH}. For univariate marks, it plots point and interval estimates of the mark-specific treatment effect parameter specified by \code{contrast} in \code{\link{summary.sievePH}}, and,
+#' \code{plot} method for class \code{summary.sievePH} and \code{summary.kernel_sievePH}. For univariate marks, it plots point and interval estimates of the mark-specific treatment effect parameter specified by \code{contrast} in \code{\link{summary.sievePH}}, and,
 #' optionally, scatter/box plots of the observed mark values by treatment. For bivariate marks, plotting is restricted to the point estimate, which is displayed as a surface. No plotting is provided for marks of higher dimensions.
 #'
-#' @param x an object returned by \code{\link{summary.sievePH}}
+#' @param x an object returned by \code{\link{summary.sievePH}} or \code{\link{summary.kernel_sievePH}}
 #' @param mark either a numeric vector specifying a univariate continuous mark or a data frame specifying a multivariate continuous mark.
-#' For subjects with a right-censored time-to-event, the value(s) in \code{mark} should be set to \code{NA}.
+#' For subjects with a right-censored time-to-event, the value(s) in \code{mark} should be set to \code{NA}. For \code{summary.kernel_sievePH}, \code{mark} must be univariate.
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0 if placebo)
 #' @param xlim a numeric vector of length 2 specifying the x-axis range (\code{NULL} by default)
 #' @param ylim a numeric vector of length 2 specifying the y-axis range (\code{NULL} by default)

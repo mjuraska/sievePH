@@ -67,8 +67,6 @@ NULL
 #' @param nvgrid an integer value specifying the number of equally spaced mark
 #'   values between the minimum and maximum of the observed mark values for
 #'   which the treatment effects are evaluated.
-#' @param confLevel the confidence level (0.95 by default) of reported
-#'   confidence intervals.
 #' @param seed an integer specifying the random number generation seed for
 #'   reproducing the test statistics and p-values.
 #'
@@ -85,26 +83,30 @@ NULL
 #' whether the mark is observed, whereas the second one augments the IPW
 #' complete-case estimator with auxiliary predictors of the missing mark value.
 #'
-#' @return A list containing the following components:
+#' @return An object of class \code{kernel_sievePH} which can be processed by
+#' \code{\link{summary.kernel_sievePH}} to obtain or print a summary of the results. 
+#' An object of class \code{kernel_sievePH} is a list containing the following 
+#' components:
 #' \itemize{
 #' \item \code{H10}: a data frame with test statistics (first row) and
 #' corresponding p-values (second row) for testing \deqn{H_{10}: HR(v) = 1} for
-#' v \eqn{\in [a, b]}. The test statistics are calculated for mark values in
-#' \eqn{[a1, b]}, where \eqn{a1 = a + (b-a)/nvgrid}. Columns \code{TSUP1} and
+#' v \eqn{\in [a, b]}. Columns \code{TSUP1} and
 #' \code{Tint1} include test statistics and p-values for testing \deqn{H_{10}}
 #' vs. \deqn{H_{1a}: HR(v) != 1} for any v \eqn{\in [a, b]} (general
 #' alternative). Columns \code{TSUP1m} and \code{Tint1m} include test statistics
 #' and p-values for testing \deqn{H_{10}} vs. \deqn{H_{1m}: HR(v) <= 1} with
-#' strict inequality for some v \eqn{\in [a, b]} (monotone alternative). Columns
-#' \code{TSUP1} and \code{TSUP1m} are for tests based on extensions of
-#' Kolmogorov-Smirnov tests. Columns \code{Tint1} and \code{Tint1m} are for
-#' tests based on generalizations of Cramer-von Mises tests--integration-based
-#' tests.
+#' strict inequality for some v \eqn{\in [a, b]} (monotone alternative). Test 
+#' statistics in columns \code{TSUP1} and \code{TSUP1m} are extensions of the 
+#' classic Kolmogorov-Smirnov supremum-based test statistic for testing the 
+#' goodness of fit of a distribution function. Test statistics in columns 
+#' \code{Tint1} and \code{Tint1m} are generalizations of the integration-based 
+#' Cramer-von Mises test statistic for testing the goodness of fit of a 
+#' distribution function. \code{Tint1} and \code{Tint1m} involve 
+#' integration of deviations over the whole range of the mark.
 #'
 #' \item \code{H20}: a data frame with test statistics (first row) and
 #' corresponding p-values (second row) for testing \deqn{H_{20}}: HR(v) does not
-#' depend on v \eqn{\in [a, b]}. The test statistics are calculated for mark
-#' values in \eqn{[a2, b]}, where \eqn{a2 = a + 3*(b-a)/nvgrid}. Columns
+#' depend on v \eqn{\in [a, b]}. Columns
 #' \code{TSUP2} and \code{Tint2} include test statistics and p-values for
 #' testing \deqn{H_{20}} vs. \deqn{H_{2a}}: HR depends on v \eqn{\in [a, b]}
 #' (general alternative). Columns \code{TSUP2m} and \code{Tint2m} include test
@@ -117,16 +119,10 @@ NULL
 #' Cramer-von Mises test statistic for testing the goodness of fit of a 
 #' distribution function. \code{Tint2} and \code{Tint2m} involve 
 #' integration of deviations over the whole range of the mark.
-#' \item \code{te}: a data frame summarizing point and interval estimates of the
-#' mark-specific treatment efficacy on the grid of mark values defined by
-#' \code{nvgrid}. The confidence level is specified by \code{confLevel}.
-#' \code{te} is based on AIPW estimates.
-#'
-#' \item \code{estBeta}: a data frame
-#' summarizing point estimates and standard errors of the mark-specific
-#' coefficients using the complete-case method (\code{betacom} and
-#' \code{secom}), the IPW method (\code{betaipw} and \code{seipw}), and the AIPW
-#' method (\code{betaaug} and \code{seaug}).
+#' 
+#' \item \code{estBeta}: a data frame summarizing point estimates and standard 
+#' errors of the mark-specific coefficients on the grid of mark values defined by
+#' \code{nvgrid} using the specified missing model method (\code{missmethod}.
 #'
 #' \item \code{cBproc1}: a data frame
 #' containing mark values in column \code{Mark}, standardized mark values in
@@ -191,7 +187,7 @@ NULL
 #'
 #' @export
 kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = NULL, nboot = 500, missmethod, formulaMiss = NULL,
-                               tau, tband, hband, a, b, ntgrid = 100, nvgrid = 100, confLevel = 0.95, seed = 62648) {
+                               tau, tband, hband, a, b, ntgrid = 100, nvgrid = 100,  seed = 62648) {
 
 
 
@@ -544,7 +540,6 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
     # Complete data likelihood estimator: complete
     # Set the weight wght(ks, i) = R(ks, i) to get the complete data likelihood estimator
     #browser()
-    #comfit <- estpcom(tau, kk, nsamp, ncov, time, covart, deltak, R,betacox)
     comfit <- estpcomcplusplus(tau, kk, nsamp, ncov, time, covart, deltak, R,betacox)
 
     betacom[,ispot] <- comfit$BETA
@@ -553,7 +548,6 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
 
     # The inverse probability weighted estimator: ipw
 
-    #ipwfit <- estpipw(tau, kk, nsamp, tband, ncov, time, covart, censor, deltak, wght, betacom[,ispot])
     ipwfit <- estpipwcplusplus(tau, kk, nsamp, tband, ncov, time, covart, censor, deltak, wght, betacom[,ispot])
 
     betaipw[,ispot] <- ipwfit$BETA
@@ -638,7 +632,6 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
 
       # initial value
       betaaug0 <- betaipw[, ispot]
-      #estpaug_result <- estpaug(tau, tstep, ntgrid, tband, kk, nsamp, ncov, time, covart, censor, deltak, wght, DRHOipw, betaaug0)
       estpaug_result = estpaugcplusplus(tau, tstep, ntgrid, tband, kk, nsamp, ncov, time, covart, censor, deltak, wght, DRHOipw, betaaug0)
       betaaug[, ispot] <- estpaug_result$BETA
       seaug[, ispot] <- sqrt(diag(estpaug_result$var))
@@ -675,22 +668,22 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
         CLAMBDAUG[ks, valid_indices] <- CLAMBDAUG[ks, valid_indices] + G[ks, valid_indices, ispot] * LAMBDA0aug[ks, valid_indices] * exp(BZaug) * vstep
       }
 
-      # estimate of VE(v):
-      veest[ispot] <- 1 - exp(betaaug[1, ispot])
-
-      # One estimate of s.e. of \hat VE(v):
-      vese[ispot] <- seaug[1, ispot] * exp(betaaug[1, ispot])
+      # # estimate of VE(v):
+      # veest[ispot] <- 1 - exp(betaaug[1, ispot])
+      # 
+      # # One estimate of s.e. of \hat VE(v):
+      # vese[ispot] <- seaug[1, ispot] * exp(betaaug[1, ispot])
 
 
     }
-    # 95% confidence interval for beta1(v):
-    cv_confLevel <- qnorm(1-(1-confLevel)/2)
-    beta1lw=betaaug[1,]-cv_confLevel*seaug[1,]
-    beta1up=betaaug[1,]+cv_confLevel*seaug[1,]
-    markgrid <- (1:nvgrid) * vstep
-    velw <- 1-exp(beta1up)
-    veup <- 1-exp(beta1lw)
-    te <- data.frame("mark" = markgrid*(mx-mn)+mn, "TE" = veest,"SE" = vese, "LB" = velw, "UB" = veup)
+    # # 95% confidence interval for beta1(v):
+    # cv_confLevel <- qnorm(1-(1-confLevel)/2)
+    # beta1lw=betaaug[1,]-cv_confLevel*seaug[1,]
+    # beta1up=betaaug[1,]+cv_confLevel*seaug[1,]
+    # markgrid <- (1:nvgrid) * vstep
+    # velw <- 1-exp(beta1up)
+    # veup <- 1-exp(beta1lw)
+    # te <- data.frame("mark" = markgrid*(mx-mn)+mn, "TE" = veest,"SE" = vese, "LB" = velw, "UB" = veup)
 
 
 
@@ -701,10 +694,6 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
     AsigInv <- array(0, dim = c(ncov*ncov, nvgrid, nvgrid))
     tempaug <- array(0, dim = c(kk, max(nsamp), nvgrid))
     for (ispot in iskip:nvgrid) {
-      #*** re: delete a+
-      # va=a0+vstep*(float(ispot)-1.0)
-      # vb=a0+vstep*float(ispot)
-      # vspot=a0+float(ispot)*vstep
 
       va <- vstep * (ispot - 1.0)
       vb <- vstep * ispot
@@ -794,11 +783,6 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
       #CUMBDIST is simulated B(v)
       CUMBDIST <- GDIST2Ncplusplus(nvgrid, iskip, zdev, kk, nsamp, ncov, time, covart,
                                     betaofv, SigmaInv, S0N, S1N, tempaug, AsigInv)
-
-
-      # calculate the Gaussian multiplier process CUMBDIST for each iboot
-      #CUMBDIST <- GDIST2N(nvgrid, iskip, zdev, kk, nsamp, ncov, time, covart,
-      #                    betaofv, SigmaInv, S0N, S1N, tempaug, AsigInv)
 
       CUMB1x[iskip:nvgrid] <- CUMB1x[iskip:nvgrid] + CUMBDIST[1, iskip:nvgrid]
       CUMB1se[iskip:nvgrid] <- CUMB1se[iskip:nvgrid] + CUMBDIST[1, iskip:nvgrid]^2.0
@@ -986,58 +970,49 @@ kernel_sievePH <- function(eventTime, eventInd,mark, tx, aux = NULL , strata = N
     ans20 <- data.frame(rbind(test20,pvalue20))
     colnames(ans20) <- c("TSUP2","TSUP2m", "Tint2","Tint2m")
     rownames(ans20) <- c("Test Statistic", "P-value")
-
-
-    cBproc1.df <- data.frame(cbind(te$mark[(iskipa1 + 1):nvgrid],vstep*((iskipa1 + 1):nvgrid),cBproc1[(iskipa1 + 1):nvgrid],cBproc1s[(iskipa1 + 1):nvgrid,]))
+    
+    markgrid <- (1:nvgrid) * vstep
+    markgrid_original_scale <- markgrid*(mx-mn)+mn
+    cBproc1.df <- data.frame(cbind(markgrid_original_scale[(iskipa1 + 1):nvgrid],vstep*((iskipa1 + 1):nvgrid),cBproc1[(iskipa1 + 1):nvgrid],cBproc1s[(iskipa1 + 1):nvgrid,]))
     colnames(cBproc1.df) <- c("Mark", "Standardized mark","Observed", paste0("S", 1:nboot))
-    cBproc2.df <- data.frame(cbind(te$mark[(iskipa2):nvgrid],vstep*((iskipa2):nvgrid),cBproc2[iskipa2:nvgrid], cBproc2s[iskipa2:nvgrid, ]))
+    cBproc2.df <- data.frame(cbind(markgrid_original_scale[(iskipa2):nvgrid],vstep*((iskipa2):nvgrid),cBproc2[iskipa2:nvgrid], cBproc2s[iskipa2:nvgrid, ]))
     colnames(cBproc2.df) <- c("Mark", "Standardized mark", "Observed", paste0("S", 1:nboot))
     
     if(missmethod == "CC"){
-      estBeta = data.frame("mark" = te$mark,
+      estBeta = data.frame("mark" = markgrid_original_scale,
                            "betacom" = t(betacom),
                            "secom" = t(secom))
     }else if (missmethod == "IPW"){
-      estBeta = data.frame("mark" = te$mark,
+      estBeta = data.frame("mark" = markgrid_original_scale,
                            "betaipw" = t(betaipw),
                            "seipw" = t(seipw))
     }else if (missmethod == "AIPW"){
-      estBeta = data.frame("mark" = te$mark,
+      estBeta = data.frame("mark" = markgrid_original_scale,
                            "betaaug" = t(betaaug),
                            "seaug" = t(seaug))
     }
-    
-    
-    return(list("cBproc1" = cBproc1.df,
+    colnames(estBeta) <- c("mark", "beta", "se")
+    out <- list("cBproc1" = cBproc1.df,
                 "cBproc2" = cBproc2.df,
                 "H10" = ans10,
                 "H20" = ans20,
-                "te" = te,
-                "estBeta" = estBeta,
-                "estBetacheck" = data.frame("mark" = te$mark,
-                                            "betacom" = t(betacom),
-                                            "secom" = t(secom),
-                                            "betaipw" = t(betaipw),
-                                            "seipw" = t(seipw),
-                                            "betaaug" = t(betaaug),
-                                            "seaug" = t(seaug)
-                                            )
-                ))
+                # "estBetadebug" = data.frame("mark" = markgrid_original_scale,
+                #                             "betacom" = t(betacom),
+                #                             "secom" = t(secom),
+                #                             "betaipw" = t(betaipw),
+                #                             "seipw" = t(seipw),
+                #                             "betaaug" = t(betaaug),
+                #                             "seaug" = t(seaug)),
+                "estBeta" = estBeta
+                
+                )
+    class(out) <- "kernel_sievePH"
+    return(out)
 
 }
 
 
-# **************************************************************************
-#
-# function matrix A times B gives C
-# NP, MP, LP are the declared dimensions and N, M, L are
-# the actual dimensions
-# **************************************************************************
 
-ATIMEB <- function(A, B, N, M, L) {
-  C <- A[1:N, 1:M] %*% B[1:M, 1:L]
-  return(C)
-}
 
 # C     *****************************************************************
 # C
@@ -1115,351 +1090,6 @@ estpvry <- function(tau, KK, N, NP, X, ZT, DELTA) {
   return(list(BETA = BETA, var = var))
 }
 
-# C     *****************************************************************
-# C
-# C                         _ESTPCOM       function_
-# C
-# C     _Complete data estimate the varying coefficient in the mark PH model_
-# C     *****************************************************************
-estpcom <- function(tau, KK, N, NP, X, ZT, DELTA, WGHT,beta0) {
-  #beta0 is initial value
-  BETA = beta0
-
-  var <- matrix(0, nrow = NP, ncol = NP)
-
-  KL <- 6
-
-  for (KITER in 1:KL) {
-    U <- numeric(NP)
-    F <- matrix(0, nrow = NP, ncol = NP)
-    F2 <- matrix(0, nrow = NP, ncol = NP)
-
-    for (ks in 1:KK) {
-
-      if(NP==1){
-        BZt <- as.matrix(ZT[ks, , 1:N[ks]] * BETA, ncol = 1)
-
-      }else{
-        BZt <- ZT[ks, , 1:N[ks]] %*% BETA}
-
-
-      mask <- X[ks, 1:N[ks]] <= tau
-      indices <- which(mask)
-      S0 <- numeric(N[ks])
-      S1 <- matrix(0, nrow = NP, ncol = N[ks])
-
-      for (i in indices) {
-        S2 <- matrix(0, nrow = NP, ncol = NP)
-
-        L <- which(X[ks, 1:N[ks]] >= X[ks, i])
-
-        if(NP == 1){
-          ZTL <- ZT[ks,1:NP , L]
-          S0[i] <- sum(exp(BZt[L,1])* WGHT[ks, L])
-          S1[1, i] <- sum(ZTL*exp(BZt[L,1])* WGHT[ks, L])
-          S2 <- S2 + sum(ZTL*ZTL*exp(BZt[L,1])* WGHT[ks, L])
-
-        }else{
-          S0[i] <- sum(exp(BZt[L, 1])* WGHT[ks, L])
-          S1[1:NP, i] <-  ZT[ks, 1:NP, L] %*% (exp(BZt[L, 1]) *  WGHT[ks, L])
-          for(J in 1:NP){
-            for(K in 1:NP){
-              S2[J, K] <- t(exp(BZt[L, 1])* WGHT[ks, L])%*%(ZT[ks,J , L]*ZT[ks,K , L])
-            }
-          }
-        }
-        if (S0[i] > 0.00000001) {
-
-          U <- U + DELTA[ks, i] * (ZT[ks, , i] - S1[, i] / S0[i]) * WGHT[ks, i]
-
-
-          S1_i <- S1[, i]
-          ZT_ks_i <- ZT[ks, , i]
-          WGHT_ks_i <- WGHT[ks, i]
-
-          F <- F + DELTA[ks, i] * (S2 / S0[i] - tcrossprod(S1_i) / S0[i]^2) * WGHT_ks_i
-          F2 <- F2 + (DELTA[ks, i])^2 * tcrossprod(ZT_ks_i - S1_i / S0[i]) * WGHT_ks_i^2
-        }
-      }
-    }
-
-    BETA <- BETA + solve(F, U)
-  }
-  invF <- solve(F)
-  # C     the variance of \hat\beta(v) is var in the following
-  var <- solve(F) %*% F2 %*% solve(F)
-
-  return(list(BETA = BETA, F = invF, var = var))
-}
-
-# C     *****************************************************************
-# C     *                                                               *
-# C     *                    ESTPIPW       function                   *
-# C     *                                                               *
-# C     * IPW estimate the varying coefficient in the mark PH model     *
-# C     *****************************************************************
-
-estpipw <- function(tau, KK, N, TBAND, NP, X, ZT, CENSOR, DELTA, WGHT, beta0) {
-  #beta0 is initial value
-  BETA = beta0
-  var <- matrix(0, nrow = NP, ncol = NP)
-  LAMBDA0 <- matrix(NA, nrow = KK, ncol = max(N))
-
-  KL <- 6
-
-  for (KITER in 1:KL) {
-    U <- numeric(NP)
-    F <- matrix(0, nrow = NP, ncol = NP)
-    F2 <- matrix(0, nrow = NP, ncol = NP)
-
-    for (ks in 1:KK) {
-      if(NP==1){
-        BZt <- as.matrix(ZT[ks, , 1:N[ks]] * BETA, ncol = 1)
-
-      }else{
-        BZt <- ZT[ks, , 1:N[ks]] %*% BETA}
-
-      # c*******************************************************************
-
-      mask <- X[ks, 1:N[ks]] <= tau
-      indices <- which(mask)
-      S0 <- numeric(N[ks])
-      S1 <- matrix(0, nrow = NP, ncol = N[ks])
-
-      for (i in indices) {
-
-        S2 <- matrix(0, nrow = NP, ncol = NP)
-
-        L <- which(X[ks, 1:N[ks]] >= X[ks, i])
-        if(NP == 1){
-          ZTL <- ZT[ks,1:NP , L]
-          S0[i] <- sum(exp(BZt[L,1])* WGHT[ks, L])
-          S1[1, i] <- sum(ZTL*exp(BZt[L,1])* WGHT[ks, L])
-          S2 <- S2 + sum(ZTL*ZTL*exp(BZt[L,1])* WGHT[ks, L])
-
-        }else{
-          S0[i] <- sum(exp(BZt[L, 1])* WGHT[ks, L])
-          S1[1:NP, i] <-  ZT[ks, 1:NP, L] %*% (exp(BZt[L, 1]) *  WGHT[ks, L])
-          for(J in 1:NP){
-            for(K in 1:NP){
-              S2[J, K] <- t(exp(BZt[L, 1])* WGHT[ks, L])%*%(ZT[ks,J , L]*ZT[ks,K , L])
-            }
-          }
-        }
-
-
-        if (S0[i] > 0.00000001) {
-          U <- U + DELTA[ks, i] * (ZT[ks, , i] - S1[, i] / S0[i]) * WGHT[ks, i]
-
-          F <- F + DELTA[ks, i] * (S2 / S0[i] - tcrossprod(S1[, i]) / S0[i]^2) * WGHT[ks, i]
-
-          F2 <- F2 + DELTA[ks, i]^2 * tcrossprod(ZT[ks, , i] - S1[, i] / S0[i]) * WGHT[ks, i]^2
-        }
-      }
-
-      # C     CALCULATE THE BASELINE HAZARD FUNCTION AT X(KS,I) AND VSPOT:
-
-      if (KITER == KL) {
-
-        LAMBDA0[ks, 1:N[ks]] <- sapply(1:N[ks], function(i) {
-          II <- which((X[ks, 1:N[ks]] <= tau) & (S0[1:N[ks]] > 0.00000001))
-
-          sum(Epanker(X[ks, II], X[ks, i], TBAND, CENSOR[ks, II]) * DELTA[ks, II] * WGHT[ks, II] / S0[II])
-        })
-      }
-    }
-
-    BETA <- BETA + solve(F, U)
-  }
-  invF <- solve(F)
-  # C     the variance of \hat\beta(v) is var in the following
-  var <- solve(F) %*% F2 %*% solve(F)
-
-  return(list(BETA = BETA, LAMBDA0 = LAMBDA0, var = var))
-}
-
-
-# C     *****************************************************************
-# C     *                                                               *
-# C     *                    ESTPAUG       function                   *
-# C     *                                                               *
-# C     *AIPW estimate the varying coefficient in the mark PH model     *
-# C     *****************************************************************
-
-estpaug <- function(tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, DRHOipw, BETA0) {
-
-  mxtgrid <- 100
-
-  var <- matrix(0, nrow = NP, ncol = NP)
-
-  KL <- 6
-  BETA <- BETA0
-
-  for (KITER in 1:KL) {
-    U <- numeric(NP)
-    F <- matrix(0, nrow = NP, ncol = NP)
-    F2 <- matrix(0, nrow = NP, ncol = NP)
-    S0 <- matrix(0, nrow = KK, ncol = max(N))
-    for (ks in 1:KK) {
-      if(NP==1){
-        BZt <- as.matrix(ZT[ks, , 1:N[ks]] * BETA, ncol = 1)
-
-      }else{
-        BZt <- ZT[ks, , 1:N[ks]] %*% BETA
-      }
-
-      # c*******************************************************************
-
-      mask <- X[ks, 1:N[ks]] <= tau
-      indices <- which(mask)
-
-
-      S1 <- matrix(0, nrow = NP, ncol = N[ks])
-
-      for (i in indices) {
-        S2 <- matrix(0, nrow = NP, ncol = NP)
-
-        L <- which(X[ks, 1:N[ks]] >= X[ks, i])
-
-        if(NP == 1){
-          ZTL <- ZT[ks,1:NP , L]
-          S0[ks,i] <- sum(exp(BZt[L,1]))
-          S1[1, i] <- sum(ZTL*exp(BZt[L,1]))
-          S2 <- S2 + sum(ZTL*ZTL*exp(BZt[L,1]))
-
-        }else{
-          S0[ks,i] <- sum(exp(BZt[L, 1]))
-          S1[1:NP, i] <-  ZT[ks, 1:NP, L] %*% (exp(BZt[L, 1]))
-          for(J in 1:NP){
-            for(K in 1:NP){
-              S2[J, K] <- t(exp(BZt[L, 1]))%*%(ZT[ks,J , L]*ZT[ks,K , L])
-            }
-          }
-        }
-
-
-        if (S0[ks, i] > 0.00000001) {
-          # c  The score function for AIPW estimator:
-          U <- U + (ZT[ks, , i] - S1[, i] / S0[ks, i]) *
-            (WGHT[ks, i] * DELTA[ks, i] + (1.0 - WGHT[ks, i]) * CENSOR[ks, i] * DRHOipw[ks, i])
-
-          F <- F + (S2 / S0[ks, i] - tcrossprod(S1[, i]) / S0[ks, i]^2) *
-            (WGHT[ks, i] * DELTA[ks, i] + (1.0 - WGHT[ks, i]) * CENSOR[ks, i] * DRHOipw[ks, i])
-
-          F2 <- F2 + tcrossprod(ZT[ks, , i] - S1[, i] / S0[ks, i]) *
-            (WGHT[ks, i] * DELTA[ks, i] + (1.0 - WGHT[ks, i]) * CENSOR[ks, i] * DRHOipw[ks, i])^2
-        }
-      }
-
-    }
-
-    BETA <- BETA + solve(F, U)
-  }
-  invF <- solve(F)
-  # C     the variance of \hat\beta(v) is var in the following
-  var <- solve(F) %*% F2 %*% solve(F)
-
-  # C     CALCULATE THE BASELINE HAZARD FUNCTION AT X(KS,I) AND VSPOT:
-  LAMBDA0 <- sapply(1:KK, function(ks) {
-    sapply(1:N[ks], function(i) {
-      mask_i <- X[ks, 1:N[ks]] <= tau & (S0[ks, 1:N[ks]] > 0.00000001)
-      sum(Epanker(X[ks, mask_i], X[ks, i], TBAND, CENSOR[ks, mask_i]) *
-            (WGHT[ks, mask_i] * DELTA[ks, mask_i] / S0[ks, mask_i] +
-               (1.0 - WGHT[ks, mask_i]) * CENSOR[ks, mask_i] * DRHOipw[ks, mask_i] / S0[ks, mask_i]))
-    })
-  })
-  LAMBDA0 <- t(LAMBDA0)
-  # c     CALCULATE THE BASELINE HAZARD FUNCTION AT X(KS,I) AND VSPOT:
-  # c    change to the grid points of (t,v): !!!!!
-
-  LAMBDAk0 <- sapply(1:KK, function(ks) {
-    sapply(1:ntgrid, function(Itgrid) {
-      tvalue <- tstep * Itgrid
-
-      mask_i <- X[ks, 1:N[ks]] <= tau & (S0[ks, 1:N[ks]] > 0.00000001)
-
-      sum(Epanker(X[ks, mask_i], tvalue, TBAND, CENSOR[ks, mask_i]) *
-            (WGHT[ks, mask_i] * DELTA[ks, mask_i] / S0[ks, mask_i] +
-               (1.0 - WGHT[ks, mask_i]) * CENSOR[ks, mask_i] * DRHOipw[ks, mask_i] / S0[ks, mask_i]))
-    })
-  })
-  LAMBDAk0 <- t(LAMBDAk0)
-  return(list(BETA = BETA, LAMBDA0 = LAMBDA0, LAMBDAk0 = LAMBDAk0, F = invF, var = var))
-}
-
-
-# ******************************************************************
-#                       function  GDIST2N
-#     This is a modified version of GDIST2 where a different formula
-#          is used when doing the change of order of integration
-#                   involving the kernel function
-#
-#          The output of the function GDIST2N is CUMBDIST,
-#     which is  the Gaussian multiplier for $n^{1/2}(\hat B_{aug}(v)-B(v))$
-#
-#          THIS function does not requires smoothing in t.
-#                 the results are similar to GDIST1,
-#           but GDIST1 may produce nan when TBAND is small
-# ******************************************************************
-
-GDIST2N <- function(nvgrid, iskip, zdev, KK, N, NP, X, ZT, betaofv, SigmaInv, S0N, S1N, tempaug, AsigInv) {
-
-  #BU1 <- matrix(0, nrow = NP, ncol = nvgrid)
-  CUMBDIST <- matrix(0, nrow = NP, ncol = nvgrid)
-
-  for (ispot in iskip:nvgrid) {
-    for (ks in 1:KK) {
-      BZt <- matrix(0, nrow = N[ks], ncol = 1)
-
-      if(NP==1){
-        BZt <- as.matrix(ZT[ks, , 1:N[ks]] * betaofv[1, ispot], ncol = 1)
-
-      }else{
-        BZt <- ZT[ks, , 1:N[ks]] %*% betaofv[, ispot]
-      }
-
-
-
-      Sx0 <- numeric(N[ks])
-      Sx1 <- matrix(0, nrow = NP, ncol = N[ks])
-
-      for (i in 1:N[ks]) {
-
-        indices <- X[ks, 1:N[ks]] >= X[ks, i]
-        Sx0[i] <- sum(exp(BZt[indices, 1]) * zdev[ks, indices])
-
-        for (j in 1:NP) {
-          Sx1[j, i] <- sum(exp(BZt[indices, 1]) * ZT[ks, j, indices] * zdev[ks, indices])
-        }
-
-        if (S0N[ks, i, ispot] > 0.00000001) {
-          for (j in 1:NP) {
-            for (mspot in iskip:nvgrid) {
-
-              index <- seq((j-1)*NP + 1, NP*j,1)
-              indexS1N <- seq((ks-1)*NP+1,ks*NP,1)
-              tempBU1 <- sum(AsigInv[index, ispot, mspot] * (ZT[ks, 1:NP, i] - S1N[indexS1N,  i, ispot] / S0N[ks, i, ispot]))
-              tempXBU2 <- sum(AsigInv[index , ispot, mspot] * (Sx1[1:NP, i] - Sx0[i] * S1N[indexS1N, i, ispot] / S0N[ks, i, ispot]) / S0N[ks, i, ispot])
-
-              CUMBDIST[j, mspot] <- CUMBDIST[j, mspot] + (tempBU1 * zdev[ks, i] - tempXBU2) * tempaug[ks, i, ispot]
-            }
-          }
-        }
-      }
-    }
-  }
-
-  # nsampa <- sum(N)
-  # CUMBDIST <- BU1
-  # for (j in 1:NP) {
-  #   for (ispot in iskip:nvgrid) {
-  #     CUMBDIST[j, ispot] <- BU1[j, ispot]
-  #   }
-  # }
-
-  return(CUMBDIST)
-}
-
 
 # ******************************************************************
 # *  Modified to accommodate stratas
@@ -1469,7 +1099,7 @@ GDIST2N <- function(nvgrid, iskip, zdev, KK, N, NP, X, ZT, betaofv, SigmaInv, S0
 # ******************************************************************
 
 estplogit <- function(KK, N, NPL, Z, R, D) {
-
+  
   UL <- numeric(NPL)
   UL2 <- numeric(NPL)
   FL <- matrix(0, nrow = NPL, ncol = NPL)
@@ -1480,16 +1110,16 @@ estplogit <- function(KK, N, NPL, Z, R, D) {
       UL <- numeric(NPL)
       UL2 <- numeric(NPL)
       FL <- matrix(0, nrow = NPL, ncol = NPL)
-
+      
       TZ <- t(Z[ks, , 1:N[ks]] )%*% (PSI[ks, ])
       P <- exp(TZ) / (1.0 + exp(TZ))
-
+      
       for (j in 1:NPL) {
         UL[j] <- sum((R[ks, 1:N[ks]] * D[ks, 1:N[ks]] * (1.0 - P) -
                         (1.0 - R[ks, 1:N[ks]]) * D[ks, 1:N[ks]] * P) *
                        Z[ks, j, 1:N[ks]], na.rm = TRUE)
         UL2[j] <- UL[j]
-
+        
         for (k in 1:NPL) {
           FL[j, k] <- sum((R[ks, 1:N[ks]] * D[ks, 1:N[ks]] +
                              (1.0 - R[ks, 1:N[ks]]) * D[ks, 1:N[ks]]) *
@@ -1497,20 +1127,19 @@ estplogit <- function(KK, N, NPL, Z, R, D) {
                             Z[ks, j, 1:N[ks]] * Z[ks, k, 1:N[ks]], na.rm = TRUE)
         }
       }
-
+      
       # Solve the system of linear equations using solve()
       #inv <- gaussj(FL, UL)
       PSI[ks, ] <- PSI[ks, ] + solve(FL, UL)
       #PSI[ks, ] <- PSI[ks, ] + inv$B
     }
-
+    
     FVAR[ks, , ] <- solve(FL)
     #FVAR[ks, , ] <- inv$A
   }
-
+  
   return(list(PSI = PSI, FVAR = FVAR))
 }
-
 
 #****************************************************************************
 # calculate (1/h)*K((t_k-t)/h), K is Epanechnikov  kernel
@@ -1552,12 +1181,4 @@ EpankerV <- function(tk, tvalue, hband, delt) {
 }
 
 
-EpankerC <- function(tk, tvalue, hband, delt) {
-  if (abs(tk - tvalue) < hband) {
-    result <- 3.0 / (4 * hband) * delt * (1 - ((tk - tvalue) / hband)^2)
-  } else {
-    result <- 0.0
-  }
-  return(result)
-}
 

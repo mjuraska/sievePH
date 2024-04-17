@@ -56,7 +56,7 @@ This component is available if the mark is univariate and \code{sieveAlternative
 by \code{confLevel}.
 \item \code{hr}: a data frame summarizing point and interval estimates of the mark-specific hazard ratio on the grid of mark values in \code{markGrid} (available if \code{contrast="hr"}). The confidence level is specified by
 \code{confLevel}.
-\item \code{te}: a data frame summarizing point and interval estimates of the mark-specific log hazard ratio on the grid of mark values in \code{markGrid} (available if \code{contrast="loghr"}). The confidence level is specified by
+\item \code{loghr}: a data frame summarizing point and interval estimates of the mark-specific log hazard ratio on the grid of mark values in \code{markGrid} (available if \code{contrast="loghr"}). The confidence level is specified by
 \code{confLevel}.
 }
 }

@@ -22,7 +22,6 @@ kernel_sievePH(
   b,
   ntgrid = 100,
   nvgrid = 100,
-  confLevel = 0.95,
   seed = 62648
 )
 }
@@ -98,33 +97,34 @@ points for which the mark-specific baseline hazard functions are evaluated.}
 values between the minimum and maximum of the observed mark values for
 which the treatment effects are evaluated.}
 
-\item{confLevel}{the confidence level (0.95 by default) of reported
-confidence intervals.}
-
 \item{seed}{an integer specifying the random number generation seed for
 reproducing the test statistics and p-values.}
 }
 \value{
-A list containing the following components:
+An object of class \code{kernel_sievePH} which can be processed by
+\code{\link{summary.kernel_sievePH}} to obtain or print a summary of the results. 
+An object of class \code{kernel_sievePH} is a list containing the following 
+components:
 \itemize{
 \item \code{H10}: a data frame with test statistics (first row) and
 corresponding p-values (second row) for testing \deqn{H_{10}: HR(v) = 1} for
-v \eqn{\in [a, b]}. The test statistics are calculated for mark values in
-\eqn{[a1, b]}, where \eqn{a1 = a + (b-a)/nvgrid}. Columns \code{TSUP1} and
+v \eqn{\in [a, b]}. Columns \code{TSUP1} and
 \code{Tint1} include test statistics and p-values for testing \deqn{H_{10}}
 vs. \deqn{H_{1a}: HR(v) != 1} for any v \eqn{\in [a, b]} (general
 alternative). Columns \code{TSUP1m} and \code{Tint1m} include test statistics
 and p-values for testing \deqn{H_{10}} vs. \deqn{H_{1m}: HR(v) <= 1} with
-strict inequality for some v \eqn{\in [a, b]} (monotone alternative). Columns
-\code{TSUP1} and \code{TSUP1m} are for tests based on extensions of
-Kolmogorov-Smirnov tests. Columns \code{Tint1} and \code{Tint1m} are for
-tests based on generalizations of Cramer-von Mises tests--integration-based
-tests.
+strict inequality for some v \eqn{\in [a, b]} (monotone alternative). Test 
+statistics in columns \code{TSUP1} and \code{TSUP1m} are extensions of the 
+classic Kolmogorov-Smirnov supremum-based test statistic for testing the 
+goodness of fit of a distribution function. Test statistics in columns 
+\code{Tint1} and \code{Tint1m} are generalizations of the integration-based 
+Cramer-von Mises test statistic for testing the goodness of fit of a 
+distribution function. \code{Tint1} and \code{Tint1m} involve 
+integration of deviations over the whole range of the mark.
 
 \item \code{H20}: a data frame with test statistics (first row) and
 corresponding p-values (second row) for testing \deqn{H_{20}}: HR(v) does not
-depend on v \eqn{\in [a, b]}. The test statistics are calculated for mark
-values in \eqn{[a2, b]}, where \eqn{a2 = a + 3*(b-a)/nvgrid}. Columns
+depend on v \eqn{\in [a, b]}. Columns
 \code{TSUP2} and \code{Tint2} include test statistics and p-values for
 testing \deqn{H_{20}} vs. \deqn{H_{2a}}: HR depends on v \eqn{\in [a, b]}
 (general alternative). Columns \code{TSUP2m} and \code{Tint2m} include test
@@ -137,16 +137,10 @@ goodness of fit of a distribution function. Test statistics in columns
 Cramer-von Mises test statistic for testing the goodness of fit of a 
 distribution function. \code{Tint2} and \code{Tint2m} involve 
 integration of deviations over the whole range of the mark.
-\item \code{te}: a data frame summarizing point and interval estimates of the
-mark-specific treatment efficacy on the grid of mark values defined by
-\code{nvgrid}. The confidence level is specified by \code{confLevel}.
-\code{te} is based on AIPW estimates.
 
-\item \code{estBeta}: a data frame
-summarizing point estimates and standard errors of the mark-specific
-coefficients using the complete-case method (\code{betacom} and
-\code{secom}), the IPW method (\code{betaipw} and \code{seipw}), and the AIPW
-method (\code{betaaug} and \code{seaug}).
+\item \code{estBeta}: a data frame summarizing point estimates and standard 
+errors of the mark-specific coefficients on the grid of mark values defined by
+\code{nvgrid} using the specified missing model method (\code{missmethod}.
 
 \item \code{cBproc1}: a data frame
 containing mark values in column \code{Mark}, standardized mark values in
@@ -211,12 +205,6 @@ fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A, nboot = 50,
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
                       ntgrid = 20, nvgrid = 20)
 \donttest{
-#IPW estimation, no auxiliary covariate is used
-fitipw <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
-                      missmethod = "IPW", formulaMiss = ~ eventTime,
-                      tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-                      ntgrid = 20, nvgrid = 20)
-
 # complete-case estimation discards rows with a missing mark;
 # also, no auxiliary covariate is needed
 fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
