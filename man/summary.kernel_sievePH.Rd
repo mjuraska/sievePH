@@ -3,7 +3,8 @@
 \name{summary.kernel_sievePH}
 \alias{summary.kernel_sievePH}
 \alias{print.summary.kernel_sievePH}
-\title{Summarizing Nonparametric Kernel-Smoothed Stratified Mark-Specific Proportional Hazards Model Fits}
+\title{Summarizing Nonparametric Kernel-Smoothed Stratified Mark-Specific
+Proportional Hazards Model Fits}
 \usage{
 \method{summary}{kernel_sievePH}(
   object,
@@ -16,13 +17,20 @@
 \method{print}{summary.kernel_sievePH}(x, digits = 4, ...)
 }
 \arguments{
-\item{object}{an object of class \code{kernel_sievePH}, a result of a call to \code{\link{kernel_sievePH}}}
+\item{object}{an object of class \code{kernel_sievePH}, a result of a call to
+\code{\link{kernel_sievePH}}}
 
-\item{contrast}{a character string specifying the treatment effect parameter of interest. The default value is \code{"te"} (treatment efficacy); other options are \code{"hr"} (hazard ratio) and \code{"loghr"} (log hazard ratio).}
+\item{contrast}{a character string specifying the treatment effect parameter
+of interest. The default value is \code{"te"} (treatment efficacy); other
+options are \code{"hr"} (hazard ratio) and \code{"loghr"} (log hazard
+ratio).}
 
-\item{sieveAlternative}{a character string specifying the alternative hypothesis for the sieve tests, which can be either \code{"twoSided"} (default) or \code{"oneSided"}.}
+\item{sieveAlternative}{a character string specifying the alternative
+hypothesis for the sieve tests, which can be either \code{"twoSided"}
+(default) or \code{"oneSided"}.}
 
-\item{confLevel}{the confidence level (0.95 by default) of reported confidence intervals}
+\item{confLevel}{the confidence level (0.95 by default) of reported
+confidence intervals}
 
 \item{...}{further arguments passed to or from other methods}
 
@@ -31,66 +39,70 @@
 \item{digits}{the number of significant digits to use when printing (4 by default)}
 }
 \value{
-An object of class \code{summary.kernel_sievePH}, which is a list with the following components:
+An object of class \code{summary.kernel_sievePH}, which is a list
+  with the following components:
 \itemize{
-\item \code{estBeta}: a data frame summarizing point estimates and standard errors of the mark-specific
-coefficients using the specified missing model method (\code{missmethod}.
+\item \code{estBeta}: a data frame summarizing point estimates and standard
+errors of the mark-specific coefficients.
 
 \item \code{HRunity.2sided}: a data frame with test statistics (first row) and
-corresponding p-values (second row) for testing \deqn{H_{10}: HR(v) = 1} vs. 
-\deqn{H_{1a}: HR(v) != 1} for any v \eqn{\in [a, b]} (general
-alternative). Test statistic in column \code{TSUP1} 
-is an extension of the classic Kolmogorov-Smirnov supremum-based test statistic. 
-Test statistic in column \code{Tint1} is a generalization
-of the integration-based Cramer-von Mises test statistic.
+corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} vs.
+\eqn{H_{1a}: HR(v) \neq 1} for any v \eqn{\in [a, b]} (general
+alternative). \code{TSUP1} is based on an extension of the classic Kolmogorov-Smirnov
+supremum-based test. \code{Tint1} is a generalization
+of the integration-based Cramer-von Mises test.
 
 \item \code{HRunity.1sided}: a data frame with test statistics (first row) and
-corresponding p-values (second row) for testing \deqn{H_{10}: HR(v) = 1} vs. 
-\deqn{H_{1m}: HR(v) <= 1} with strict inequality for some v \eqn{\in [a, b]} 
-(monotone alternative). Test statistic in column \code{TSUP1m} 
-is an extension of the classic Kolmogorov-Smirnov supremum-based test statistic. 
-Test statistic in column \code{Tint1m} is a generalization
-of the integration-based Cramer-von Mises test statistic.
+corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} vs.
+\eqn{H_{1m}: HR(v) \leq 1} with strict inequality for some v \eqn{\in [a, b]}
+(monotone alternative). \code{TSUP1m} is based on an extension of the classic
+Kolmogorov-Smirnov supremum-based test. \code{Tint1m} is a generalization
+of the integration-based Cramer-von Mises test.
 
 
 \item \code{HRconstant.2sided}: a data frame with test statistics (first row) and
-corresponding p-values (second row) for testing \deqn{H_{20}}: HR(v) does not depend on v 
-\eqn{\in [a, b]} vs. \deqn{H_{2a}}: HR depends on v \eqn{\in [a, b]}
-(general alternative). Test statistic in column \code{TSUP2} 
-is an extension of the classic Kolmogorov-Smirnov supremum-based test statistic. 
-Test statistic in column \code{Tint2} is a generalization
-of the integration-based Cramer-von Mises test statistic. 
+corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not depend on v
+\eqn{\in [a, b]} vs. \eqn{H_{2a}}: HR depends on v \eqn{\in [a, b]}
+(general alternative). \code{TSUP2} is based on an extension of the classic
+Kolmogorov-Smirnov supremum-based test. \code{Tint2} is a generalization
+of the integration-based Cramer-von Mises test.
 This component is available if \code{sieveAlternative="twoSided"}.
 
 \item \code{HRconstant.1sided}: a data frame with test statistics (first row) and
-corresponding p-values (second row) for testing \deqn{H_{20}}: HR(v) does not depend on v 
-\eqn{\in [a, b]} vs. \deqn{H_{2m}}: HR increases as v increases \eqn{\in [a, b]}
-(monotone alternative). Test statistic in column \code{TSUP2m} 
-is an extension of the classic Kolmogorov-Smirnov supremum-based test statistic. 
-Test statistic in column \code{Tint2m} is a generalization
-of the integration-based Cramer-von Mises test statistic.
+corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not depend on v
+\eqn{\in [a, b]} vs. \eqn{H_{2m}}: HR increases as v increases \eqn{\in [a, b]}
+(monotone alternative). \code{TSUP2m} is based on an extension of the classic
+Kolmogorov-Smirnov supremum-based test. \code{Tint2m} is a generalization
+of the integration-based Cramer-von Mises test.
 This component is available if \code{sieveAlternative="oneSided"}.
 
 \item \code{te}: a data frame summarizing point and interval estimates of the
 mark-specific treatment efficacy on the grid of mark values defined by
-\code{nvgrid} spanning from the minimum and maximum of the mark (available if \code{contrast="te"}). 
+\code{nvgrid} spanning from the minimum and maximum of the mark (available if \code{contrast="te"}).
 The confidence level is specified by \code{confLevel}.
 \item \code{hr}: a data frame summarizing point and interval estimates of the
 mark-specific hazard ratio on the grid of mark values defined by
-\code{nvgrid} spanning from the minimum and maximum of the mark (available if \code{contrast="hr"}). 
-The confidence level is specified by \code{confLevel}.
-\item \code{loghr}: a data frame summarizing point and interval estimates of the
-mark-specific log hazard ratio on the grid of mark values defined by
-\code{nvgrid} spanning from the minimum and maximum of the mark (available if \code{contrast="loghr"}). 
-The confidence level is specified by \code{confLevel}.
+\code{nvgrid} spanning from the minimum and maximum of the mark (available if
+\code{contrast="hr"}). The confidence level is specified by \code{confLevel}.
+\item \code{loghr}: a data frame summarizing point and interval estimates of
+the mark-specific log hazard ratio on the grid of mark values defined by
+\code{nvgrid} spanning from the minimum and maximum of the mark (available if
+\code{contrast="loghr"}). The confidence level is specified by
+\code{confLevel}.
 }
 }
 \description{
 \code{summary} method for an object of class \code{kernel_sievePH}.
 }
 \details{
-\code{print.summary.kernel_sievePH} prints a formatted summary of results. Inference about coefficients in the kernel-smoothed mark-specific proportional hazards model is tabulated. Additionally, a summary is generated
-from the tests of two relevant null hypotheses: (1) \{\eqn{H_0: HR(v)=1} for all \eqn{v}\}, and (2) \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\}. For the tests of (2), \code{sieveAlternative} controls the choice of the alternative hypothesis.
+\code{print.summary.kernel_sievePH} prints a formatted summary of
+  results. Inference about coefficients in the kernel-smoothed mark-specific
+  proportional hazards model is tabulated. Additionally, a summary is
+  generated
+from the tests of two relevant null hypotheses: (1) \{\eqn{H_0: HR(v)=1} for
+all \eqn{v}\}, and (2) \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\}. For the tests
+  of (2), \code{sieveAlternative} controls the choice of the alternative
+  hypothesis.
 }
 \examples{
 set.seed(20240410)
@@ -114,10 +126,10 @@ while (sum(R, na.rm = TRUE) < 10){
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 # AIPW estimation, auxiliary covariate is used (not required)
-fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A, nboot = 50,
+fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A,
                       missmethod = "AIPW", formulaMiss = ~ eventTime,
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-                      ntgrid = 20, nvgrid = 20)
+                      ntgrid = 20, nvgrid = 20, nboot = 50)
                       
 sfit <- summary(fitaug)
 # print the formatted summary

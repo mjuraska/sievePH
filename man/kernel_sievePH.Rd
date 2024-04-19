@@ -12,17 +12,17 @@ kernel_sievePH(
   tx,
   aux = NULL,
   strata = NULL,
-  nboot = 500,
   missmethod,
   formulaMiss = NULL,
-  tau,
-  tband,
-  hband,
-  a,
-  b,
+  tau = NULL,
+  tband = NULL,
+  hband = NULL,
+  a = NULL,
+  b = NULL,
   ntgrid = 100,
   nvgrid = 100,
-  seed = 62648
+  nboot = 500,
+  seed = NULL
 )
 }
 \arguments{
@@ -40,24 +40,18 @@ be set to \code{NA}.}
 \item{tx}{a numeric vector indicating the treatment group (1 if treatment, 0
 if placebo).}
 
-\item{aux}{a numeric vector specifying a binary auxiliary covariate
-predictive of the probability of observing the mark or the value of the
-mark The mark missingness model only requires that the auxiliary covariates
-be observed in subjects who experienced the event of interest. For subjects
-with \code{eventInd = 0}, the value in \code{aux} may be set to \code{NA}.
-If no auxiliary covariate is used, \code{aux} should be set to the default
-value of \code{NULL}.}
+\item{aux}{a numeric vector specifying a binary auxiliary covariate which may
+be predictive of the missing mark. The mark missingness model only requires
+that the auxiliary covariates be observed in subjects who experienced the
+event of interest. For subjects with \code{eventInd = 0}, the value in
+\code{aux} may be set to \code{NA}. If no auxiliary covariate is used,
+\code{aux} should be set to the default of \code{NULL}.}
 
 \item{strata}{a numeric vector specifying baseline strata (\code{NULL} by
 default). If specified, a separate mark-specific baseline hazard is assumed
-for each stratum. If either an IPW or AIPW method is used, a separate
-logistic regression model for predicting the probability of a missing mark
-and a separate model for predicting the mark are considered witin each
-stratum.}
-
-\item{nboot}{number of bootstrap iterations for simulating the distribution
-of test statistics for testing \eqn{H_{10}} vs. \eqn{H_{1a}} or
-\eqn{H_{1m}} and \eqn{H_{20}} vs. \eqn{H_{2a}} or \eqn{H_{2m}}.}
+for each stratum. If IPW or AIPW method is used, separate models for
+predicting the probability of a missing mark and the missing mark value are
+considered for each stratum.}
 
 \item{missmethod}{a character string for the estimation procedure to use.
 Available missing-mark methods include \code{CC}, \code{IPW}, and
@@ -67,116 +61,124 @@ Available missing-mark methods include \code{CC}, \code{IPW}, and
 of the \code{~} operator) the linear predictor in the logistic regression
 model used for predicting the probability of observing the mark. Available
 variables to be used in the formula include \code{eventTime}, \code{tx},
-and \code{aux} (must not have NAs if used). \code{formulaMiss} (\code{NULL}
-by default) must be provided for \code{IPW} and \code{AIPW} methods.}
+and \code{aux}. \code{formulaMiss} (\code{NULL} by default) must be
+provided for \code{IPW} and \code{AIPW} methods.}
 
-\item{tau}{a numeric value specifying the end of the follow-up period for
-conducting the analysis.}
+\item{tau}{a numeric value specifying the duration of study follow-up period.
+Failures beyond \code{tau} are treated right-censored. There needs to be at
+least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored by
+\code{tau} for the estimation to be stable. By default, \code{tau} is set
+as the maximum of \code{eventTime}.}
 
 \item{tband}{a numeric value between 0 and \code{tau} specifying the
-bandwidth of the kernel smoothing function over the failure time.}
+bandwidth of the kernel smoothing function over time. By default,
+\code{tband} is set as (\code{tau}-min(\code{eventTime}))/5.}
 
 \item{hband}{a numeric value between 0 and 1 specifying the bandwidth of the
-kernel smoothing function over the mark. Larger bandwidths are recommended
+kernel smoothing function over mark. By default, \code{hband} is set as
+\eqn{4\sigma n^{-1/3}} where \eqn{\sigma} is the estimated standard
+deviation of the observed marks for uncensored failure times and \eqn{n} is
+the number of subjects in the dataset.  Larger bandwidths are recommended
 for higher percentages of missing marks.}
 
 \item{a}{a numeric value between 0 and 1 specifying the lower bound of the
-range for testing the null hypothesis \deqn{H_{10}: HR(v) = 1} for v
-\eqn{\in [a, b]}; \code{a} needs to be \code{1/nvgrid} multiplied by an
-integer.}
+range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
+\eqn{H_{20}:} HR(v) does not depend on v, for v \eqn{\in [a, b]} where v
+represents the standardized mark between 0 and 1; \code{a} needs to be
+\code{1/nvgrid} multiplied by a positive integer. By default, \code{a} is
+set as 1/\code{nvgrid}.}
 
 \item{b}{a numeric value between 0 and 1 specifying the upper bound of the
-range for testing the null hypothesis \deqn{H_{10}: HR(v) = 1} for v
-\eqn{\in [a, b]}; \code{b} needs to be \code{1/nvgrid} multiplied by an
-integer.}
+range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
+\eqn{H_{20}:} HR(v) does not depend on v, for v \eqn{\in [a, b]} where v
+represents the standardized mark between 0 and 1; \code{b} needs to be
+\code{1/nvgrid} multiplied by a positive integer. By default, \code{b} is
+set as 1.}
 
-\item{ntgrid}{an integer value specifying the number of equally spaced time
-points for which the mark-specific baseline hazard functions are evaluated.}
+\item{ntgrid}{an integer value (100 by default) specifying the number of
+equally spaced time points for which the mark-specific baseline hazard
+functions are evaluated.}
 
-\item{nvgrid}{an integer value specifying the number of equally spaced mark
-values between the minimum and maximum of the observed mark values for
-which the treatment effects are evaluated.}
+\item{nvgrid}{an integer value (100 by default) specifying the number of
+equally spaced mark values between the minimum and maximum of the observed
+mark for which the treatment effects are evaluated.}
+
+\item{nboot}{number of bootstrap iterations (500 by default) for simulating
+the distribution of test statistics.}
 
 \item{seed}{an integer specifying the random number generation seed for
-reproducing the test statistics and p-values.}
+reproducing the test statistics and p-values. By default, a specific seed
+is not set.}
 }
 \value{
 An object of class \code{kernel_sievePH} which can be processed by
-\code{\link{summary.kernel_sievePH}} to obtain or print a summary of the results. 
-An object of class \code{kernel_sievePH} is a list containing the following 
-components:
+  \code{\link{summary.kernel_sievePH}} to obtain or print a summary of the
+  results. An object of class \code{kernel_sievePH} is a list containing the
+  following components:
 \itemize{
 \item \code{H10}: a data frame with test statistics (first row) and
-corresponding p-values (second row) for testing \deqn{H_{10}: HR(v) = 1} for
+corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for
 v \eqn{\in [a, b]}. Columns \code{TSUP1} and
-\code{Tint1} include test statistics and p-values for testing \deqn{H_{10}}
-vs. \deqn{H_{1a}: HR(v) != 1} for any v \eqn{\in [a, b]} (general
+\code{Tint1} include test statistics and p-values for testing \eqn{H_{10}}
+vs. \eqn{H_{1a}: HR(v) \neq 1} for any v \eqn{\in [a, b]} (general
 alternative). Columns \code{TSUP1m} and \code{Tint1m} include test statistics
-and p-values for testing \deqn{H_{10}} vs. \deqn{H_{1m}: HR(v) <= 1} with
-strict inequality for some v \eqn{\in [a, b]} (monotone alternative). Test 
-statistics in columns \code{TSUP1} and \code{TSUP1m} are extensions of the 
-classic Kolmogorov-Smirnov supremum-based test statistic for testing the 
-goodness of fit of a distribution function. Test statistics in columns 
-\code{Tint1} and \code{Tint1m} are generalizations of the integration-based 
-Cramer-von Mises test statistic for testing the goodness of fit of a 
-distribution function. \code{Tint1} and \code{Tint1m} involve 
+and p-values for testing \eqn{H_{10}} vs. \eqn{H_{1m}: HR(v) \leq 1} with
+strict inequality for some v in \eqn{[a, b]} (monotone alternative). \code{TSUP1}
+and \code{TSUP1m} are based on extensions of the classic Kolmogorov-Smirnov
+supremum-based test. \code{Tint1} and \code{Tint1m} are based on generalizations
+of the integration-based Cramer-von Mises test. \code{Tint1} and \code{Tint1m} involve
 integration of deviations over the whole range of the mark.
 
 \item \code{H20}: a data frame with test statistics (first row) and
-corresponding p-values (second row) for testing \deqn{H_{20}}: HR(v) does not
+corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not
 depend on v \eqn{\in [a, b]}. Columns
 \code{TSUP2} and \code{Tint2} include test statistics and p-values for
-testing \deqn{H_{20}} vs. \deqn{H_{2a}}: HR depends on v \eqn{\in [a, b]}
+testing \eqn{H_{20}} vs. \eqn{H_{2a}}: HR depends on v \eqn{\in [a, b]}
 (general alternative). Columns \code{TSUP2m} and \code{Tint2m} include test
-statistics and p-values for testing \deqn{H_{20}} vs. \deqn{H_{2m}}: HR
-increases as v increases \eqn{\in [a, b]} (monotone alternative). Test 
-statistics in columns \code{TSUP2} and \code{TSUP2m} are extensions of the 
-classic Kolmogorov-Smirnov supremum-based test statistic for testing the 
-goodness of fit of a distribution function. Test statistics in columns 
-\code{Tint2} and \code{Tint2m} are generalizations of the integration-based 
-Cramer-von Mises test statistic for testing the goodness of fit of a 
-distribution function. \code{Tint2} and \code{Tint2m} involve 
+statistics and p-values for testing \eqn{H_{20}} vs. \eqn{H_{2m}}: HR
+increases as v increases \eqn{\in [a, b]} (monotone alternative).
+\code{TSUP2} and \code{TSUP2m} are based on extensions of the
+classic Kolmogorov-Smirnov supremum-based test. \code{Tint2} and \code{Tint2m}
+are based on generalizations of the integration-based
+Cramer-von Mises test. \code{Tint2} and \code{Tint2m} involve
 integration of deviations over the whole range of the mark.
 
-\item \code{estBeta}: a data frame summarizing point estimates and standard 
-errors of the mark-specific coefficients on the grid of mark values defined by
-\code{nvgrid} using the specified missing model method (\code{missmethod}.
+\item \code{estBeta}: a data frame summarizing point estimates and standard
+errors of the mark-specific coefficients at equally-spaced values between
+the minimum and the maximum of the observed mark values.
 
-\item \code{cBproc1}: a data frame
-containing mark values in column \code{Mark}, standardized mark values in
-column \code{Standardized mark}, test processes \eqn{Q^{(1)}(v)} for
-\code{H10} based on observed data sequence in column \code{Observed} and
-independent sets of normal samples in columns \eqn{S1, S2, \cdots,
-S_{nboot}}.
+\item \code{cBproc1}: a data frame containing equally-spaced mark values in
+the column \code{Mark}, test processes \eqn{Q^{(1)}(v)} for observed data in
+the column \code{Observed}, and \eqn{Q^{(1)}(v)} for \code{nboot} independent
+sets of normal samples in the columns \eqn{S1, S2, \cdots}.
 
-\item \code{cBproc2}: a data frame containing mark values in
-column \code{Mark}, standardized mark values in column \code{Standardized
-mark}, test processes \eqn{Q^{(2)}(v)} for \code{H20} based on observed data
-sequence in column \code{Observed} and independent sets of normal samples in
-columns \eqn{S1, S2, \cdots, S_{nboot}}.
+\item \code{cBproc2}: a data frame containing equally-spaced mark values in the
+column \code{Mark}, test processes \eqn{Q^{(2)}(v)} for observed data
+in the column \code{Observed}, and \eqn{Q^{(2)}(v)} for \code{nboot} independent
+sets of normal samples in the columns \eqn{S1, S2, \cdots}.
 }
 }
 \description{
-\code{kernel_sievePH} implements estimation methods of Sun and Gilbert
-(2012) and hypothesis testing methods of Gilbert and Sun (2015) for a
-mark-specific proportional hazards model accommodating that some failures
-have a missing mark. The methods allow separate baseline mark-specific hazard
-functions for different baseline subgroups. Missing marks are handled via
-complete-case, inverse-probability weighting (IPW), or augmented IPW (AIPW)
-approaches.
+\code{kernel_sievePH} implements estimation methods of Sun and Gilbert (2012)
+and hypothesis testing methods of Gilbert and Sun (2015) for a mark-specific
+proportional hazards model accommodating that some failures have a missing
+mark. The methods allow separate baseline mark-specific hazard functions for
+different baseline subgroups. Missing marks are handled via complete-case,
+inverse-probability weighting (IPW), or augmented IPW (AIPW) approaches.
 }
 \details{
-\code{kernel_sievePH} analyzes data from a randomized placebo-controlled
-trial that evaluates treatment efficacy for a time-to-event endpoint with a
-continuous mark. The parameter of interest is the ratio of the conditional
-mark-specific hazard functions (treatment/placebo), which is based on a
-stratified mark-specific proportional hazards model. This model assumes no
-parametric form for the baseline hazard function nor the treatment effect
-across different mark values. For data with missing marks, two estimation
-procedures are implemented. The first one uses inverse probability weighting
-(IPW) of the complete-case estimator, which leverages auxiliary predictors of
-whether the mark is observed, whereas the second one augments the IPW
-complete-case estimator with auxiliary predictors of the missing mark value.
+\code{kernel_sievePH} analyzes data from a randomized
+  placebo-controlled trial that evaluates treatment efficacy for a
+  time-to-event endpoint with a continuous mark. The parameter of interest is
+  the ratio of the conditional mark-specific hazard functions
+  (treatment/placebo), which is based on a stratified mark-specific
+  proportional hazards model. This model assumes no parametric form for the
+  baseline hazard function nor the treatment effect across different mark
+  values. For data with missing marks, two estimation procedures can be
+  implemented. The first one uses inverse probability weighting (IPW) of the
+  complete-case estimator, which leverages auxiliary predictors of whether
+  the mark is observed, whereas the second one augments the IPW estimator
+  with auxiliary predictors of the missing mark value.
 }
 \examples{
 set.seed(20240410)
@@ -200,27 +202,33 @@ while (sum(R, na.rm = TRUE) < 10){
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 # AIPW estimation, auxiliary covariate is used (not required)
-fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A, nboot = 50,
+A[eventInd==0] <- NA
+fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A,
                       missmethod = "AIPW", formulaMiss = ~ eventTime,
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-                      ntgrid = 20, nvgrid = 20)
+                      ntgrid = 20, nvgrid = 20, nboot = 50)
 \donttest{
 # complete-case estimation discards rows with a missing mark;
 # also, no auxiliary covariate is needed
-fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
+fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx,
                       missmethod = "CC", tau = 3, tband = 0.5, hband = 0.3,
-                      a = 0.1, b = 1, ntgrid = 20, nvgrid = 20)
+                      a = 0.1, b = 1, ntgrid = 20, nvgrid = 20, nboot = 50)
 }
 
 }
 \references{
-Gilbert, P. B. and Sun, Y. (2015). Inferences on relative failure rates in
-stratified mark-specific proportional hazards models with missing marks, with
-application to human immunodeficiency virus vaccine efficacy trials.
-\emph{Journal of the Royal Statistical Society Series C: Applied Statistics},
-64(1), 49-73.
+Gilbert, P. B. and Sun, Y. (2015). Inferences on relative failure
+  rates in stratified mark-specific proportional hazards models with missing
+  marks, with application to human immunodeficiency virus vaccine efficacy
+trials. \emph{Journal of the Royal Statistical Society Series C: Applied
+Statistics}, 64(1), 49-73.
 
-Sun, Y. and Gilbert, P. B. (2012). Estimation of stratified mark‐specific
+  Sun, Y. and Gilbert, P. B. (2012). Estimation of stratified mark‐specific
 proportional hazards models with missing marks. \emph{Scandinavian Journal of
 Statistics}, 39(1), 34-52.
+
+  Yang, G., Sun, Y., Qi, L., & Gilbert, P. B. (2017). Estimation of
+  stratified mark-specific proportional hazards models under two-phase
+  sampling with application to HIV vaccine efficacy trials. \emph{Statistics
+  in biosciences}, 9, 259-283.
 }

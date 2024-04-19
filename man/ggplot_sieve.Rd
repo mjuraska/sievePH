@@ -122,17 +122,17 @@ mark <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
 markRng <- range(mark, na.rm=TRUE)
 
 # fit a model with a univariate mark using the sievePH method
-fit <- sievePH(eventTime, eventInd, mark, tx)
-sfit <- summary(fit, markGrid=seq(markRng[1], markRng[2], length.out=10))
-print(ggplot_sieve(sfit, mark, tx))
+fit1 <- sievePH(eventTime, eventInd, mark, tx)
+sfit1 <- summary(fit1, markGrid=seq(markRng[1], markRng[2], length.out=10))
+print(ggplot_sieve(sfit1, mark, tx))
 
 # fit a model with a univariate mark using the kernel_sievePH method
-fit <- kernel_sievePH(eventTime, eventInd, mark, tx, nboot = 50,
+fit2 <- kernel_sievePH(eventTime, eventInd, mark, tx,
                       missmethod = "CC",
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-                      ntgrid = 20, nvgrid = 20)
-sfit <- summary(fit)
-print(ggplot_sieve(sfit, mark, tx))
+                      ntgrid = 20, nvgrid = 20, nboot = 50)
+sfit2 <- summary(fit2)
+print(ggplot_sieve(sfit2, mark, tx))
 
 }
 \seealso{
