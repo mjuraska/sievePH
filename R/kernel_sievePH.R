@@ -125,7 +125,7 @@ NULL
 #' integration of deviations over the whole range of the mark.
 #'
 #' \item \code{estBeta}: a data frame summarizing point estimates and standard
-#' errors of the mark-specific coefficients at equally-spaced values between
+#' errors of the mark-specific coefficients for treatment at equally-spaced values between
 #' the minimum and the maximum of the observed mark values.
 #'
 #' \item \code{cBproc1}: a data frame containing equally-spaced mark values in
@@ -521,7 +521,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
 
   # CALL COX function
 
-
+ 
   # library(survival)
   # phfit <- summary(coxph(Surv(time[1,], censor[1,])~trt))
   coxfit <- estpvry (tau, kk, nsamp, ncov, time, covart, censor)
@@ -616,7 +616,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
             BZIPW[valid_indices] <- covart[ks,1 , valid_indices] * betaipw[1, ispot]
             BZIPW <- as.matrix(BZIPW, ncol = 1)
           }else{
-            BZIPW <- array(0, dim = c(1, max(kk)))
+            BZIPW <- array(0, dim = c(max(nsamp),1))
             BZIPW[valid_indices,1] <- t(covart[ks, , valid_indices]) %*% betaipw[, ispot] #summing over J
 
           }
@@ -694,7 +694,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
         if(ncov==1){
           BZaug <- as.matrix(covart[ks, , valid_indices] * betaaug[1, ispot],ncol=1)
         }else{
-          BZaug <- covart[ks, , valid_indices] %*% betaaug[, ispot]
+          BZaug <- t(covart[ks, , valid_indices]) %*% betaaug[, ispot]
         }
 
 
@@ -791,8 +791,12 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
 
 
         S0N[ks, 1:nsamp[ks], ispot] <- S0
-        arrayseq <- ((ks-1)*ncov +1): ks*ncov
-        S1N[ arrayseq,1:nsamp[ks], ispot] <- S1
+        arrayseq <- seq((ks-1)*ncov +1, (ks*ncov),1)
+       # browser()
+        for(a in arrayseq){
+          S1N[ a,1:nsamp[ks], ispot] <- S1[a,]
+        }
+        
       }
     }
 
@@ -1011,19 +1015,19 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
     colnames(cBproc1.df) <- c("Mark", "Standardized mark","Observed", paste0("S", 1:nboot))
     cBproc2.df <- data.frame(cbind(markgrid_original_scale[(iskipa2):nvgrid],vstep*((iskipa2):nvgrid),cBproc2[iskipa2:nvgrid], cBproc2s[iskipa2:nvgrid, ]))
     colnames(cBproc2.df) <- c("Mark", "Standardized mark", "Observed", paste0("S", 1:nboot))
-    
+    browser()
     if(missmethod == "CC"){
       estBeta = data.frame("mark" = markgrid_original_scale,
-                           "betacom" = t(betacom),
-                           "secom" = t(secom))
+                           "betacom" = t(betacom[1,]),
+                           "secom" = t(secom[1,]))
     }else if (missmethod == "IPW"){
       estBeta = data.frame("mark" = markgrid_original_scale,
-                           "betaipw" = t(betaipw),
-                           "seipw" = t(seipw))
+                           "betaipw" = t(betaipw[1,]),
+                           "seipw" = t(seipw[1,]))
     }else if (missmethod == "AIPW"){
       estBeta = data.frame("mark" = markgrid_original_scale,
-                           "betaaug" = t(betaaug),
-                           "seaug" = t(seaug))
+                           "betaaug" = t(betaaug[1,]),
+                           "seaug" = t(seaug[1,]))
     }
     colnames(estBeta) <- c("mark", "beta", "se")
     out <- list("cBproc1" = cBproc1.df[,-2],
@@ -1073,7 +1077,7 @@ estpvry <- function(tau, KK, N, NP, X, ZT, DELTA) {
         BZt <- as.matrix(ZT[ks, , 1:N[ks]] * BETA, ncol = 1)
 
       }else{
-        BZt <- ZT[ks, , 1:N[ks]] %*% BETA
+        BZt <- t(ZT[ks, , 1:N[ks]]) %*% BETA
 
       }
 
