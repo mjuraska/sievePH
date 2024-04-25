@@ -523,8 +523,12 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
 
 
   # Define ncovG
-  ncovG <- 4
-
+  if(is.null(zcov)){
+    ncovG <- 4
+  }else{
+    ncovG <- 4 + dim(zcov)[2]
+  }
+  
   # Get maximum sample size across all strata
   n_max <- max(nsamp)
 
@@ -535,6 +539,9 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
     covartG[ks,2,1:nsamp[ks]] <- time[ks,1:nsamp[ks]]
     covartG[ks,3,1:nsamp[ks]] <- txm[ks,1:nsamp[ks]]
     covartG[ks,4,1:nsamp[ks]] <- markm[ks,1:nsamp[ks]]
+    if(!is.null(zcov)){
+      covartG[ks, 5:ncovG, 1:nsamp[ks]] <- zcovkk[ks, 1:dimz, 1:nsamp[ks]]
+    }
   }
 
   # Compute cenG; the logistic regression is only based on cases with observed marks
