@@ -29,7 +29,7 @@
 #'   with the following components:
 #' \itemize{
 #' \item \code{estBeta}: a data frame summarizing point estimates and standard
-#' errors of the mark-specific coefficients.
+#' errors of the mark-specific coefficients for treatment.
 #'
 #' \item \code{HRunity.2sided}: a data frame with test statistics (first row) and
 #' corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} vs.

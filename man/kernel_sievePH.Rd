@@ -11,8 +11,10 @@ kernel_sievePH(
   mark,
   tx,
   aux = NULL,
+  zcov = NULL,
   strata = NULL,
   missmethod,
+  formulaPH = ~tx,
   formulaMiss = NULL,
   tau = NULL,
   tband = NULL,
@@ -47,6 +49,10 @@ event of interest. For subjects with \code{eventInd = 0}, the value in
 \code{aux} may be set to \code{NA}. If no auxiliary covariate is used,
 \code{aux} should be set to the default of \code{NULL}.}
 
+\item{zcov}{a data frame specifying possibly time-dependent covariates with
+one row per subject. If no covariate is used,
+\code{zcov} should be set to the default of \code{NULL}.}
+
 \item{strata}{a numeric vector specifying baseline strata (\code{NULL} by
 default). If specified, a separate mark-specific baseline hazard is assumed
 for each stratum. If IPW or AIPW method is used, separate models for
@@ -57,12 +63,17 @@ considered for each stratum.}
 Available missing-mark methods include \code{CC}, \code{IPW}, and
 \code{AIPW}.}
 
+\item{formulaPH}{a one-sided formula object specifying (on the right side of
+the \code{~} operator) the linear predictor in the proportional hazards
+model. Available variables to be used in the formula include \code{tx}, and
+\code{zcov}. \code{formulaPH} is \code{~tx} by default.}
+
 \item{formulaMiss}{a one-sided formula object specifying (on the right side
 of the \code{~} operator) the linear predictor in the logistic regression
 model used for predicting the probability of observing the mark. Available
 variables to be used in the formula include \code{eventTime}, \code{tx},
-and \code{aux}. \code{formulaMiss} (\code{NULL} by default) must be
-provided for \code{IPW} and \code{AIPW} methods.}
+\code{aux}, and \code{zcov}. \code{formulaMiss} (\code{NULL} by default)
+must be provided for \code{IPW} and \code{AIPW} methods.}
 
 \item{tau}{a numeric value specifying the duration of study follow-up period.
 Failures beyond \code{tau} are treated right-censored. There needs to be at
@@ -144,18 +155,18 @@ Cramer-von Mises test. \code{Tint2} and \code{Tint2m} involve
 integration of deviations over the whole range of the mark.
 
 \item \code{estBeta}: a data frame summarizing point estimates and standard
-errors of the mark-specific coefficients at equally-spaced values between
+errors of the mark-specific coefficients for treatment at equally-spaced values between
 the minimum and the maximum of the observed mark values.
 
 \item \code{cBproc1}: a data frame containing equally-spaced mark values in
 the column \code{Mark}, test processes \eqn{Q^{(1)}(v)} for observed data in
 the column \code{Observed}, and \eqn{Q^{(1)}(v)} for \code{nboot} independent
-sets of normal samples in the columns \eqn{S1, S2, \cdots}.
+sets of normal samples in the columns S1, S2, \eqn{\cdots}.
 
 \item \code{cBproc2}: a data frame containing equally-spaced mark values in the
 column \code{Mark}, test processes \eqn{Q^{(2)}(v)} for observed data
 in the column \code{Observed}, and \eqn{Q^{(2)}(v)} for \code{nboot} independent
-sets of normal samples in the columns \eqn{S1, S2, \cdots}.
+sets of normal samples in the columns S1, S2, \eqn{\cdots}.
 }
 }
 \description{
@@ -202,8 +213,7 @@ while (sum(R, na.rm = TRUE) < 10){
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 # AIPW estimation, auxiliary covariate is used (not required)
-A[eventInd==0] <- NA
-fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A,
+fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, aux = A, 
                       missmethod = "AIPW", formulaMiss = ~ eventTime,
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
                       ntgrid = 20, nvgrid = 20, nboot = 50)

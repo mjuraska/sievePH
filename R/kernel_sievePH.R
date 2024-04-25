@@ -27,6 +27,9 @@ NULL
 #'   event of interest. For subjects with \code{eventInd = 0}, the value in
 #'   \code{aux} may be set to \code{NA}. If no auxiliary covariate is used,
 #'   \code{aux} should be set to the default of \code{NULL}.
+#' @param zcov a data frame with one row per subject specifying possibly
+#'   time-dependent covariates (not including \code{tx}). If no covariate is used,
+#'   \code{zcov} should be set to the default of \code{NULL}.
 #' @param strata a numeric vector specifying baseline strata (\code{NULL} by
 #'   default). If specified, a separate mark-specific baseline hazard is assumed
 #'   for each stratum. If IPW or AIPW method is used, separate models for
@@ -35,12 +38,16 @@ NULL
 #' @param missmethod a character string for the estimation procedure to use.
 #'   Available missing-mark methods include \code{CC}, \code{IPW}, and
 #'   \code{AIPW}.
+#' @param formulaPH a one-sided formula object specifying (on the right side of
+#'   the \code{~} operator) the linear predictor in the proportional hazards
+#'   model. Available variables to be used in the formula include \code{tx}, and
+#'   \code{zcov}. \code{formulaPH} is \code{~tx} by default.
 #' @param formulaMiss a one-sided formula object specifying (on the right side
 #'   of the \code{~} operator) the linear predictor in the logistic regression
 #'   model used for predicting the probability of observing the mark. Available
 #'   variables to be used in the formula include \code{eventTime}, \code{tx},
-#'   and \code{aux}. \code{formulaMiss} (\code{NULL} by default) must be
-#'   provided for \code{IPW} and \code{AIPW} methods.
+#'   \code{aux}, and \code{zcov}. \code{formulaMiss} (\code{NULL} by default)
+#'   must be provided for \code{IPW} and \code{AIPW} methods.
 #' @param tau a numeric value specifying the duration of study follow-up period.
 #'   Failures beyond \code{tau} are treated right-censored. There needs to be at
 #'   least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored by
@@ -176,8 +183,7 @@ NULL
 #' # a missing-at-random mark
 #' mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 #' # AIPW estimation, auxiliary covariate is used (not required)
-#' A[eventInd==0] <- NA
-#' fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A,
+#' fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, aux = A,
 #'                       missmethod = "AIPW", formulaMiss = ~ eventTime,
 #'                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
 #'                       ntgrid = 20, nvgrid = 20, nboot = 50)
@@ -192,7 +198,7 @@ NULL
 #' @importFrom plyr laply
 #'
 #' @export
-kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = NULL, missmethod, formulaMiss = NULL,
+kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NULL, strata = NULL, missmethod, formulaPH = ~ tx, formulaMiss = NULL,
                                tau = NULL, tband = NULL, hband = NULL, a = NULL, b = NULL, ntgrid = 100, nvgrid = 100, nboot = 500,  seed = NULL) {
 
 
@@ -226,7 +232,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
   }
   
   if(is.null(tband)){
-    tband = (tau-min(eventTime))/7
+    tband = (tau-min(eventTime))/5
   }
   
   if(is.null(hband)){
@@ -256,11 +262,10 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
     }
   }
 
-  ncov = 1 #number of covariates
+  #browser()
   ekconst <- 3/5
  
-  
-
+ 
   #*****************************************************************************
   #     Estimation and Hypothesis tests for Mark PH model with missing marks
   #
@@ -323,20 +328,56 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
   sumdelta <- 0
   Rsum <- 0
 
-  #covart does not allow time-varying covariates in this version
-  covart <- array(0, dim = c(kk, ncov, max(nsamp)))
   time <- matrix(0, nrow = kk, ncol = max(nsamp))
+  txm <- matrix(0, nrow = kk, ncol = max(nsamp))
   censor <- matrix(0, nrow = kk, ncol = max(nsamp))
   markm <- matrix(0, nrow = kk, ncol = max(nsamp))
   Ax <- matrix(0, nrow = kk, ncol = max(nsamp))
   R <- matrix(0, nrow = kk, ncol = max(nsamp))
-
+  
+  if(!is.null(zcov)){
+    dimz = dim(zcov)[2]
+    zcovkk <- array(0, dim = c(kk, dimz, max(nsamp)))
+  }
+  
+  formulaPHDecomp <- strsplit(strsplit(paste(deparse(formulaPH), collapse = ""), " *[~] *")[[1]], " *[+] *")[[2]]
+  formulaPHNew <- as.formula(paste0("eventTime ~ ", paste(formulaPHDecomp, collapse="+")))
+  #number of covariates
+  ncov <- length(formulaPHDecomp)
+  if(!is.null(zcov)){
+    availablePHdf <- data.frame(cbind(tx, zcov))
+    colnames(availablePHdf) = c("tx", colnames(zcov))
+  }else{
+    availablePHdf <- data.frame("tx" = tx)
+    if(ncov >1) {stop("covariates are missing")}
+  }
+  
+  mfPH <- model.frame(formulaPHNew, availablePHdf)
+  covartPH<- model.matrix(terms(formulaPHNew), mfPH)[,-1]
+  
+  
+  covart <- array(0,dim = c(kk, ncov, max(nsamp)))
+  
  if(kk == 1){
     n_ks <- nsamp[1]
     ks = 1
-    covart[ks, 1, 1:n_ks] <- tx[1:n_ks]
+    if(ncov == 1){
+      covart[ks, 1:ncov, 1:n_ks] <- covartPH[1:n_ks]
+    }else{
+      covart[ks, 1:ncov, 1:n_ks] <- t(covartPH[1:n_ks, 1:ncov])
+    }
+    
+    if(!is.null(zcov)){
+      if(dimz == 1){
+        zcovkk[ks, 1:dimz, 1:n_ks] <- zcov[1:n_ks]
+      }else{
+        zcovkk[ks, 1:dimz, 1:n_ks] <- t(zcov[1:n_ks,1:dimz])
+      }
+    }
+    
     time[ks, 1:n_ks] <- eventTime[1:n_ks]
     censor[ks, 1:n_ks] <- eventInd[1:n_ks]
+    txm[ks, 1:n_ks] <- tx[1:n_ks]
     if(!is.null(aux)){
       Ax[ks, 1:n_ks] <- aux[1:n_ks]
     }
@@ -350,10 +391,25 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
     for (ks in 1:kk) {
       n_ks <- nsamp[ks]
       indice_ks <- (strata == stratum[ks])
-      covart[ks, 1, 1:n_ks] <- tx[indice_ks]
+      if(ncov == 1){
+        covart[ks, 1:ncov, 1:n_ks] <- covartPH[indice_ks]
+      }else{
+        covart[ks, 1:ncov, 1:n_ks] <- t(covartPH[indice_ks, 1:ncov])
+      }
+      
+      if(!is.null(zcov)){
+        if(dimz == 1){
+          zcovkk[ks, 1:dimz, 1:n_ks] <- zcov[indice_ks]
+        }else{
+          zcovkk[ks, 1:dimz, 1:n_ks] <- t(zcov[indice_ks,1:dimz])
+        }
+        
+      }
+      
       time[ks, 1:n_ks] <- eventTime[indice_ks]
       censor[ks, 1:n_ks] <- eventInd[indice_ks]
       markm[ks, 1:n_ks] <- vV[indice_ks]
+      txm[ks,1:n_ks] <- tx[indice_ks]
       if(!is.null(aux)){
         Ax[ks, 1:n_ks] <- aux[indice_ks]
       }
@@ -394,13 +450,28 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
     covartR <- array(0, dim = c(kk, ncovR, n_max))
     for(ks in 1:kk){
       if(!is.null(aux)){
-        availabledf <- data.frame("R" = R[ks, 1:nsamp[ks]],"eventTime" = time[ks, 1:nsamp[ks]],
-                                  "tx" = covart[ks, 1, 1:nsamp[ks]], "aux" = Ax[ks, 1:nsamp[ks]])
+        availabledf <- data.frame("R" = R[ks, 1:nsamp[ks]],"eventTime" = time[ks, 1:nsamp[ks]],"aux" = Ax[ks, 1:nsamp[ks]],
+                                  "tx" = txm[ks, 1:nsamp[ks]])
+        if(!is.null(zcov)){
+          availabledf <- cbind(availabledf, t(zcovkk[ks, 1:dimz, 1:nsamp[ks]]))
+          colnames(availabledf) <- c("R", "eventTime","aux","tx", colnames(zcov))
+        }else{
+          colnames(availabledf) <- c("R", "eventTime","aux","tx")
+        }
+        
+        
         #this is to avoid mf below remove all rows with NA. The logistic model does not use non-cases so it doesn't care the values of aux for them
         availabledf$aux[is.na(availabledf$aux)] <- 0
         #if("aux" %in% formulaMissDecomp & sum(is.na(aux))>0){stop("`aux` must not have NAs")}
       }else{
-        availabledf <- data.frame("R" = R[ks, 1:nsamp[ks]], "eventTime" = time[ks, 1:nsamp[ks]], "tx" = covart[ks, 1, 1:nsamp[ks]])
+        availabledf <- data.frame("R" = R[ks, 1:nsamp[ks]],"eventTime" = time[ks, 1:nsamp[ks]],"tx" = txm[ks, 1:nsamp[ks]])
+        if(!is.null(zcov)){
+          availabledf <- cbind(availabledf, t(zcovkk[ks, 1:dimz, 1:nsamp[ks]]))
+          colnames(availabledf) <- c("R", "eventTime","tx", colnames(zcov))
+        }else{
+          colnames(availabledf) <- c("R", "eventTime","tx")
+        }
+        
         if("aux" %in% formulaMissDecomp){stop("`aux` is not available")}
       }
 
@@ -471,7 +542,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
   for(ks in 1:kk){
     covartG[ks,1,1:nsamp[ks]] <- 1
     covartG[ks,2,1:nsamp[ks]] <- time[ks,1:nsamp[ks]]
-    covartG[ks,3,1:nsamp[ks]] <- covart[ks,1,1:nsamp[ks]]#treatment
+    covartG[ks,3,1:nsamp[ks]] <- txm[ks,1:nsamp[ks]]
     covartG[ks,4,1:nsamp[ks]] <- markm[ks,1:nsamp[ks]]
   }
 
@@ -1015,19 +1086,19 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, strata = N
     colnames(cBproc1.df) <- c("Mark", "Standardized mark","Observed", paste0("S", 1:nboot))
     cBproc2.df <- data.frame(cbind(markgrid_original_scale[(iskipa2):nvgrid],vstep*((iskipa2):nvgrid),cBproc2[iskipa2:nvgrid], cBproc2s[iskipa2:nvgrid, ]))
     colnames(cBproc2.df) <- c("Mark", "Standardized mark", "Observed", paste0("S", 1:nboot))
-    browser()
+    #browser()
     if(missmethod == "CC"){
       estBeta = data.frame("mark" = markgrid_original_scale,
-                           "betacom" = t(betacom[1,]),
-                           "secom" = t(secom[1,]))
+                           "betacom" = betacom[1,],
+                           "secom" = secom[1,])
     }else if (missmethod == "IPW"){
       estBeta = data.frame("mark" = markgrid_original_scale,
-                           "betaipw" = t(betaipw[1,]),
-                           "seipw" = t(seipw[1,]))
+                           "betaipw" = betaipw[1,],
+                           "seipw" = seipw[1,])
     }else if (missmethod == "AIPW"){
       estBeta = data.frame("mark" = markgrid_original_scale,
-                           "betaaug" = t(betaaug[1,]),
-                           "seaug" = t(seaug[1,]))
+                           "betaaug" = betaaug[1,],
+                           "seaug" = seaug[1,])
     }
     colnames(estBeta) <- c("mark", "beta", "se")
     out <- list("cBproc1" = cBproc1.df[,-2],
