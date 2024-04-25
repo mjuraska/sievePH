@@ -28,8 +28,8 @@ NULL
 #'   \code{aux} may be set to \code{NA}. If no auxiliary covariate is used,
 #'   \code{aux} should be set to the default of \code{NULL}.
 #' @param zcov a data frame with one row per subject specifying possibly
-#'   time-dependent covariates (not including \code{tx}). If no covariate is used,
-#'   \code{zcov} should be set to the default of \code{NULL}.
+#'   time-dependent covariate(s) (not including \code{tx}). If no covariate is
+#'   used, \code{zcov} should be set to the default of \code{NULL}.
 #' @param strata a numeric vector specifying baseline strata (\code{NULL} by
 #'   default). If specified, a separate mark-specific baseline hazard is assumed
 #'   for each stratum. If IPW or AIPW method is used, separate models for
@@ -183,7 +183,7 @@ NULL
 #' # a missing-at-random mark
 #' mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 #' # AIPW estimation, auxiliary covariate is used (not required)
-#' fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, aux = A,
+#' fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, aux = A, 
 #'                       missmethod = "AIPW", formulaMiss = ~ eventTime,
 #'                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
 #'                       ntgrid = 20, nvgrid = 20, nboot = 50)
@@ -368,11 +368,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
     }
     
     if(!is.null(zcov)){
-      if(dimz == 1){
-        zcovkk[ks, 1:dimz, 1:n_ks] <- zcov[1:n_ks]
-      }else{
-        zcovkk[ks, 1:dimz, 1:n_ks] <- t(zcov[1:n_ks,1:dimz])
-      }
+      zcovkk[ks, 1:dimz, 1:n_ks] <- t(zcov[1:n_ks,1:dimz])
     }
     
     time[ks, 1:n_ks] <- eventTime[1:n_ks]
@@ -398,12 +394,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
       }
       
       if(!is.null(zcov)){
-        if(dimz == 1){
-          zcovkk[ks, 1:dimz, 1:n_ks] <- zcov[indice_ks]
-        }else{
-          zcovkk[ks, 1:dimz, 1:n_ks] <- t(zcov[indice_ks,1:dimz])
-        }
-        
+        zcovkk[ks, 1:dimz, 1:n_ks] <- t(zcov[indice_ks,1:dimz])
       }
       
       time[ks, 1:n_ks] <- eventTime[indice_ks]

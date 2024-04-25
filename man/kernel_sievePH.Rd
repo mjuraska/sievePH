@@ -49,9 +49,9 @@ event of interest. For subjects with \code{eventInd = 0}, the value in
 \code{aux} may be set to \code{NA}. If no auxiliary covariate is used,
 \code{aux} should be set to the default of \code{NULL}.}
 
-\item{zcov}{a data frame specifying possibly time-dependent covariates with
-one row per subject. If no covariate is used,
-\code{zcov} should be set to the default of \code{NULL}.}
+\item{zcov}{a data frame with one row per subject specifying possibly
+time-dependent covariate(s) (not including \code{tx}). If no covariate is
+used, \code{zcov} should be set to the default of \code{NULL}.}
 
 \item{strata}{a numeric vector specifying baseline strata (\code{NULL} by
 default). If specified, a separate mark-specific baseline hazard is assumed
