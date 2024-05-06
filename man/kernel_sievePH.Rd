@@ -23,7 +23,7 @@ kernel_sievePH(
   hband = NULL,
   a = NULL,
   b = NULL,
-  ntgrid = 100,
+  ntgrid = NULL,
   nvgrid = 100,
   nboot = 500,
   seed = NULL
@@ -45,11 +45,14 @@ be set to \code{NA}.}
 if placebo).}
 
 \item{aux}{a numeric vector specifying a binary or a continuous auxiliary
-covariate which may be predictive of the missing mark. The mark missingness
-model only requires that the auxiliary covariates be observed in subjects
+covariate which may be potentially useful for predicting missingness, i.e,
+the probability of missing, and for informing about the distribution of
+missing marks.  \code{aux} may be specified when the \code{AIPW} or
+\code{IPW} estimation procedure is employed. The mark missingness model
+only requires that the auxiliary covariates be observed in subjects
 who experienced the event of interest. For subjects with \code{eventInd =
 0}, the value in \code{aux} may be set to \code{NA}. If no auxiliary
-covariate is used, \code{aux} should be set to the default of \code{NULL}.}
+covariate is used, set \code{aux} to the default of \code{NULL}.}
 
 \item{auxType}{a character string describing the data type of \code{aux} if
 \code{aux} is used. Data types allowed include "binary" and "continuous".
@@ -73,24 +76,26 @@ Available missing-mark methods include \code{CC}, \code{IPW}, and
 \item{formulaPH}{a one-sided formula object (on the right side of the
 \code{~} operator) specifying the linear predictor in the proportional
 hazards model. Available variables to be used in the formula include
-\code{tx}, and \code{zcov}. \code{formulaPH} is \code{~tx} by default.}
+\code{tx} and variable(s) in \code{zcov}. By default, \code{formulaPH} is
+specified as \code{~ tx}.}
 
 \item{formulaMiss}{a one-sided formula object (on the right side of the
 \code{~} operator) specifying the linear predictor in the logistic
 regression model used for predicting the probability of observing the mark.
-Available variables to be used in the formula include \code{eventTime},
-\code{tx}, \code{aux}, and variables in \code{zcov}. \code{formulaMiss}
-(\code{NULL} by default) must be provided for \code{IPW} and \code{AIPW}
-methods.}
+\code{formulaMiss} (\code{NULL} by default) must be provided for \code{IPW}
+and \code{AIPW} methods. Available variables to be used in the formula
+include \code{eventTime}, \code{tx}, \code{aux}, and variable(s) in
+\code{zcov}.}
 
 \item{formulaAux}{a one-sided formula object (on the right side of the
-\code{~} operator) specifying the linear predictor in the logistic
-regression used to predict a binary auxiliary variable \code{aux} or a
-symbolic description of variables used for predicting a continuous
-\code{aux} using kernel conditional density estimation. Available variables
-to be used in the formula include \code{eventTime}, \code{tx}, \code{mark}
-and variables in \code{zcov}. \code{formulaAux} (\code{NULL} by default)
-must be provided if \code{aux} is used.}
+\code{~} operator) specifying the variables used for estimating the
+conditional distribution of \code{aux}. If \code{aux} is binary, the
+formula specifies the linear predictor in a logistic regression and if
+\code{aux} is continuous, the formula provides a symbolic description of
+variables used in kernel conditional density estimation. \code{formulaAux}
+is optional for the \code{AIPW} estimation procedure. Available variables
+to be used in the formula include \code{eventTime}, \code{tx}, \code{mark},
+and variable(s) in \code{zcov}.}
 
 \item{tau}{a numeric value specifying the duration of study follow-up period.
 Failures beyond \code{tau} are treated right-censored. There needs to be at
@@ -111,28 +116,29 @@ for higher percentages of missing marks.}
 
 \item{a}{a numeric value between 0 and 1 specifying the lower bound of the
 range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
-\eqn{H_{20}:} HR(v) does not depend on v, for v \eqn{\in [a, b]} where v
-represents the standardized mark between 0 and 1; \code{a} needs to be
-\code{1/nvgrid} multiplied by a positive integer. By default, \code{a} is
-set as 1/\code{nvgrid}.}
+\eqn{H_{20}: HR(v)} does not depend on \eqn{v}, for \eqn{v \in [a, b]}
+where \eqn{v} represents the standardized mark between 0 and 1; \code{a}
+needs to be \code{1/nvgrid} multiplied by a positive integer. By default,
+\code{a} is set as 1/\code{nvgrid}.}
 
 \item{b}{a numeric value between 0 and 1 specifying the upper bound of the
 range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
-\eqn{H_{20}:} HR(v) does not depend on v, for v \eqn{\in [a, b]} where v
-represents the standardized mark between 0 and 1; \code{b} needs to be
-\code{1/nvgrid} multiplied by a positive integer. By default, \code{b} is
-set as 1.}
+\eqn{H_{20}: HR(v)} does not depend on \eqn{v}, for \eqn{v \in [a, b]}
+where \code{v} represents the standardized mark between 0 and 1; \code{b}
+needs to be \code{1/nvgrid} multiplied by a positive integer. By default,
+\code{b} is set as 1.}
 
-\item{ntgrid}{an integer value (100 by default) specifying the number of
-equally spaced time points for which the mark-specific baseline hazard
-functions are evaluated.}
+\item{ntgrid}{an integer value (\code{NULL} by default) specifying the number
+of equally spaced time points for which the mark-specific baseline hazard
+functions are evaluated. If \code{NULL}, baseline hazard functions are not
+evaluated.}
 
 \item{nvgrid}{an integer value (100 by default) specifying the number of
 equally spaced mark values between the minimum and maximum of the observed
 mark for which the treatment effects are evaluated.}
 
 \item{nboot}{number of bootstrap iterations (500 by default) for simulating
-the distribution of test statistics.}
+the distributions of test statistics.}
 
 \item{seed}{an integer specifying the random number generation seed for
 reproducing the test statistics and p-values. By default, a specific seed
@@ -145,46 +151,49 @@ An object of class \code{kernel_sievePH} which can be processed by
   following components:
 \itemize{
 \item \code{H10}: a data frame with test statistics (first row) and
-corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for
-v \eqn{\in [a, b]}. Columns \code{TSUP1} and
-\code{Tint1} include test statistics and p-values for testing \eqn{H_{10}}
-vs. \eqn{H_{1a}: HR(v) \neq 1} for any v \eqn{\in [a, b]} (general
-alternative). Columns \code{TSUP1m} and \code{Tint1m} include test statistics
-and p-values for testing \eqn{H_{10}} vs. \eqn{H_{1m}: HR(v) \leq 1} with
-strict inequality for some v in \eqn{[a, b]} (monotone alternative). \code{TSUP1}
-and \code{TSUP1m} are based on extensions of the classic Kolmogorov-Smirnov
-supremum-based test. \code{Tint1} and \code{Tint1m} are based on generalizations
-of the integration-based Cramer-von Mises test. \code{Tint1} and \code{Tint1m} involve
-integration of deviations over the whole range of the mark.
+corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for v
+\eqn{\in [a, b]}. Columns \code{TSUP1} and \code{Tint1} include test
+statistics and p-values for testing \eqn{H_{10}} vs. \eqn{H_{1a}: HR(v) \neq
+1} for any v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP1m}
+and \code{Tint1m} include test statistics and p-values for testing
+\eqn{H_{10}} vs. \eqn{H_{1m}: HR(v) \leq 1} with strict inequality for some v
+in \eqn{[a, b]} (monotone alternative). \code{TSUP1} and \code{TSUP1m} are
+based on extensions of the classic Kolmogorov-Smirnov supremum-based test.
+\code{Tint1} and \code{Tint1m} are based on generalizations of the
+integration-based Cramer-von Mises test. \code{Tint1} and \code{Tint1m}
+involve integration of deviations over the whole range of the mark.
 
 \item \code{H20}: a data frame with test statistics (first row) and
 corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not
-depend on v \eqn{\in [a, b]}. Columns
-\code{TSUP2} and \code{Tint2} include test statistics and p-values for
-testing \eqn{H_{20}} vs. \eqn{H_{2a}}: HR depends on v \eqn{\in [a, b]}
-(general alternative). Columns \code{TSUP2m} and \code{Tint2m} include test
-statistics and p-values for testing \eqn{H_{20}} vs. \eqn{H_{2m}}: HR
-increases as v increases \eqn{\in [a, b]} (monotone alternative).
-\code{TSUP2} and \code{TSUP2m} are based on extensions of the
-classic Kolmogorov-Smirnov supremum-based test. \code{Tint2} and \code{Tint2m}
-are based on generalizations of the integration-based
-Cramer-von Mises test. \code{Tint2} and \code{Tint2m} involve
-integration of deviations over the whole range of the mark.
+depend on v \eqn{\in [a, b]}. Columns \code{TSUP2} and \code{Tint2} include
+test statistics and p-values for testing \eqn{H_{20}} vs. \eqn{H_{2a}}: HR
+depends on v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP2m}
+and \code{Tint2m} include test statistics and p-values for testing
+\eqn{H_{20}} vs. \eqn{H_{2m}}: HR increases as v increases \eqn{\in [a, b]}
+(monotone alternative). \code{TSUP2} and \code{TSUP2m} are based on
+extensions of the classic Kolmogorov-Smirnov supremum-based test.
+\code{Tint2} and \code{Tint2m} are based on generalizations of the
+integration-based Cramer-von Mises test. \code{Tint2} and \code{Tint2m}
+involve integration of deviations over the whole range of the mark.
 
 \item \code{estBeta}: a data frame summarizing point estimates and standard
-errors of the mark-specific coefficients for treatment at equally-spaced values between
-the minimum and the maximum of the observed mark values.
+errors of the mark-specific coefficients for treatment at equally-spaced
+values between the minimum and the maximum of the observed mark values.
 
 \item \code{cBproc1}: a data frame containing equally-spaced mark values in
 the column \code{Mark}, test processes \eqn{Q^{(1)}(v)} for observed data in
 the column \code{Observed}, and \eqn{Q^{(1)}(v)} for \code{nboot} independent
 sets of normal samples in the columns S1, S2, \eqn{\cdots}.
 
-\item \code{cBproc2}: a data frame containing equally-spaced mark values in the
-column \code{Mark}, test processes \eqn{Q^{(2)}(v)} for observed data
-in the column \code{Observed}, and \eqn{Q^{(2)}(v)} for \code{nboot} independent
-sets of normal samples in the columns S1, S2, \eqn{\cdots}.
-}
+\item \code{cBproc2}: a data frame containing equally-spaced mark values in
+the column \code{Mark}, test processes \eqn{Q^{(2)}(v)} for observed data in
+the column \code{Observed}, and \eqn{Q^{(2)}(v)} for \code{nboot} independent
+sets of normal samples in the columns S1, S2, \eqn{\cdots}. 
+
+\item \code{Lambda0}: an array of dimension K x nvgrid x ntgrid for the
+  kernel-smoothed baseline hazard function \eqn{\lambda_{0k}, k = 1, \dots,
+  K} where \eqn{K} is the number of strata. If \code{ntgrid} is \code{NULL}
+(by default), \code{Lambda0} is not included in the output.}
 }
 \description{
 \code{kernel_sievePH} implements estimation methods of Sun and Gilbert (2012)
@@ -235,13 +244,13 @@ fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, aux = A, auxType = "bina
                       missmethod = "AIPW", formulaMiss = ~ eventTime,
                       formulaAux = ~ eventTime + tx + mark,
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-                      ntgrid = 20, nvgrid = 20, nboot = 50)
+                      nvgrid = 20, nboot = 50)
 \donttest{
 # complete-case estimation discards rows with a missing mark;
 # also, no auxiliary covariate is needed
 fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx,
                       missmethod = "CC", tau = 3, tband = 0.5, hband = 0.3,
-                      a = 0.1, b = 1, ntgrid = 20, nvgrid = 20, nboot = 50)
+                      a = 0.1, b = 1, nvgrid = 20, nboot = 50)
 }
 
 }

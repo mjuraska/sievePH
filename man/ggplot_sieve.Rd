@@ -130,7 +130,7 @@ print(ggplot_sieve(sfit1, mark, tx))
 fit2 <- kernel_sievePH(eventTime, eventInd, mark, tx,
                       missmethod = "CC",
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-                      ntgrid = 20, nvgrid = 20, nboot = 50)
+                      nvgrid = 20, nboot = 50)
 sfit2 <- summary(fit2)
 print(ggplot_sieve(sfit2, mark, tx))
 

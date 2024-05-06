@@ -130,7 +130,7 @@ fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A, auxType = "binary",
                       missmethod = "AIPW", formulaMiss = ~ eventTime,
                       formulaAux = ~ eventTime + tx + mark,
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-                      ntgrid = 20, nvgrid = 20, nboot = 50)
+                      nvgrid = 20, nboot = 50)
                       
 sfit <- summary(fitaug)
 # print the formatted summary
