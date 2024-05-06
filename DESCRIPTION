@@ -16,6 +16,7 @@ Imports:
     ggplot2,
     ggpubr,
     scales,
-    plyr
+    plyr,
+    np
 LinkingTo: Rcpp, RcppArmadillo
 RoxygenNote: 7.3.1

@@ -1,6 +1,7 @@
 #' @useDynLib sievePH, .registration = TRUE
 NULL
-
+#' @import np
+NULL
 #' Nonparametric Kernel-Smoothed Stratified Mark-Specific Proportional Hazards
 #' Model with a Univariate Continuous Mark, Missing-at-Random in Some Failures
 #'
@@ -21,12 +22,16 @@ NULL
 #'   be set to \code{NA}.
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0
 #'   if placebo).
-#' @param aux a numeric vector specifying a binary auxiliary covariate which may
-#'   be predictive of the missing mark. The mark missingness model only requires
-#'   that the auxiliary covariates be observed in subjects who experienced the
-#'   event of interest. For subjects with \code{eventInd = 0}, the value in
-#'   \code{aux} may be set to \code{NA}. If no auxiliary covariate is used,
-#'   \code{aux} should be set to the default of \code{NULL}.
+#' @param aux a numeric vector specifying a binary or a continuous auxiliary
+#'   covariate which may be predictive of the missing mark. The mark missingness
+#'   model only requires that the auxiliary covariates be observed in subjects
+#'   who experienced the event of interest. For subjects with \code{eventInd =
+#'   0}, the value in \code{aux} may be set to \code{NA}. If no auxiliary
+#'   covariate is used, \code{aux} should be set to the default of \code{NULL}.
+#' @param auxType a character string describing the data type of \code{aux} if
+#'   \code{aux} is used. Data types allowed include "binary" and "continuous".
+#'   If \code{aux} is not used, \code{auxType} should be set to the default of
+#'   \code{NULL}.
 #' @param zcov a data frame with one row per subject specifying possibly
 #'   time-dependent covariate(s) (not including \code{tx}). If no covariate is
 #'   used, \code{zcov} should be set to the default of \code{NULL}.
@@ -38,16 +43,25 @@ NULL
 #' @param missmethod a character string for the estimation procedure to use.
 #'   Available missing-mark methods include \code{CC}, \code{IPW}, and
 #'   \code{AIPW}.
-#' @param formulaPH a one-sided formula object specifying (on the right side of
-#'   the \code{~} operator) the linear predictor in the proportional hazards
-#'   model. Available variables to be used in the formula include \code{tx}, and
-#'   \code{zcov}. \code{formulaPH} is \code{~tx} by default.
-#' @param formulaMiss a one-sided formula object specifying (on the right side
-#'   of the \code{~} operator) the linear predictor in the logistic regression
-#'   model used for predicting the probability of observing the mark. Available
-#'   variables to be used in the formula include \code{eventTime}, \code{tx},
-#'   \code{aux}, and \code{zcov}. \code{formulaMiss} (\code{NULL} by default)
-#'   must be provided for \code{IPW} and \code{AIPW} methods.
+#' @param formulaPH a one-sided formula object (on the right side of the
+#'   \code{~} operator) specifying the linear predictor in the proportional
+#'   hazards model. Available variables to be used in the formula include
+#'   \code{tx}, and \code{zcov}. \code{formulaPH} is \code{~tx} by default.
+#' @param formulaMiss a one-sided formula object (on the right side of the
+#'   \code{~} operator) specifying the linear predictor in the logistic
+#'   regression model used for predicting the probability of observing the mark.
+#'   Available variables to be used in the formula include \code{eventTime},
+#'   \code{tx}, \code{aux}, and variables in \code{zcov}. \code{formulaMiss}
+#'   (\code{NULL} by default) must be provided for \code{IPW} and \code{AIPW}
+#'   methods.
+#' @param formulaAux a one-sided formula object (on the right side of the
+#'   \code{~} operator) specifying the linear predictor in the logistic
+#'   regression used to predict a binary auxiliary variable \code{aux} or a
+#'   symbolic description of variables used for predicting a continuous
+#'   \code{aux} using kernel conditional density estimation. Available variables
+#'   to be used in the formula include \code{eventTime}, \code{tx}, \code{mark}
+#'   and variables in \code{zcov}. \code{formulaAux} (\code{NULL} by default)
+#'   must be provided if \code{aux} is used.
 #' @param tau a numeric value specifying the duration of study follow-up period.
 #'   Failures beyond \code{tau} are treated right-censored. There needs to be at
 #'   least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored by
@@ -173,6 +187,7 @@ NULL
 #' # a binary auxiliary covariate
 #' A <- sapply(exp(-0.5 - 0.2 * mark) / (1 + exp(-0.5 - 0.2 * mark)),
 #'             function(p){ ifelse(is.na(p), NA, rbinom(1, 1, p)) })
+#' #A <- -0.5 - 0.2 * mark + rnorm(n,0,0.3)
 #' linPred <- -0.8 + 0.4 * tx - 0.2 * A
 #' probs <- exp(linPred) / (1 + exp(linPred))
 #' R <- rep(NA, n)
@@ -183,8 +198,9 @@ NULL
 #' # a missing-at-random mark
 #' mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 #' # AIPW estimation, auxiliary covariate is used (not required)
-#' fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, aux = A, 
+#' fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, aux = A, auxType = "binary",
 #'                       missmethod = "AIPW", formulaMiss = ~ eventTime,
+#'                       formulaAux = ~ eventTime + tx + mark,
 #'                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
 #'                       ntgrid = 20, nvgrid = 20, nboot = 50)
 #' \donttest{
@@ -198,7 +214,7 @@ NULL
 #' @importFrom plyr laply
 #'
 #' @export
-kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NULL, strata = NULL, missmethod, formulaPH = ~ tx, formulaMiss = NULL,
+kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = NULL, zcov = NULL, strata = NULL, missmethod, formulaPH = ~ tx, formulaMiss = NULL, formulaAux = NULL,
                                tau = NULL, tband = NULL, hband = NULL, a = NULL, b = NULL, ntgrid = 100, nvgrid = 100, nboot = 500,  seed = NULL) {
 
 
@@ -271,18 +287,14 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
   #
   #*****************************************************************************
 
-
-
- # IMPORTANT NOTE
-
- # This version of the code inputs mark on its own scale, and re-scales it to 0-1 before doing the analysis.
+ # The code inputs mark on its own scale, and re-scales it to 0-1 before doing the analysis.
   vV <- mark
   mn <- min(mark, na.rm = TRUE) #minimum observed mark value
   mx <- max(mark, na.rm = TRUE) #maximum observed mark value
   # Put the marks on the scale 0 to 1:
   vV <- (mark - mn)/(mx-mn)
   # Set mark with missing values to be a large number
-  vV[is.na(vV)] <- 8888
+  #vV[is.na(vV)] <- 8888
 
   rinfect1 <- sum(eventInd>=0.5 & tx >=0.5)
   rinfect0 <- sum(eventInd>=0.5 & tx < 0.5)
@@ -324,7 +336,6 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
 
 
   # Read data into the designed variables
-
   sumdelta <- 0
   Rsum <- 0
 
@@ -353,12 +364,11 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
   }
   
   mfPH <- model.frame(formulaPHNew, availablePHdf)
+  #Cox PH regression excludes the intercept
   covartPH<- model.matrix(terms(formulaPHNew), mfPH)[,-1]
-  
-  
   covart <- array(0,dim = c(kk, ncov, max(nsamp)))
   
- if(kk == 1){
+  if(kk == 1){
     n_ks <- nsamp[1]
     ks = 1
     if(ncov == 1){
@@ -413,15 +423,12 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
 
 
 
-
   # Calculate sumdelta and Rsum
   sumdelta <- sum(censor)
   Rsum <- sum(R * censor)
 
   # Calculate the probability of nonmissing marks.
-
   # wght(ks,i) can be calculated using an external program
-
   # setup the covariates for logit regression for R:
 
   n_max <- max(nsamp)
@@ -430,13 +437,11 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
     R <- matrix(1, nrow = kk, ncol = n_max)
     wght <- R
   } else {
-    # Assuming kk, nsamp, time, censor, and missmark are already defined
     if(is.null(formulaMiss)){stop("`formulaMiss` must be provided")}
     formulaMissDecomp <- strsplit(strsplit(paste(deparse(formulaMiss), collapse = ""), " *[~] *")[[1]], " *[+] *")[[2]]
     formulaMissNew <- as.formula(paste0("R ~ ", paste(formulaMissDecomp, collapse="+")))
     # Define ncovR
     ncovR <- length(formulaMissDecomp)+1
-
     # Create covartR array
     covartR <- array(0, dim = c(kk, ncovR, n_max))
     for(ks in 1:kk){
@@ -449,11 +454,8 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
         }else{
           colnames(availabledf) <- c("R", "eventTime","aux","tx")
         }
-        
-        
         #this is to avoid mf below remove all rows with NA. The logistic model does not use non-cases so it doesn't care the values of aux for them
         availabledf$aux[is.na(availabledf$aux)] <- 0
-        #if("aux" %in% formulaMissDecomp & sum(is.na(aux))>0){stop("`aux` must not have NAs")}
       }else{
         availabledf <- data.frame("R" = R[ks, 1:nsamp[ks]],"eventTime" = time[ks, 1:nsamp[ks]],"tx" = txm[ks, 1:nsamp[ks]])
         if(!is.null(zcov)){
@@ -462,12 +464,11 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
         }else{
           colnames(availabledf) <- c("R", "eventTime","tx")
         }
-        
         if("aux" %in% formulaMissDecomp){stop("`aux` is not available")}
       }
 
       mf <- model.frame(formulaMissNew, availabledf)
-      covartR[ks,1:ncovR,1:nsamp[ks]] <- model.matrix(terms(formulaMissNew ), mf)
+      covartR[ks,1:ncovR,1:nsamp[ks]] <- t(model.matrix(terms(formulaMissNew ), mf))
 
     }
 
@@ -491,106 +492,121 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, zcov = NUL
      phi <- exp(ei) / (1 + exp(ei))
      wght[ks,] <- R[ks,] / (censor[ks,] * phi + 1 - censor[ks,])
    }
-
-
   }
 
 
   # the end of calculating wght(ks,i)
 
   # Calculate the pdf G(ks,i,ispot) for the second stage estimator, aipw
-
   # IF use (Nauxiliary.eq.1),
   # the pdf G(ks,i,ispot) can also be calculated using an external program
-
-  # This version of the code only handles a special case where the auxiliary for
-  # association with the mark variable V is binary; and the failure time is the variable for
-  # predicting whether a case has the mark V available.  These parts of the program would
-  # need to be changed manually for other types of auxiliary covariates.
   # The relevant code is surrounded by the comments AUXILIARY CODE
 
   # AUXILIARY CODE
-  # gender is the only significant variable for the mark.
-  # We set gender as the only auxliary variable.
-  # Since gender is a binary variable, do the logistic regression
-  # of A(gender) ~ V,T,Z .
+  # setup the covariates calculate g(a|w):
 
-  # In addition, the time is the only significant variable for predicting
-  # the probability of missingness.
-  # We use the logistic regression of R ~ T.
-
-  # setup the covariates for logistic regression for gender to calculate g(a|w):
-
-
-  # Define ncovG
-  if(is.null(zcov)){
-    ncovG <- 4
-  }else{
-    ncovG <- 4 + dim(zcov)[2]
-  }
-  
-  # Get maximum sample size across all strata
-  n_max <- max(nsamp)
-
-  # Create covartG array
-  covartG <- array(0, dim = c(kk, ncovG, n_max))
-  for(ks in 1:kk){
-    covartG[ks,1,1:nsamp[ks]] <- 1
-    covartG[ks,2,1:nsamp[ks]] <- time[ks,1:nsamp[ks]]
-    covartG[ks,3,1:nsamp[ks]] <- txm[ks,1:nsamp[ks]]
-    covartG[ks,4,1:nsamp[ks]] <- markm[ks,1:nsamp[ks]]
-    if(!is.null(zcov)){
-      covartG[ks, 5:ncovG, 1:nsamp[ks]] <- zcovkk[ks, 1:dimz, 1:nsamp[ks]]
+  if(!is.null(aux)){
+    if(is.null(formulaAux)){stop("`formulaAux` must be provided")}
+    formulaAuxDecomp <- strsplit(strsplit(paste(deparse(formulaAux), collapse = ""), " *[~] *")[[1]], " *[+] *")[[2]]
+    formulaAuxNew <- as.formula(paste0("aux ~ ", paste(formulaAuxDecomp, collapse="+")))
+    if(auxType == "binary"){
+      ncovG <- length(formulaAuxDecomp)+1
+    }else{
+      ncovG <- length(formulaAuxDecomp)
     }
+    covartG <- array(0, dim = c(kk, ncovG, n_max))
+    for(ks in 1:kk){
+      availabledf <- data.frame("aux" = Ax[ks, 1:nsamp[ks]], "eventTime" = time[ks, 1:nsamp[ks]],
+                                "tx" = txm[ks, 1:nsamp[ks]], "mark" = markm[ks, 1:nsamp[ks]])
+      #this is to avoid mf below remove all rows with NA (in aux). covartG does not include aux
+      #rows with missing mark would not enter estimation
+      availabledf$aux[is.na(availabledf$aux)] <- 0
+      availabledf$mark[is.na(availabledf$mark)] <- 0
+      
+      if(!is.null(zcov)){
+        availabledf <- cbind(availabledf, t(zcovkk[ks, 1:dimz, 1:nsamp[ks]]))
+        colnames(availabledf) <- c("aux","eventTime","aux","tx","mark", colnames(zcov))
+      }else{
+        colnames(availabledf) <- c("aux", "eventTime","tx", "mark")
+      }
+      mf <- model.frame(formulaAuxNew, availabledf)
+      
+      if(auxType == "binary"){
+        covartG[ks,1:ncovG,1:nsamp[ks]] <- t(model.matrix(terms(formulaAuxNew), mf))
+      }else{
+        #intercept is removed for kernel conditional density estimation
+        covartG[ks,1:ncovG,1:nsamp[ks]] <- t(model.matrix(terms(formulaAuxNew), mf)[,-1])
+        covartGvarNames <- colnames(mf)[-1]
+      }
+      
+    }
+    
   }
-
+  # # Get maximum sample size across all strata
+  n_max <- max(nsamp)
   # Compute cenG; the logistic regression is only based on cases with observed marks
   cenG <- censor * R
-
+  
   if (nauxiliary == 1) {
     G <- array(1, dim = c(kk, n_max, nvgrid))
-
-    #estplogit(kk, nsamp, ncovG, covartG, Ax, cenG, psiG, psiGvar)
-    estplogitGans <- estplogit(kk, nsamp, ncovG, covartG, Ax, cenG)
-    psiG <- estplogitGans$PSI
-    psiGvar <- estplogitGans$FVAR
-
-    psiGse <- matrix(0, nrow = kk, ncol = ncovG)
-
-    for(ks in 1:kk){
-      psiGse[ks,] <- sqrt(diag(psiGvar[ks,,]))
-    }
-
-    for(ks in 1:kk){
-      for(i in 1:nsamp[ks]){
-        ei = 0
-        for(j in 1:(ncovG-1)){
-          ei <- ei + covartG[ks,j,i]*psiG[ks,j]
-        }
-
-        vspot <- (1:nvgrid)*vstep
-        phi <- exp(ei + psiG[ks, ncovG] * vspot) / (1+exp(ei + psiG[ks, ncovG] * vspot))
-        #Ax is binary
-        G [ks,i,1:nvgrid]<- phi * Ax[ks,i] + (1 - phi) * (1 - Ax[ks,i])
-
+    if(auxType == "binary"){
+      estplogitGans <- estplogit(kk, nsamp, ncovG, covartG, Ax, cenG)
+      psiG <- estplogitGans$PSI
+      psiGvar <- estplogitGans$FVAR
+      
+      psiGse <- matrix(0, nrow = kk, ncol = ncovG)
+      
+      for(ks in 1:kk){
+        psiGse[ks,] <- sqrt(diag(psiGvar[ks,,]))
       }
+      
+      for(ks in 1:kk){
+        for(i in 1:nsamp[ks]){
+          ei = 0
+          for(j in 1:(ncovG-1)){
+            ei <- ei + covartG[ks,j,i]*psiG[ks,j]
+          }
+          
+          vspot <- (1:nvgrid)*vstep
+          phi <- exp(ei + psiG[ks, ncovG] * vspot) / (1+exp(ei + psiG[ks, ncovG] * vspot))
+          G [ks,i,1:nvgrid]<- phi * Ax[ks,i] + (1 - phi) * (1 - Ax[ks,i])
+        }
+      }
+    }else{
+      #kernel conditional density estimation
+      for(ks in 1:kk){
+        data = data.frame(cbind(Ax[ks, 1:nsamp[ks]], t(covartG[ks,1:ncovG,1:nsamp[ks]])))
+        colnames(data) = c("aux", covartGvarNames)
+        #use cases with observed mark to conduct the estimation
+        cenGind <- which(cenG[ks,1:nsamp[ks]]==1)
+        subdata <- data[cenGind,]
+        xdat = subdata[,-1]
+        ydat = subdata[,1]
+        bw <- npcdensbw(xdat = xdat,ydat = ydat, cxkertype="epanechnikov", cykertype="epanechnikov")
+        vspot <- (1:nvgrid)*vstep
+        fhat <- npcdens(bws=bw, txdat = xdat, tydat = ydat)
+        indices <- which(!is.na(Ax[ks, 1:nsamp[ks]]))
+        for(ispot in 1:nvgrid){
+          newdata = data
+          newdata$mark = vspot[ispot]
+          newdata <- newdata[indices,]
+          exdat = newdata[,-1]
+          eydat = newdata[,1]
+          G[ks, indices, ispot] = predict(fhat, exdat = exdat, eydat = eydat)
+          #the original code would have G be NA for aux that is NA
+          #in code below, only G for noncases are used
+        }
+      }
+      
     }
+    
   } else {
     G <- array(1, dim = c(kk, n_max, nvgrid))
   }
 
-  #browser()
   # the end of calculating G(ks,i,ispot).
   # AUXILIARY CODE
 
-  # Estimation of the beta(v) at each mark v
-
-  # Comparison with standard PH model analysis
-  # Also serve as an initial value for the mark-specific PH model
-
-  # CALL COX function
-
- 
   # library(survival)
   # phfit <- summary(coxph(Surv(time[1,], censor[1,])~trt))
   coxfit <- estpvry (tau, kk, nsamp, ncov, time, covart, censor)
@@ -1213,7 +1229,7 @@ estplogit <- function(KK, N, NPL, Z, R, D) {
   FVAR <- array(0, dim = c(KK, NPL, NPL))
   PSI <- matrix(0, nrow = KK, ncol = NPL)
   for (ks in 1:KK) {
-    for (iter in 1:20) {
+    for (iter in 1:6) {
       UL <- numeric(NPL)
       UL2 <- numeric(NPL)
       FL <- matrix(0, nrow = NPL, ncol = NPL)

@@ -11,11 +11,13 @@ kernel_sievePH(
   mark,
   tx,
   aux = NULL,
+  auxType = NULL,
   zcov = NULL,
   strata = NULL,
   missmethod,
   formulaPH = ~tx,
   formulaMiss = NULL,
+  formulaAux = NULL,
   tau = NULL,
   tband = NULL,
   hband = NULL,
@@ -42,12 +44,17 @@ be set to \code{NA}.}
 \item{tx}{a numeric vector indicating the treatment group (1 if treatment, 0
 if placebo).}
 
-\item{aux}{a numeric vector specifying a binary auxiliary covariate which may
-be predictive of the missing mark. The mark missingness model only requires
-that the auxiliary covariates be observed in subjects who experienced the
-event of interest. For subjects with \code{eventInd = 0}, the value in
-\code{aux} may be set to \code{NA}. If no auxiliary covariate is used,
-\code{aux} should be set to the default of \code{NULL}.}
+\item{aux}{a numeric vector specifying a binary or a continuous auxiliary
+covariate which may be predictive of the missing mark. The mark missingness
+model only requires that the auxiliary covariates be observed in subjects
+who experienced the event of interest. For subjects with \code{eventInd =
+0}, the value in \code{aux} may be set to \code{NA}. If no auxiliary
+covariate is used, \code{aux} should be set to the default of \code{NULL}.}
+
+\item{auxType}{a character string describing the data type of \code{aux} if
+\code{aux} is used. Data types allowed include "binary" and "continuous".
+If \code{aux} is not used, \code{auxType} should be set to the default of
+\code{NULL}.}
 
 \item{zcov}{a data frame with one row per subject specifying possibly
 time-dependent covariate(s) (not including \code{tx}). If no covariate is
@@ -63,17 +70,27 @@ considered for each stratum.}
 Available missing-mark methods include \code{CC}, \code{IPW}, and
 \code{AIPW}.}
 
-\item{formulaPH}{a one-sided formula object specifying (on the right side of
-the \code{~} operator) the linear predictor in the proportional hazards
-model. Available variables to be used in the formula include \code{tx}, and
-\code{zcov}. \code{formulaPH} is \code{~tx} by default.}
+\item{formulaPH}{a one-sided formula object (on the right side of the
+\code{~} operator) specifying the linear predictor in the proportional
+hazards model. Available variables to be used in the formula include
+\code{tx}, and \code{zcov}. \code{formulaPH} is \code{~tx} by default.}
 
-\item{formulaMiss}{a one-sided formula object specifying (on the right side
-of the \code{~} operator) the linear predictor in the logistic regression
-model used for predicting the probability of observing the mark. Available
-variables to be used in the formula include \code{eventTime}, \code{tx},
-\code{aux}, and \code{zcov}. \code{formulaMiss} (\code{NULL} by default)
-must be provided for \code{IPW} and \code{AIPW} methods.}
+\item{formulaMiss}{a one-sided formula object (on the right side of the
+\code{~} operator) specifying the linear predictor in the logistic
+regression model used for predicting the probability of observing the mark.
+Available variables to be used in the formula include \code{eventTime},
+\code{tx}, \code{aux}, and variables in \code{zcov}. \code{formulaMiss}
+(\code{NULL} by default) must be provided for \code{IPW} and \code{AIPW}
+methods.}
+
+\item{formulaAux}{a one-sided formula object (on the right side of the
+\code{~} operator) specifying the linear predictor in the logistic
+regression used to predict a binary auxiliary variable \code{aux} or a
+symbolic description of variables used for predicting a continuous
+\code{aux} using kernel conditional density estimation. Available variables
+to be used in the formula include \code{eventTime}, \code{tx}, \code{mark}
+and variables in \code{zcov}. \code{formulaAux} (\code{NULL} by default)
+must be provided if \code{aux} is used.}
 
 \item{tau}{a numeric value specifying the duration of study follow-up period.
 Failures beyond \code{tau} are treated right-censored. There needs to be at
@@ -203,6 +220,7 @@ mark <- ifelse(eventInd == 1, c(rbeta(n / 2, 2, 1), rbeta(n / 2, 2, 2)), NA)
 # a binary auxiliary covariate
 A <- sapply(exp(-0.5 - 0.2 * mark) / (1 + exp(-0.5 - 0.2 * mark)),
             function(p){ ifelse(is.na(p), NA, rbinom(1, 1, p)) })
+#A <- -0.5 - 0.2 * mark + rnorm(n,0,0.3)
 linPred <- -0.8 + 0.4 * tx - 0.2 * A
 probs <- exp(linPred) / (1 + exp(linPred))
 R <- rep(NA, n)
@@ -213,8 +231,9 @@ while (sum(R, na.rm = TRUE) < 10){
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 # AIPW estimation, auxiliary covariate is used (not required)
-fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, aux = A, 
+fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, aux = A, auxType = "binary",
                       missmethod = "AIPW", formulaMiss = ~ eventTime,
+                      formulaAux = ~ eventTime + tx + mark,
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
                       ntgrid = 20, nvgrid = 20, nboot = 50)
 \donttest{

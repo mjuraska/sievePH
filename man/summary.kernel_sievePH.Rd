@@ -126,8 +126,9 @@ while (sum(R, na.rm = TRUE) < 10){
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 # AIPW estimation, auxiliary covariate is used (not required)
-fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A,
+fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A, auxType = "binary",
                       missmethod = "AIPW", formulaMiss = ~ eventTime,
+                      formulaAux = ~ eventTime + tx + mark,
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
                       ntgrid = 20, nvgrid = 20, nboot = 50)
                       
