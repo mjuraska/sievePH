@@ -23,11 +23,14 @@ NULL
 #' @param tx a numeric vector indicating the treatment group (1 if treatment, 0
 #'   if placebo).
 #' @param aux a numeric vector specifying a binary or a continuous auxiliary
-#'   covariate which may be predictive of the missing mark. The mark missingness
-#'   model only requires that the auxiliary covariates be observed in subjects
+#'   covariate which may be potentially useful for predicting missingness, i.e,
+#'   the probability of missing, and for informing about the distribution of
+#'   missing marks.  \code{aux} may be specified when the \code{AIPW} or
+#'   \code{IPW} estimation procedure is employed. The mark missingness model
+#'   only requires that the auxiliary covariates be observed in subjects
 #'   who experienced the event of interest. For subjects with \code{eventInd =
 #'   0}, the value in \code{aux} may be set to \code{NA}. If no auxiliary
-#'   covariate is used, \code{aux} should be set to the default of \code{NULL}.
+#'   covariate is used, set \code{aux} to the default of \code{NULL}.
 #' @param auxType a character string describing the data type of \code{aux} if
 #'   \code{aux} is used. Data types allowed include "binary" and "continuous".
 #'   If \code{aux} is not used, \code{auxType} should be set to the default of
@@ -46,22 +49,24 @@ NULL
 #' @param formulaPH a one-sided formula object (on the right side of the
 #'   \code{~} operator) specifying the linear predictor in the proportional
 #'   hazards model. Available variables to be used in the formula include
-#'   \code{tx}, and \code{zcov}. \code{formulaPH} is \code{~tx} by default.
+#'   \code{tx} and variable(s) in \code{zcov}. By default, \code{formulaPH} is
+#'   specified as \code{~ tx}.
 #' @param formulaMiss a one-sided formula object (on the right side of the
 #'   \code{~} operator) specifying the linear predictor in the logistic
 #'   regression model used for predicting the probability of observing the mark.
-#'   Available variables to be used in the formula include \code{eventTime},
-#'   \code{tx}, \code{aux}, and variables in \code{zcov}. \code{formulaMiss}
-#'   (\code{NULL} by default) must be provided for \code{IPW} and \code{AIPW}
-#'   methods.
+#'   \code{formulaMiss} (\code{NULL} by default) must be provided for \code{IPW}
+#'   and \code{AIPW} methods. Available variables to be used in the formula
+#'   include \code{eventTime}, \code{tx}, \code{aux}, and variable(s) in
+#'   \code{zcov}.
 #' @param formulaAux a one-sided formula object (on the right side of the
-#'   \code{~} operator) specifying the linear predictor in the logistic
-#'   regression used to predict a binary auxiliary variable \code{aux} or a
-#'   symbolic description of variables used for predicting a continuous
-#'   \code{aux} using kernel conditional density estimation. Available variables
-#'   to be used in the formula include \code{eventTime}, \code{tx}, \code{mark}
-#'   and variables in \code{zcov}. \code{formulaAux} (\code{NULL} by default)
-#'   must be provided if \code{aux} is used.
+#'   \code{~} operator) specifying the variables used for estimating the
+#'   conditional distribution of \code{aux}. If \code{aux} is binary, the
+#'   formula specifies the linear predictor in a logistic regression and if
+#'   \code{aux} is continuous, the formula provides a symbolic description of
+#'   variables used in kernel conditional density estimation. \code{formulaAux}
+#'   is optional for the \code{AIPW} estimation procedure. Available variables
+#'   to be used in the formula include \code{eventTime}, \code{tx}, \code{mark},
+#'   and variable(s) in \code{zcov}.
 #' @param tau a numeric value specifying the duration of study follow-up period.
 #'   Failures beyond \code{tau} are treated right-censored. There needs to be at
 #'   least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored by
@@ -78,24 +83,25 @@ NULL
 #'   for higher percentages of missing marks.
 #' @param a a numeric value between 0 and 1 specifying the lower bound of the
 #'   range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
-#'   \eqn{H_{20}:} HR(v) does not depend on v, for v \eqn{\in [a, b]} where v
-#'   represents the standardized mark between 0 and 1; \code{a} needs to be
-#'   \code{1/nvgrid} multiplied by a positive integer. By default, \code{a} is
-#'   set as 1/\code{nvgrid}.
+#'   \eqn{H_{20}: HR(v)} does not depend on \eqn{v}, for \eqn{v \in [a, b]}
+#'   where \eqn{v} represents the standardized mark between 0 and 1; \code{a}
+#'   needs to be \code{1/nvgrid} multiplied by a positive integer. By default,
+#'   \code{a} is set as 1/\code{nvgrid}.
 #' @param b a numeric value between 0 and 1 specifying the upper bound of the
 #'   range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
-#'   \eqn{H_{20}:} HR(v) does not depend on v, for v \eqn{\in [a, b]} where v
-#'   represents the standardized mark between 0 and 1; \code{b} needs to be
-#'   \code{1/nvgrid} multiplied by a positive integer. By default, \code{b} is
-#'   set as 1.
-#' @param ntgrid an integer value (100 by default) specifying the number of
-#'   equally spaced time points for which the mark-specific baseline hazard
-#'   functions are evaluated.
+#'   \eqn{H_{20}: HR(v)} does not depend on \eqn{v}, for \eqn{v \in [a, b]}
+#'   where \code{v} represents the standardized mark between 0 and 1; \code{b}
+#'   needs to be \code{1/nvgrid} multiplied by a positive integer. By default,
+#'   \code{b} is set as 1.
+#' @param ntgrid an integer value (\code{NULL} by default) specifying the number
+#'   of equally spaced time points for which the mark-specific baseline hazard
+#'   functions are evaluated. If \code{NULL}, baseline hazard functions are not
+#'   evaluated.
 #' @param nvgrid an integer value (100 by default) specifying the number of
 #'   equally spaced mark values between the minimum and maximum of the observed
 #'   mark for which the treatment effects are evaluated.
 #' @param nboot number of bootstrap iterations (500 by default) for simulating
-#'   the distribution of test statistics.
+#'   the distributions of test statistics.
 #' @param seed an integer specifying the random number generation seed for
 #'   reproducing the test statistics and p-values. By default, a specific seed
 #'   is not set.
@@ -119,47 +125,50 @@ NULL
 #'   following components:
 #' \itemize{
 #' \item \code{H10}: a data frame with test statistics (first row) and
-#' corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for
-#' v \eqn{\in [a, b]}. Columns \code{TSUP1} and
-#' \code{Tint1} include test statistics and p-values for testing \eqn{H_{10}}
-#' vs. \eqn{H_{1a}: HR(v) \neq 1} for any v \eqn{\in [a, b]} (general
-#' alternative). Columns \code{TSUP1m} and \code{Tint1m} include test statistics
-#' and p-values for testing \eqn{H_{10}} vs. \eqn{H_{1m}: HR(v) \leq 1} with
-#' strict inequality for some v in \eqn{[a, b]} (monotone alternative). \code{TSUP1}
-#' and \code{TSUP1m} are based on extensions of the classic Kolmogorov-Smirnov
-#' supremum-based test. \code{Tint1} and \code{Tint1m} are based on generalizations
-#' of the integration-based Cramer-von Mises test. \code{Tint1} and \code{Tint1m} involve
-#' integration of deviations over the whole range of the mark.
+#' corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for v
+#' \eqn{\in [a, b]}. Columns \code{TSUP1} and \code{Tint1} include test
+#' statistics and p-values for testing \eqn{H_{10}} vs. \eqn{H_{1a}: HR(v) \neq
+#' 1} for any v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP1m}
+#' and \code{Tint1m} include test statistics and p-values for testing
+#' \eqn{H_{10}} vs. \eqn{H_{1m}: HR(v) \leq 1} with strict inequality for some v
+#' in \eqn{[a, b]} (monotone alternative). \code{TSUP1} and \code{TSUP1m} are
+#' based on extensions of the classic Kolmogorov-Smirnov supremum-based test.
+#' \code{Tint1} and \code{Tint1m} are based on generalizations of the
+#' integration-based Cramer-von Mises test. \code{Tint1} and \code{Tint1m}
+#' involve integration of deviations over the whole range of the mark.
 #'
 #' \item \code{H20}: a data frame with test statistics (first row) and
 #' corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not
-#' depend on v \eqn{\in [a, b]}. Columns
-#' \code{TSUP2} and \code{Tint2} include test statistics and p-values for
-#' testing \eqn{H_{20}} vs. \eqn{H_{2a}}: HR depends on v \eqn{\in [a, b]}
-#' (general alternative). Columns \code{TSUP2m} and \code{Tint2m} include test
-#' statistics and p-values for testing \eqn{H_{20}} vs. \eqn{H_{2m}}: HR
-#' increases as v increases \eqn{\in [a, b]} (monotone alternative).
-#' \code{TSUP2} and \code{TSUP2m} are based on extensions of the
-#' classic Kolmogorov-Smirnov supremum-based test. \code{Tint2} and \code{Tint2m}
-#' are based on generalizations of the integration-based
-#' Cramer-von Mises test. \code{Tint2} and \code{Tint2m} involve
-#' integration of deviations over the whole range of the mark.
+#' depend on v \eqn{\in [a, b]}. Columns \code{TSUP2} and \code{Tint2} include
+#' test statistics and p-values for testing \eqn{H_{20}} vs. \eqn{H_{2a}}: HR
+#' depends on v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP2m}
+#' and \code{Tint2m} include test statistics and p-values for testing
+#' \eqn{H_{20}} vs. \eqn{H_{2m}}: HR increases as v increases \eqn{\in [a, b]}
+#' (monotone alternative). \code{TSUP2} and \code{TSUP2m} are based on
+#' extensions of the classic Kolmogorov-Smirnov supremum-based test.
+#' \code{Tint2} and \code{Tint2m} are based on generalizations of the
+#' integration-based Cramer-von Mises test. \code{Tint2} and \code{Tint2m}
+#' involve integration of deviations over the whole range of the mark.
 #'
 #' \item \code{estBeta}: a data frame summarizing point estimates and standard
-#' errors of the mark-specific coefficients for treatment at equally-spaced values between
-#' the minimum and the maximum of the observed mark values.
+#' errors of the mark-specific coefficients for treatment at equally-spaced
+#' values between the minimum and the maximum of the observed mark values.
 #'
 #' \item \code{cBproc1}: a data frame containing equally-spaced mark values in
 #' the column \code{Mark}, test processes \eqn{Q^{(1)}(v)} for observed data in
 #' the column \code{Observed}, and \eqn{Q^{(1)}(v)} for \code{nboot} independent
 #' sets of normal samples in the columns S1, S2, \eqn{\cdots}.
 #'
-#' \item \code{cBproc2}: a data frame containing equally-spaced mark values in the
-#' column \code{Mark}, test processes \eqn{Q^{(2)}(v)} for observed data
-#' in the column \code{Observed}, and \eqn{Q^{(2)}(v)} for \code{nboot} independent
-#' sets of normal samples in the columns S1, S2, \eqn{\cdots}.
-#' }
+#' \item \code{cBproc2}: a data frame containing equally-spaced mark values in
+#' the column \code{Mark}, test processes \eqn{Q^{(2)}(v)} for observed data in
+#' the column \code{Observed}, and \eqn{Q^{(2)}(v)} for \code{nboot} independent
+#' sets of normal samples in the columns S1, S2, \eqn{\cdots}. 
 #'
+#' \item \code{Lambda0}: an array of dimension K x nvgrid x ntgrid for the
+#'   kernel-smoothed baseline hazard function \eqn{\lambda_{0k}, k = 1, \dots,
+#'   K} where \eqn{K} is the number of strata. If \code{ntgrid} is \code{NULL}
+#' (by default), \code{Lambda0} is not included in the output.}
+#'   
 #' @references Gilbert, P. B. and Sun, Y. (2015). Inferences on relative failure
 #'   rates in stratified mark-specific proportional hazards models with missing
 #'   marks, with application to human immunodeficiency virus vaccine efficacy
@@ -202,20 +211,20 @@ NULL
 #'                       missmethod = "AIPW", formulaMiss = ~ eventTime,
 #'                       formulaAux = ~ eventTime + tx + mark,
 #'                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-#'                       ntgrid = 20, nvgrid = 20, nboot = 50)
+#'                       nvgrid = 20, nboot = 50)
 #' \donttest{
 #' # complete-case estimation discards rows with a missing mark;
 #' # also, no auxiliary covariate is needed
 #' fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx,
 #'                       missmethod = "CC", tau = 3, tband = 0.5, hband = 0.3,
-#'                       a = 0.1, b = 1, ntgrid = 20, nvgrid = 20, nboot = 50)
+#'                       a = 0.1, b = 1, nvgrid = 20, nboot = 50)
 #' }
 #'
 #' @importFrom plyr laply
 #'
 #' @export
 kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = NULL, zcov = NULL, strata = NULL, missmethod, formulaPH = ~ tx, formulaMiss = NULL, formulaAux = NULL,
-                               tau = NULL, tband = NULL, hband = NULL, a = NULL, b = NULL, ntgrid = 100, nvgrid = 100, nboot = 500,  seed = NULL) {
+                               tau = NULL, tband = NULL, hband = NULL, a = NULL, b = NULL, ntgrid = NULL, nvgrid = 100, nboot = 500,  seed = NULL) {
 
 
 
@@ -308,8 +317,13 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
   #*****************************************************************************
 
   # Set up the smoothing parameters
-  tstep <- tau / as.numeric(ntgrid)
-  vstep <- 1 / as.numeric(nvgrid)
+  if(!is.null(ntgrid)){
+    tstep <- tau/ntgrid
+  }else{
+    tstep <- tau/100
+  }
+
+  vstep <- 1 /nvgrid
   iskip <- a0 / vstep
 
   # Epanechnikov kernel has squared integral = 3/5 !
@@ -638,8 +652,13 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
   SigmaInv <- array(0, dim = c(ncov, ncov,nvgrid))
  
   # baseline hazard functions:
-  Lamktv0 <- array(0, dim = c(kk, ntgrid, nvgrid))
-
+  if(!is.null(ntgrid)){
+    Lamktv0 <- array(0, dim = c(kk, ntgrid, nvgrid))
+    estBaseLamInd <- 1
+  }else{
+    estBaseLamInd <- 0
+  }
+ 
   #VE
   veest <- NULL
 
@@ -666,12 +685,21 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
 
 
     # The inverse probability weighted estimator: ipw
-
-    ipwfit <- estpipwcplusplus(tau, kk, nsamp, tband, ncov, time, covart, censor, deltak, wght, betacom[,ispot])
-
+    #browser()
+    ipwfit <- estpipwcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp, 
+                                ncov, time, covart, censor, deltak, wght, betacom[,ispot],
+                               ifelse(estBaseLamInd ==1 & missmethod == "IPW", 1, 0))
+    # ipwfit <- estpipwcplusplus(tau, kk, nsamp, tband,
+    #                            ncov, time, covart, censor, deltak, wght, betacom[,ispot])
+    # 
     betaipw[,ispot] <- ipwfit$BETA
     seipw[,ispot] <- sqrt(diag(ipwfit$var))
     LAMBDA0ipw[,,ispot] <- ipwfit$LAMBDA0
+    
+    # calculate the baseline hazard functions: ifelse(estBaseLamInd ==1 & missmethod == "IPW", 1, 0)
+    # if(estBaseLamInd ==1 & missmethod == "IPW"){
+    #   Lamktv0[, , ispot] <- ipwfit$LAMBDAk0
+    # }
   }
 
 
@@ -707,8 +735,8 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
           }
 
           #the original fortran code had LAMBDA0 for nvgrid only
-          LAMBDAIPW[ks, valid_indices, ispot] <- LAMBDA0ipw[ks, valid_indices,ispot] * exp(BZIPW[valid_indices,1])
-          CLAMBDAIPW[ks, valid_indices] <- CLAMBDAIPW[ks, valid_indices] + LAMBDA0ipw[ks, valid_indices,ispot] * exp(BZIPW[valid_indices,1]) * G[ks,valid_indices,ispot]*vstep
+          LAMBDAIPW[ks, valid_indices, ispot] <- LAMBDA0ipw[ks, valid_indices,nvgrid] * exp(BZIPW[valid_indices,1])
+          CLAMBDAIPW[ks, valid_indices] <- CLAMBDAIPW[ks, valid_indices] + LAMBDA0ipw[ks, valid_indices,nvgrid] * exp(BZIPW[valid_indices,1]) * G[ks,valid_indices,ispot]*vstep
         }
       }
     }
@@ -751,11 +779,13 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
 
       # initial value
       betaaug0 <- betaipw[, ispot]
-      estpaug_result = estpaugcplusplus(tau, tstep, ntgrid, tband, kk, nsamp, ncov, time, covart, censor, deltak, wght, DRHOipw, betaaug0)
+      estpaug_result = estpaugcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp, ncov, time, covart, 
+                                        censor, deltak, wght, DRHOipw, betaaug0, 
+                                        ifelse(estBaseLamInd ==1 & missmethod %in% c("AIPW", "CC"), 1, 0))
       betaaug[, ispot] <- estpaug_result$BETA
       seaug[, ispot] <- sqrt(diag(estpaug_result$var))
 
-
+      #browser()
 
       if (ispot >= iskip & ispot > 1) {
         # calculate cumulative beta_1(v):
@@ -770,7 +800,11 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
 
       
       # calculate the baseline hazard functions:
-      Lamktv0[, , ispot] <- estpaug_result$LAMBDAk0
+      if(estBaseLamInd ==1 & missmethod %in% c("AIPW", "CC")){
+        Lamktv0[, , ispot] <- estpaug_result$LAMBDAk0
+      }
+      
+      
       LAMBDA0aug <- estpaug_result$LAMBDA0
       # CALCULATE CLAMBDA(KS,I)= $\int_0^1 \lambda_k(t,u|z) h_k(a|t,u,z) du$ AT $W_{ki}=(T_{ki},Z_{ki})$:
       for (ks in 1:kk) {
@@ -1115,20 +1149,37 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
                            "seaug" = seaug[1,])
     }
     colnames(estBeta) <- c("mark", "beta", "se")
-    out <- list("cBproc1" = cBproc1.df[,-2],
-                "cBproc2" = cBproc2.df[,-2],
-                "H10" = ans10,
-                "H20" = ans20,
-                # "estBetadebug" = data.frame("mark" = markgrid_original_scale,
-                #                             "betacom" = t(betacom),
-                #                             "secom" = t(secom),
-                #                             "betaipw" = t(betaipw),
-                #                             "seipw" = t(seipw),
-                #                             "betaaug" = t(betaaug),
-                #                             "seaug" = t(seaug)),
-                "estBeta" = estBeta
-                
-                )
+    if(estBaseLamInd == 1){
+      out <- list("cBproc1" = cBproc1.df[,-2],
+                  "cBproc2" = cBproc2.df[,-2],
+                  "H10" = ans10,
+                  "H20" = ans20,
+                  "estBetadebug" = data.frame("mark" = markgrid_original_scale,
+                                              "betacom" = t(betacom),
+                                              "secom" = t(secom),
+                                              "betaipw" = t(betaipw),
+                                              "seipw" = t(seipw),
+                                              "betaaug" = t(betaaug),
+                                              "seaug" = t(seaug)),
+                  "estBeta" = estBeta,
+                  "Lambda0" = Lamktv0
+      )
+    }else{
+      out <- list("cBproc1" = cBproc1.df[,-2],
+                  "cBproc2" = cBproc2.df[,-2],
+                  "H10" = ans10,
+                  "H20" = ans20,
+                  "estBeta" = estBeta,
+                  "estBetadebug" = data.frame("mark" = markgrid_original_scale,
+                                              "betacom" = t(betacom),
+                                              "secom" = t(secom),
+                                              "betaipw" = t(betaipw),
+                                              "seipw" = t(seipw),
+                                              "betaaug" = t(betaaug),
+                                              "seaug" = t(seaug))
+      )
+    }
+    
     class(out) <- "kernel_sievePH"
     return(out)
 
