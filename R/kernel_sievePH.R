@@ -685,7 +685,6 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
 
 
     # The inverse probability weighted estimator: ipw
-    #browser()
     ipwfit <- estpipwcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp, 
                                 ncov, time, covart, censor, deltak, wght, betacom[,ispot],
                                ifelse(estBaseLamInd ==1 & missmethod == "IPW", 1, 0))
@@ -735,8 +734,8 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
           }
 
           #the original fortran code had LAMBDA0 for nvgrid only
-          LAMBDAIPW[ks, valid_indices, ispot] <- LAMBDA0ipw[ks, valid_indices,nvgrid] * exp(BZIPW[valid_indices,1])
-          CLAMBDAIPW[ks, valid_indices] <- CLAMBDAIPW[ks, valid_indices] + LAMBDA0ipw[ks, valid_indices,nvgrid] * exp(BZIPW[valid_indices,1]) * G[ks,valid_indices,ispot]*vstep
+          LAMBDAIPW[ks, valid_indices, ispot] <- LAMBDA0ipw[ks, valid_indices,ispot] * exp(BZIPW[valid_indices,1])
+          CLAMBDAIPW[ks, valid_indices] <- CLAMBDAIPW[ks, valid_indices] + LAMBDA0ipw[ks, valid_indices,ispot] * exp(BZIPW[valid_indices,1]) * G[ks,valid_indices,ispot]*vstep
         }
       }
     }
