@@ -16,7 +16,7 @@ double Epankercplusplus(double tk, double tvalue, double hband, double delt) {
 
 
 // [[Rcpp::export]]
-Rcpp::List estpcomcplusplus(double tau, int KK, arma::ivec N, int NP,
+Rcpp::List estpcomcplusplus(double tau,int KK, arma::ivec N, int NP,
                    arma::mat X, arma::cube ZT, arma::mat DELTA,
                    arma::mat WGHT, arma::vec BETA0) {
   const int mxn = max(N);
@@ -30,7 +30,7 @@ Rcpp::List estpcomcplusplus(double tau, int KK, arma::ivec N, int NP,
   arma::vec BETA(NP);
   arma::mat F(NP, NP, arma::fill::zeros);
   arma::mat var(NP, NP, arma::fill::zeros);
-
+ 
   int KL = 6;
   for(int j = 0; j < NP; j++){
     BETA(j) = BETA0(j);
@@ -103,7 +103,7 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
   const int mxn = max(N);
 
   arma::mat BZt(mxn, 1, arma::fill::zeros);
-  arma::mat S0(mxn, 1, arma::fill::zeros);
+  arma::mat S0(KK, mxn, arma::fill::zeros);
   arma::mat S1(NP, mxn, arma::fill::zeros);
   arma::mat S2(NP, NP, arma::fill::zeros);
   arma::vec U(NP, arma::fill::zeros);
@@ -125,7 +125,7 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
     F.zeros();
     F2.zeros();
     U.zeros();
-
+    S0.zeros();
     for (int ks = 0; ks < KK; ks++) {
       for (int i = 0; i < N(ks); i++) {
         BZt(i, 0) = 0.0;
@@ -136,13 +136,13 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
 
       for (int i = 0; i < N(ks); i++) {
         if (X(ks, i) <= tau) {
-          S0(i, 0) = 0.0;
+          S0(ks, i) = 0.0;
           S1.col(i).zeros();
           S2.zeros();
 
           for (int l = 0; l < N(ks); l++) {
             if (X(ks, l) >= X(ks, i)) {
-              S0(i, 0) += exp(BZt(l, 0)) * WGHT(ks, l);
+              S0(ks, i) += exp(BZt(l, 0)) * WGHT(ks, l);
 
               for (int j = 0; j < NP; j++) {
                 S1(j, i) += exp(BZt(l, 0)) * ZT(ks, j, l) * WGHT(ks, l);
@@ -154,13 +154,13 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
             }
           }
 
-          if (S0(i, 0) > 0.00000001) {
+          if (S0(ks, i) > 0.00000001) {
             for (int j = 0; j < NP; j++) {
-              U(j) += DELTA(ks, i) * (ZT(ks, j, i) - S1(j, i) / S0(i, 0)) * WGHT(ks, i);
+              U(j) += DELTA(ks, i) * (ZT(ks, j, i) - S1(j, i) / S0(ks, i)) * WGHT(ks, i);
 
               for (int k = 0; k < NP; k++) {
-                F(j, k) += DELTA(ks, i) * (S2(j, k) / S0(i, 0) - S1(j, i) * S1(k, i) / pow(S0(i, 0), 2)) * WGHT(ks, i);
-                F2(j, k) += pow(DELTA(ks, i), 2) * (ZT(ks, j, i) - S1(j, i) / S0(i, 0)) * (ZT(ks, k, i) - S1(k, i) / S0(i, 0)) * pow(WGHT(ks, i), 2);
+                F(j, k) += DELTA(ks, i) * (S2(j, k) / S0(ks, i) - S1(j, i) * S1(k, i) / pow(S0(ks, i), 2)) * WGHT(ks, i);
+                F2(j, k) += pow(DELTA(ks, i), 2) * (ZT(ks, j, i) - S1(j, i) / S0(ks, i)) * (ZT(ks, k, i) - S1(k, i) / S0(ks, i)) * pow(WGHT(ks, i), 2);
               }
             }
           }
@@ -171,8 +171,8 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
         for (int i = 0; i < N(ks); i++) {
           double TEMPB = 0.0;
           for (int ii = 0; ii < N(ks); ii++) {
-            if (X(ks, ii) <= tau && S0(ii, 0) > 0.00000001) {
-              TEMPB += Epankercplusplus(X(ks, ii), X(ks, i), TBAND, CENSOR(ks, ii)) * DELTA(ks, ii) * WGHT(ks, ii) / S0(ii, 0);
+            if (X(ks, ii) <= tau && S0(ks, ii) > 0.00000001) {
+              TEMPB += Epankercplusplus(X(ks, ii), X(ks, i), TBAND, CENSOR(ks, ii)) * DELTA(ks, ii) * WGHT(ks, ii) / S0(ks, ii);
             }
           }
           LAMBDA0(ks, i) = TEMPB;
@@ -192,8 +192,8 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
         double tvalue = tstep * Itgrid;
         double TEMPB = 0.0;
         for (int ii = 0; ii < N(ks); ii++) {
-          if (X(ks, ii) <= tau && S0(ii,0) > 0.00000001) {
-              TEMPB += Epankercplusplus(X(ks, ii), tvalue, TBAND, CENSOR(ks, ii)) * (DELTA(ks, ii)*WGHT(ks, ii)/ S0(ii,0));
+          if (X(ks, ii) <= tau && S0(ks,ii) > 0.00000001) {
+              TEMPB += Epankercplusplus(X(ks, ii), tvalue, TBAND, CENSOR(ks, ii)) * (DELTA(ks, ii)*WGHT(ks, ii)/ S0(ks,ii));
           }
         }
         LAMBDAk0(ks, Itgrid - 1) = TEMPB;

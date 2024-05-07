@@ -217,7 +217,7 @@ NULL
 #' # also, no auxiliary covariate is needed
 #' fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx,
 #'                       missmethod = "CC", tau = 3, tband = 0.5, hband = 0.3,
-#'                       a = 0.1, b = 1, nvgrid = 20, nboot = 50)
+#'                       a = 0.1, b = 1, nvgrid = 20, nboot = 50, seed = 1)
 #' }
 #'
 #' @importFrom plyr laply
@@ -556,8 +556,6 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
     }
     
   }
-  # # Get maximum sample size across all strata
-  n_max <- max(nsamp)
   # Compute cenG; the logistic regression is only based on cases with observed marks
   cenG <- censor * R
   
@@ -652,8 +650,8 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
   SigmaInv <- array(0, dim = c(ncov, ncov,nvgrid))
  
   # baseline hazard functions:
+  Lamktv0 <- array(0, dim = c(kk, ifelse(is.null(ntgrid), 1, ntgrid), nvgrid))
   if(!is.null(ntgrid)){
-    Lamktv0 <- array(0, dim = c(kk, ntgrid, nvgrid))
     estBaseLamInd <- 1
   }else{
     estBaseLamInd <- 0
@@ -694,11 +692,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
     betaipw[,ispot] <- ipwfit$BETA
     seipw[,ispot] <- sqrt(diag(ipwfit$var))
     LAMBDA0ipw[,,ispot] <- ipwfit$LAMBDA0
-    
-    # calculate the baseline hazard functions: ifelse(estBaseLamInd ==1 & missmethod == "IPW", 1, 0)
-    # if(estBaseLamInd ==1 & missmethod == "IPW"){
-    #   Lamktv0[, , ispot] <- ipwfit$LAMBDAk0
-    # }
+    Lamktv0[, , ispot] <- ipwfit$LAMBDAk0
   }
 
 
@@ -744,7 +738,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
 ########################################################
 # CALCULATE CKLAMBDA(KS,I, u)= $ K_h(u-v) \lambda_k(t,u|z) h_k(a|t,u,z) du$ AT $W_{ki}=(T_{ki},Z_{ki})$:
 # K_h(u-v)du is
-#DRHOipw is the derivative of rho_k^{ipw}(v,w_i) w.r.t v in equation 12. I don't understand why kernel-matrix needs to be in the calculation for CKLAMBDAIPW
+#DRHOipw is the derivative of rho_k^{ipw}(v,w_i) w.r.t v in equation 12. 
     CKLAMBDAIPW <- array(0, dim = c(kk, max(nsamp),nvgrid))
     for (ks in 1:kk) {
       for (i in 1:nsamp[ks]) {
@@ -796,12 +790,8 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
       # Inverse matrix of information matrix:
       betaofv[, ispot] <- betaaug[, ispot]
       SigmaInv[, , ispot] <- estpaug_result$F
-
-      
       # calculate the baseline hazard functions:
-      if(estBaseLamInd ==1 & missmethod %in% c("AIPW", "CC")){
-        Lamktv0[, , ispot] <- estpaug_result$LAMBDAk0
-      }
+      Lamktv0[, , ispot] <- estpaug_result$LAMBDAk0
       
       
       LAMBDA0aug <- estpaug_result$LAMBDA0
@@ -819,26 +809,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
         LAMBDAUG[ks, valid_indices, ispot] <- LAMBDA0aug[ks, valid_indices] * exp(BZaug)
         CLAMBDAUG[ks, valid_indices] <- CLAMBDAUG[ks, valid_indices] + G[ks, valid_indices, ispot] * LAMBDA0aug[ks, valid_indices] * exp(BZaug) * vstep
       }
-
-      # # estimate of VE(v):
-      # veest[ispot] <- 1 - exp(betaaug[1, ispot])
-      # 
-      # # One estimate of s.e. of \hat VE(v):
-      # vese[ispot] <- seaug[1, ispot] * exp(betaaug[1, ispot])
-
-
     }
-    # # 95% confidence interval for beta1(v):
-    # cv_confLevel <- qnorm(1-(1-confLevel)/2)
-    # beta1lw=betaaug[1,]-cv_confLevel*seaug[1,]
-    # beta1up=betaaug[1,]+cv_confLevel*seaug[1,]
-    # markgrid <- (1:nvgrid) * vstep
-    # velw <- 1-exp(beta1up)
-    # veup <- 1-exp(beta1lw)
-    # te <- data.frame("mark" = markgrid*(mx-mn)+mn, "TE" = veest,"SE" = vese, "LB" = velw, "UB" = veup)
-
-
-
 
     # **************************************************************************
     # calculate the quantities needed for GDIST2N
@@ -874,9 +845,6 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
 
         tempaug[ks,1:nsamp[kk], ispot] <- temp1 + temp2
       }
-
-
-
     }
 
 #############################################
@@ -887,14 +855,11 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
       for (ks in 1:kk) {
         # for time independent covariates
         BZt <- matrix(0, nrow = nsamp[ks], ncol = 1)
-
         if(ncov==1){
           BZt[1:nsamp[ks],1] <- as.matrix(covart[ks, , 1:nsamp[ks]] * betaofv[1, ispot], ncol = 1)
-
         }else{
           BZt <- t(covart[ks, , 1:nsamp[ks]]) %*% betaofv[, ispot]
         }
-
 
         S0 <- rep(0, nsamp[ks])
         S1 <- matrix(0, nrow = ncov, ncol = nsamp[ks])
@@ -950,13 +915,6 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
 
     CUMB1x[iskip:nvgrid] <- CUMB1x[iskip:nvgrid] / nboot
     CUMB1se[iskip:nvgrid] <- sqrt((CUMB1se[iskip:nvgrid] - (CUMB1x[iskip:nvgrid])^2.0 * nboot) / nboot)
-    # do ispot=iskip,nvgrid
-    # for (ispot in iskip:nvgrid) {
-    #   # bootstrap standard error of the IPWA estimator $\hat B_1(v)-B_1(v)$:
-    #   CUMB1x[ispot] <- CUMB1x[ispot] / nboot
-    #   CUMB1se[ispot] <- sqrt((CUMB1se[ispot] - (CUMB1x[ispot])^2.0 * nboot) / nboot)
-    # }
-
 
     # **************************************************************
     # This data application version is different from the simulation
