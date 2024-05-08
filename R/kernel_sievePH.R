@@ -619,21 +619,9 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
   # the end of calculating G(ks,i,ispot).
   # AUXILIARY CODE
 
-  # library(survival)
-  # phfit <- summary(coxph(Surv(time[1,], censor[1,])~trt))
   coxfit <- estpvry (tau, kk, nsamp, ncov, time, covart, censor)
   betacox <- coxfit$BETA
   varcox <- coxfit$var
-
-
-  # Estimate of s.e. of beta:
-  seph <- sqrt(varcox[1, 1])
-
-  # Wald test for beta=0:
-  Tw <- betacox[1] / seph
-
-  # uniker is (1/h)K((t_k-t)/h) delta where K is uniform kernel
-  # normker is (1/h)K((t_k-t)/h) delta where K is normal kernel
 
   betacom <- matrix(0,ncol = nvgrid,nrow = ncov)
   secom <- matrix(0,ncol = nvgrid,nrow = ncov)
@@ -667,7 +655,6 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
   for (ispot in 1:nvgrid) {
     vspot <- ispot * vstep
     deltak <- matrix(0,nrow = kk, ncol = max(nsamp))
-    #function(tk, tvalue, hband, delt)
     for(ks in 1:kk){
       deltak[ks,] <- Epanker(markm[ks,], vspot, hband, censor[ks,])
     }
@@ -686,9 +673,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
     ipwfit <- estpipwcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp, 
                                 ncov, time, covart, censor, deltak, wght, betacom[,ispot],
                                ifelse(estBaseLamInd ==1 & missmethod == "IPW", 1, 0))
-    # ipwfit <- estpipwcplusplus(tau, kk, nsamp, tband,
-    #                            ncov, time, covart, censor, deltak, wght, betacom[,ispot])
-    # 
+
     betaipw[,ispot] <- ipwfit$BETA
     seipw[,ispot] <- sqrt(diag(ipwfit$var))
     LAMBDA0ipw[,,ispot] <- ipwfit$LAMBDA0
@@ -738,7 +723,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = 
 ########################################################
 # CALCULATE CKLAMBDA(KS,I, u)= $ K_h(u-v) \lambda_k(t,u|z) h_k(a|t,u,z) du$ AT $W_{ki}=(T_{ki},Z_{ki})$:
 # K_h(u-v)du is
-#DRHOipw is the derivative of rho_k^{ipw}(v,w_i) w.r.t v in equation 12. 
+#DRHOipw is the derivative of rho_k^{ipw}(v,w_i) w.r.t v in equation 10. 
     CKLAMBDAIPW <- array(0, dim = c(kk, max(nsamp),nvgrid))
     for (ks in 1:kk) {
       for (i in 1:nsamp[ks]) {
@@ -1311,5 +1296,16 @@ EpankerV <- function(tk, tvalue, hband, delt) {
   return(result)
 }
 
-
+bz <- function(covart, beta, ncov, ks, valid_indices, ispot, nsamp){
+  if(ncov==1){
+    ans <- NULL
+    ans[valid_indices] <- covart[ks,1 , valid_indices] * beta[1, ispot]
+    ans <- as.matrix(ans, ncol = 1)
+  }else{
+    ans <- array(0, dim = c(max(nsamp),1))
+    ans[valid_indices,1] <- t(covart[ks, , valid_indices]) %*% beta[, ispot] #summing over J
+    
+  }
+  return(ans)
+}
 
