@@ -180,192 +180,146 @@ NULL
 kernel_sievePH_cc <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = NULL, formulaPH = ~ tx, 
                            tau = NULL, tband = NULL, hband = NULL, a = NULL, b = NULL, 
                            ntgrid = NULL, nvgrid = 100, nboot = 500,  seed = NULL) {
-  
- 
-  if(!is.null(seed)){
+  if (!is.null(seed)) {
     set.seed(seed)
   }
-  
-  if(is.null(tau)){
-    tau = max(eventTime)
+  if (is.null(tau)) {
+    tau <- max(eventTime)
+  }else {
+    tau <- tau
+  }
+  if (is.null(tband)) {
+    tband <- (tau - min(eventTime)) / 5
+  }
+  if (is.null(hband)) {
+    hband <- 4 * sqrt(var(mark[eventInd == 1], na.rm = TRUE)) * length(eventInd)^{-1/3}
   }else{
-    tau = tau
+    hband <- hband
   }
-  
-  if(is.null(tband)){
-    tband = (tau-min(eventTime))/5
+  if (is.null(a)) {
+    a <- 1 / nvgrid
   }
-  
-  if(is.null(hband)){
-    hband = 4*sqrt(var(mark[eventInd==1],na.rm = TRUE))*length(eventInd)^{-1/3}
-  }else{
-    hband = hband
-  }
-  
-  if(is.null(a)){
-    a <- 1/nvgrid
-  }
-  if(is.null(b)){
+  if (is.null(b)) {
     b <- 1
   }
   a0 <- a
   b1 <- b
   nsamp <- NULL
   # kk is the number of strata
-  if(is.null(strata)){
-    nsamp[1] = length(eventTime)
+  if (is.null(strata)) {
+    nsamp[1] <- length(eventTime)
     kk <- 1
   }else{
     stratum <- unique(strata)
     kk <- length(stratum)
-    for(i in 1:kk){
+    for (i in 1:kk) {
       nsamp[i] <- sum(strata == stratum[i])
     }
   }
-  
-
   ekconst <- 3/5
-  
   # The code inputs mark on its own scale, and re-scales it to 0-1 before doing the analysis.
   vV <- mark
   mn <- min(mark, na.rm = TRUE) #minimum observed mark value
   mx <- max(mark, na.rm = TRUE) #maximum observed mark value
   # Put the marks on the scale 0 to 1:
-  vV <- (mark - mn)/(mx-mn)
- 
-  rinfect1 <- sum(eventInd>=0.5 & tx >=0.5)
-  rinfect0 <- sum(eventInd>=0.5 & tx < 0.5)
-  
+  vV <- (mark - mn) / (mx - mn)
   #total sample
   nsampa <- sum(nsamp)
-  rnsamp = nsampa
+  rnsamp <- nsampa
   #*****************************************************************************
   #                      Set up the smoothing parameters
   #
   #*****************************************************************************
-  
   # Set up the smoothing parameters
-  if(!is.null(ntgrid)){
-    tstep <- tau/ntgrid
-  }else{
-    tstep <- tau/100
+  if (!is.null(ntgrid)) {
+    tstep <- tau / ntgrid
+  }else {
+    tstep <- tau / 100
   }
-  
-  vstep <- 1 /nvgrid
+  vstep <- 1 / nvgrid
   iskip <- a0 / vstep
-  
   # Epanechnikov kernel has squared integral = 3/5 !
-  ekconst <- 3/5
-  
-  # calculate the test statistics for H_{10}:VE(v)=0 for v over [a1,b1], 0<a1<b1=<1
-  # calculate the test statistics for H_{20}:VE(v)=VE for v over [a2,b1], a2>a1 >=a0
-  
+  ekconst <- 3 / 5 
   a1 <- a0 + vstep
-  # a1 = a' in Gilbert and Sun (2014, figure 3 caption)
   a2 <- a1 + 2 * vstep
-  
- 
   # Read data into the designed variables
   sumdelta <- 0
   Rsum <- 0
-  
   time <- matrix(0, nrow = kk, ncol = max(nsamp))
   txm <- matrix(0, nrow = kk, ncol = max(nsamp))
   censor <- matrix(0, nrow = kk, ncol = max(nsamp))
   markm <- matrix(0, nrow = kk, ncol = max(nsamp))
   R <- matrix(0, nrow = kk, ncol = max(nsamp))
-  
-  if(!is.null(zcov)){
-    dimz = dim(zcov)[2]
+  if (!is.null(zcov)) {
+    dimz <- dim(zcov)[2]
     zcovkk <- array(0, dim = c(kk, dimz, max(nsamp)))
   }
-  
   formulaPHDecomp <- strsplit(strsplit(paste(deparse(formulaPH), collapse = ""), " *[~] *")[[1]], " *[+] *")[[2]]
   formulaPHNew <- as.formula(paste0("eventTime ~ ", paste(formulaPHDecomp, collapse="+")))
   #number of covariates
   ncov <- length(formulaPHDecomp)
-  if(!is.null(zcov)){
+  if (!is.null(zcov)) {
     availablePHdf <- data.frame(cbind(tx, zcov))
-    colnames(availablePHdf) = c("tx", colnames(zcov))
-  }else{
+    colnames(availablePHdf) <- c("tx", colnames(zcov))
+  }else {
     availablePHdf <- data.frame("tx" = tx)
-    if(ncov >1) {stop("covariates are missing")}
+    if(ncov > 1) {stop("covariates are missing")}
   }
-  
   mfPH <- model.frame(formulaPHNew, availablePHdf)
   #Cox PH regression excludes the intercept
-  covartPH<- model.matrix(terms(formulaPHNew), mfPH)[,-1]
-  covart <- array(0,dim = c(kk, ncov, max(nsamp)))
-  
-  if(kk == 1){
+  covartPH <- model.matrix(terms(formulaPHNew), mfPH)[, -1]
+  covart <- array(0, dim = c(kk, ncov, max(nsamp)))
+  if (kk == 1) {
     n_ks <- nsamp[1]
-    ks = 1
-    if(ncov == 1){
+    ks <- 1
+    if (ncov == 1) {
       covart[ks, 1:ncov, 1:n_ks] <- covartPH[1:n_ks]
-    }else{
+    }else {
       covart[ks, 1:ncov, 1:n_ks] <- t(covartPH[1:n_ks, 1:ncov])
     }
-    
-    if(!is.null(zcov)){
-      zcovkk[ks, 1:dimz, 1:n_ks] <- t(zcov[1:n_ks,1:dimz])
+    if (!is.null(zcov)) {
+      zcovkk[ks, 1:dimz, 1:n_ks] <- t(zcov[1:n_ks, 1:dimz])
     }
-    
     time[ks, 1:n_ks] <- eventTime[1:n_ks]
     censor[ks, 1:n_ks] <- eventInd[1:n_ks]
     txm[ks, 1:n_ks] <- tx[1:n_ks]
     markm[ks, 1:n_ks] <- vV[1:n_ks]
-   
   }else{
     for (ks in 1:kk) {
       n_ks <- nsamp[ks]
       indice_ks <- (strata == stratum[ks])
       if(ncov == 1){
         covart[ks, 1:ncov, 1:n_ks] <- covartPH[indice_ks]
-      }else{
+      }else {
         covart[ks, 1:ncov, 1:n_ks] <- t(covartPH[indice_ks, 1:ncov])
       }
-      
-      if(!is.null(zcov)){
-        zcovkk[ks, 1:dimz, 1:n_ks] <- t(zcov[indice_ks,1:dimz])
+      if (!is.null(zcov)) {
+        zcovkk[ks, 1:dimz, 1:n_ks] <- t(zcov[indice_ks, 1:dimz])
       }
-      
       time[ks, 1:n_ks] <- eventTime[indice_ks]
       censor[ks, 1:n_ks] <- eventInd[indice_ks]
       markm[ks, 1:n_ks] <- vV[indice_ks]
-      txm[ks,1:n_ks] <- tx[indice_ks]
+      txm[ks, 1:n_ks] <- tx[indice_ks]
     }
   }
-  
-
   n_max <- max(nsamp)
   R <- matrix(1, nrow = kk, ncol = n_max)
   wght <- R
   G <- array(1, dim = c(kk, n_max, nvgrid))
-  
   # Calculate sumdelta and Rsum
   sumdelta <- sum(censor)
   Rsum <- sum(R * censor)
-  
   coxfit <- estpvry (tau, kk, nsamp, ncov, time, covart, censor)
   betacox <- coxfit$BETA
   varcox <- coxfit$var
-
-  # # Estimate of s.e. of beta:
-  # seph <- sqrt(varcox[1, 1])
-  # 
-  # # Wald test for beta=0:
-  # Tw <- betacox[1] / seph
-  # 
-  betacom <- matrix(0,ncol = nvgrid,nrow = ncov)
-  secom <- matrix(0,ncol = nvgrid,nrow = ncov)
+  betacom <- matrix(0, ncol = nvgrid, nrow = ncov)
+  secom <- matrix(0, ncol = nvgrid, nrow = ncov)
   LAMBDA0com <- array(0, dim = c(kk, max(nsamp), nvgrid))
- 
   betaofv <- array(0, dim = c(ncov, nvgrid))
-  SigmaInv <- array(0, dim = c(ncov, ncov,nvgrid))
-  
+  SigmaInv <- array(0, dim = c(ncov, ncov, nvgrid))
   # baseline hazard functions:
   Lamktv0 <- array(0, dim = c(kk, ifelse(is.null(ntgrid), 1, ntgrid), nvgrid))
-  if(!is.null(ntgrid)){
+  if (!is.null(ntgrid)) {
     estBaseLamInd <- 1
   }else{
     estBaseLamInd <- 0
@@ -375,55 +329,45 @@ kernel_sievePH_cc <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata
   CUMB1 <- rep(0,nvgrid)
   for (ispot in 1:nvgrid) {
     vspot <- ispot * vstep
-    deltak <- matrix(0,nrow = kk, ncol = max(nsamp))
-    for(ks in 1:kk){
-      deltak[ks,] <- Epanker(markm[ks,], vspot, hband, censor[ks,])
+    deltak <- matrix(0, nrow = kk, ncol = max(nsamp))
+    for (ks in 1:kk) {
+      deltak[ks, ] <- Epanker(markm[ks, ], vspot, hband, censor[ks, ])
     }
-    
     # Complete data likelihood estimator: specify weight to be R
     comfit <- estpipwcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp, 
                                ncov, time, covart, censor, deltak, R, betacox,
-                               ifelse(estBaseLamInd ==1, 1, 0))
-      
-    betacom[,ispot] <- comfit$BETA
-    secom[,ispot] <- sqrt(diag(comfit$var))
-    
+                               ifelse(estBaseLamInd == 1, 1, 0))
+    betacom[, ispot] <- comfit$BETA
+    secom[, ispot] <- sqrt(diag(comfit$var))
     betaofv[, ispot] <- betacom[, ispot]
     SigmaInv[, , ispot] <- comfit$F
-    
-    LAMBDA0com[,,ispot] <- comfit$LAMBDA0
-    
+    LAMBDA0com[, , ispot] <- comfit$LAMBDA0
     if (ispot >= iskip & ispot > 1) {
       # calculate cumulative beta_1(v):
       CUMB1[ispot] <- CUMB1[ispot - 1] + betacom[1, ispot] * vstep
     }else if(ispot >= iskip & ispot == 1){
       CUMB1[ispot] <- betacom[1, ispot] * vstep
     }
-    
     # calculate the baseline hazard functions
     Lamktv0[, , ispot] <- comfit$LAMBDAk0
-    
   }
-  
   CLAMBDAcom <- array(0, dim = c(kk, max(nsamp)))
   LAMBDAcom <- array(0, dim = c(kk, max(nsamp), nvgrid))
-  
   for (ispot in 1:nvgrid) {
     vspot <- ispot * vstep
     for (ks in 1:kk) {
       valid_indices <- which((time[ks, 1:nsamp[ks]] <= tau) & (censor[ks,1:nsamp[ks] ] > 0.5))
       if (any(valid_indices)) {
-        if(ncov==1){
+        if (ncov == 1) {
           BZIPW <- NULL
-          BZIPW[valid_indices] <- covart[ks,1 , valid_indices] * betacom[1, ispot]
+          BZIPW[valid_indices] <- covart[ks, 1 , valid_indices] * betacom[1, ispot]
           BZIPW <- as.matrix(BZIPW, ncol = 1)
         }else{
-          BZIPW <- array(0, dim = c(max(nsamp),1))
+          BZIPW <- array(0, dim = c(max(nsamp), 1))
           BZIPW[valid_indices,1] <- t(covart[ks, , valid_indices]) %*% betacom[, ispot] #summing over J
-          
         }
-        LAMBDAcom[ks, valid_indices, ispot] <- LAMBDA0com[ks, valid_indices,ispot] * exp(BZIPW[valid_indices,1])
-        CLAMBDAcom[ks, valid_indices] <- CLAMBDAcom[ks, valid_indices] + LAMBDA0com[ks, valid_indices,ispot] * exp(BZIPW[valid_indices,1])*vstep
+        LAMBDAcom[ks, valid_indices, ispot] <- LAMBDA0com[ks, valid_indices,ispot] * exp(BZIPW[valid_indices, 1])
+        CLAMBDAcom[ks, valid_indices] <- CLAMBDAcom[ks, valid_indices] + LAMBDA0com[ks, valid_indices, ispot] * exp(BZIPW[valid_indices, 1])*vstep
       }
     }
   }
@@ -431,71 +375,56 @@ kernel_sievePH_cc <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata
   # **************************************************************************
   # calculate the quantities needed for GDIST2N
   # **************************************************************************
-  AsigInv <- array(0, dim = c(ncov*ncov, nvgrid, nvgrid))
+  AsigInv <- array(0, dim = c(ncov * ncov, nvgrid, nvgrid))
   tempcom <- array(0, dim = c(kk, max(nsamp), nvgrid))
   for (ispot in iskip:nvgrid) {
-    
     va <- vstep * (ispot - 1.0)
     vb <- vstep * ispot
     vspot <- ispot * vstep
-    
     sigtemp <- matrix(0.0, nrow = ncov, ncol = ncov)
-    for(mspot in iskip:nvgrid){
+    for (mspot in iskip:nvgrid) {
       vmspot <- mspot * vstep
       sigtemp <- sigtemp + SigmaInv[, , mspot] * Epanker(vspot, vmspot, hband, 1.0) * vstep
-      AsigInv[, ispot, mspot] <- as.vector(sigtemp[1:ncov,1:ncov])
+      AsigInv[, ispot, mspot] <- as.vector(sigtemp[1:ncov, 1:ncov])
     }
-    
-    DRHOcom <- matrix(0,nrow = kk, ncol = max(nsamp))
-    for(ks in 1:kk){
-      valid_indices <- which((time[ks,] <= tau) & (censor[ks,] > 0.5) & (CLAMBDAcom[ks,] > 0.00000001))
-      DRHOcom[ks,valid_indices] <- LAMBDAcom[ks,valid_indices, ispot] / CLAMBDAcom[ks,valid_indices]
-      DRHOcom[ks,!valid_indices] <- 0.0
-
-      temp2 <- wght[ks,]
-      temp2[!(time[ks,] <= tau) | !(markm[ks,] > va) | !(markm[ks,] <= vb) | !(censor[ks,] > 0.5)] <- 0.0
-      
-      tempcom[ks,1:nsamp[kk], ispot] <- temp2
+    DRHOcom <- matrix(0, nrow = kk, ncol = max(nsamp))
+    for (ks in 1:kk) {
+      valid_indices <- which((time[ks, ] <= tau) & (censor[ks, ] > 0.5) & (CLAMBDAcom[ks, ] > 0.00000001))
+      DRHOcom[ks, valid_indices] <- LAMBDAcom[ks, valid_indices, ispot] / CLAMBDAcom[ks, valid_indices]
+      DRHOcom[ks, !valid_indices] <- 0.0
+      temp2 <- wght[ks, ]
+      temp2[!(time[ks, ] <= tau) | !(markm[ks, ] > va) | !(markm[ks, ] <= vb) | !(censor[ks, ] > 0.5)] <- 0.0
+      tempcom[ks, 1:nsamp[kk], ispot] <- temp2
     }
-  
   }
   
   #############################################
-  S0N <- array(0,dim = c(kk, max(nsamp),nvgrid))
-  S1N <- array(0,dim = c(kk*ncov, max(nsamp), nvgrid))
-  
+  S0N <- array(0, dim = c(kk, max(nsamp), nvgrid))
+  S1N <- array(0, dim = c(kk * ncov, max(nsamp), nvgrid))
   for (ispot in iskip:nvgrid) {
     for (ks in 1:kk) {
       # for time independent covariates
       BZt <- matrix(0, nrow = nsamp[ks], ncol = 1)
-      
       if(ncov==1){
-        BZt[1:nsamp[ks],1] <- as.matrix(covart[ks, , 1:nsamp[ks]] * betaofv[1, ispot], ncol = 1)
+        BZt[1:nsamp[ks], 1] <- as.matrix(covart[ks, , 1:nsamp[ks]] * betaofv[1, ispot], ncol = 1)
         
       }else{
         BZt <- t(covart[ks, , 1:nsamp[ks]]) %*% betaofv[, ispot]
       }
-      
-      
       S0 <- rep(0, nsamp[ks])
       S1 <- matrix(0, nrow = ncov, ncol = nsamp[ks])
-      
       for (i in 1:nsamp[ks]) {
         valid_indices <- which(time[ks, 1:nsamp[ks]] >= time[ks, i])
-        S0[i] <- sum(exp(BZt[valid_indices,1]))
+        S0[i] <- sum(exp(BZt[valid_indices, 1]))
         for(J in 1:ncov){
-          S1[J,i] <- sum(covart[ks,J , valid_indices]*exp(BZt[valid_indices,1]))
+          S1[J, i] <- sum(covart[ks, J, valid_indices]*exp(BZt[valid_indices, 1]))
         }
       }
-      
-      
       S0N[ks, 1:nsamp[ks], ispot] <- S0
-      arrayseq <- seq((ks-1)*ncov +1, (ks*ncov),1)
-      # browser()
-      for(a in arrayseq){
-        S1N[ a,1:nsamp[ks], ispot] <- S1[a,]
+      arrayseq <- seq((ks-1)*ncov +1, (ks*ncov), 1)
+      for (a in arrayseq) {
+        S1N[a, 1:nsamp[ks], ispot] <- S1[a, ]
       }
-      
     }
   }
   
@@ -516,31 +445,22 @@ kernel_sievePH_cc <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata
     #CUMBDIST is simulated B(v)
     CUMBDIST <- GDIST2Ncplusplus(nvgrid, iskip, zdev, kk, nsamp, ncov, time, covart,
                                  betaofv, SigmaInv, S0N, S1N, tempcom, AsigInv)
-    
     CUMB1x[iskip:nvgrid] <- CUMB1x[iskip:nvgrid] + CUMBDIST[1, iskip:nvgrid]
     CUMB1se[iskip:nvgrid] <- CUMB1se[iskip:nvgrid] + CUMBDIST[1, iskip:nvgrid]^2.0
-    
     BootDist[iboot, ] <- CUMBDIST[1, ]
   }
-  
-  
-  
   CUMB1x[iskip:nvgrid] <- CUMB1x[iskip:nvgrid] / nboot
   CUMB1se[iskip:nvgrid] <- sqrt((CUMB1se[iskip:nvgrid] - (CUMB1x[iskip:nvgrid])^2.0 * nboot) / nboot)
 
   # calculate the test statistics for H_{10}:VE(v)=0 for v over [a1,b1], b1=1
   iskipa1 <- a1 / vstep
   nvgrid1 <- b1 / vstep
-  
   # calculate the test statistics for H_{20}:VE(v)=VE for v over [a2,b1], a2>a1
   iskipa2 <- a2 / vstep
-  
   cBproc1 <- rep(0, nvgrid)
   cBproc2 <- rep(0, nvgrid)
-  
   cBproc1[iskipa1] <- CUMB1[iskipa1] - CUMB1[iskipa1]
   cBproc2[iskipa2] <- (CUMB1[iskipa2] - CUMB1[iskipa1]) / (a2 - a1) - (CUMB1[nvgrid1] - CUMB1[iskipa1]) / (b1 - a1)
-  
   TSUP1 <- abs(cBproc1[iskipa1])
   TSUP1m <- cBproc1[iskipa1]
   TSUP2 <- abs(cBproc2[iskipa2])
@@ -552,7 +472,6 @@ kernel_sievePH_cc <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata
   #browser()
   for (ispot in (iskipa1 + 1):nvgrid1) {
     vspot <- ispot * vstep
-    
     cBproc1[ispot] <- CUMB1[ispot] - CUMB1[iskipa1]
     cBproc2[ispot] <- (CUMB1[ispot] - CUMB1[iskipa1]) / (vspot - a1) - (CUMB1[nvgrid1] - CUMB1[iskipa1]) / (b1 - a1)
     
@@ -678,50 +597,46 @@ kernel_sievePH_cc <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata
   }
   
   Rmiss <- Rsum / sumdelta
-  #browser()
   test10 <- c(TSUP1,TSUP1m, Tint1,Tint1m)
   pvalue10 <- c(TSUP1pv,TSUP1mpv, Tint1pv,Tint1mpv)
   ans10 <- data.frame(rbind(test10,pvalue10))
   colnames(ans10) <- c("TSUP1","TSUP1m", "Tint1","Tint1m")
   rownames(ans10) <- c("Test Statistic", "P-value")
-  
   test20 <- c(TSUP2,TSUP2m, Tint2,Tint2m)
   pvalue20 <- c(TSUP2pv,TSUP2mpv, Tint2pv,Tint2mpv)
   ans20 <- data.frame(rbind(test20,pvalue20))
   colnames(ans20) <- c("TSUP2","TSUP2m", "Tint2","Tint2m")
   rownames(ans20) <- c("Test Statistic", "P-value")
-  
   markgrid <- (1:nvgrid) * vstep
   markgrid_original_scale <- markgrid*(mx-mn)+mn
-  cBproc1.df <- data.frame(cbind(markgrid_original_scale[(iskipa1 + 1):nvgrid],vstep*((iskipa1 + 1):nvgrid),cBproc1[(iskipa1 + 1):nvgrid],cBproc1s[(iskipa1 + 1):nvgrid,]))
-  colnames(cBproc1.df) <- c("Mark", "Standardized mark","Observed", paste0("S", 1:nboot))
-  cBproc2.df <- data.frame(cbind(markgrid_original_scale[(iskipa2):nvgrid],vstep*((iskipa2):nvgrid),cBproc2[iskipa2:nvgrid], cBproc2s[iskipa2:nvgrid, ]))
+  cBproc1.df <- data.frame(cbind(markgrid_original_scale[(iskipa1 + 1):nvgrid], vstep*((iskipa1 + 1):nvgrid), 
+  cBproc1[(iskipa1 + 1):nvgrid], cBproc1s[(iskipa1 + 1):nvgrid,]))
+  colnames(cBproc1.df) <- c("Mark", "Standardized mark", "Observed", paste0("S", 1:nboot))
+  cBproc2.df <- data.frame(cbind(markgrid_original_scale[(iskipa2):nvgrid], vstep*((iskipa2):nvgrid),
+  cBproc2[iskipa2:nvgrid], cBproc2s[iskipa2:nvgrid, ]))
   colnames(cBproc2.df) <- c("Mark", "Standardized mark", "Observed", paste0("S", 1:nboot))
-  #browser()
   estBeta = data.frame("mark" = markgrid_original_scale,
                        "betacom" = betacom[1,],
                        "secom" = secom[1,])
   colnames(estBeta) <- c("mark", "beta", "se")
-  if(estBaseLamInd == 1){
-    out <- list("cBproc1" = cBproc1.df[,-2],
-                "cBproc2" = cBproc2.df[,-2],
+  if (estBaseLamInd == 1) {
+    out <- list("cBproc1" = cBproc1.df[, -2],
+                "cBproc2" = cBproc2.df[, -2],
                 "H10" = ans10,
                 "H20" = ans20,
                 "estBeta" = estBeta,
                 "Lambda0" = Lamktv0
     )
   }else{
-    out <- list("cBproc1" = cBproc1.df[,-2],
-                "cBproc2" = cBproc2.df[,-2],
+    out <- list("cBproc1" = cBproc1.df[, -2],
+                "cBproc2" = cBproc2.df[, -2],
                 "H10" = ans10,
                 "H20" = ans20,
                 "estBeta" = estBeta
     )
   }
-  
   class(out) <- "kernel_sievePH"
   return(out)
-  
 }
 
 
