@@ -75,25 +75,22 @@ NULL
 #'   deviation of the observed marks for uncensored failure times and \eqn{n} is
 #'   the number of subjects in the dataset. Larger bandwidths are recommended
 #'   for higher percentages of missing marks.
-#' @param a a numeric value between 0 and 1 specifying the lower bound of the
-#'   range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
-#'   \eqn{H_{20}: HR(v)} does not depend on \eqn{v}, for \eqn{v \in [a, b]}
-#'   where \eqn{v} represents the standardized mark between 0 and 1; \code{a}
-#'   needs to be \code{1/nvgrid} multiplied by a positive integer. By default,
-#'   \code{a} is set as 1/\code{nvgrid}.
-#' @param b a numeric value between 0 and 1 specifying the upper bound of the
-#'   range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
-#'   \eqn{H_{20}: HR(v)} does not depend on \eqn{v}, for \eqn{v \in [a, b]}
-#'   where \code{v} represents the standardized mark between 0 and 1; \code{b}
-#'   needs to be \code{1/nvgrid} multiplied by a positive integer. By default,
-#'   \code{b} is set as 1.
+#' @param nvgrid an integer value (100 by default) specifying the number of
+#'   equally spaced mark values between the minimum and maximum of the observed
+#'   mark for which the treatment effects are evaluated.
+#' @param a a numeric value between the minimum and maximum of observed mark
+#'   values specifying the lower bound of the range for testing the null
+#'   hypotheses \eqn{H_{10}: HR(v) = 1} and \eqn{H_{20}: HR(v)} does not depend
+#'   on \eqn{v}, for \eqn{v \in [a, b]}; By default, \code{a} is set as
+#'   \code{(max(mark) - min(mark))/nvgrid + min(mark)}.
+#' @param b a numeric value between the minimum and maximum of observed mark
+#'   specifying the upper bound of the range for testing the null hypotheses
+#'   \eqn{H_{10}: HR(v) = 1} and \eqn{H_{20}: HR(v)} does not depend on \eqn{v},
+#'   for \eqn{v \in [a, b]}; By default, \code{b} is set as \eqn{max(mark)}.
 #' @param ntgrid an integer value (\code{NULL} by default) specifying the number
 #'   of equally spaced time points for which the mark-specific baseline hazard
 #'   functions are evaluated. If \code{NULL}, baseline hazard functions are not
 #'   evaluated.
-#' @param nvgrid an integer value (100 by default) specifying the number of
-#'   equally spaced mark values between the minimum and maximum of the observed
-#'   mark for which the treatment effects are evaluated.
 #' @param nboot number of bootstrap iterations (500 by default) for simulating
 #'   the distributions of test statistics. If \code{NULL}, the hypotheses tests
 #'   are not performed.
@@ -207,14 +204,14 @@ NULL
 #' fitaug <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, aux = A, auxType = "binary",
 #'                       formulaMiss = ~ eventTime,
 #'                       formulaAux = ~ eventTime + tx + mark,
-#'                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-#'                       nvgrid = 20, nboot = 20)
+#'                       tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20, a = 0.1, b = 1,
+#'                        nboot = 20)
 #'
 #' @importFrom plyr laply
 #'
 #' @export
 kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = NULL, zcov = NULL, strata = NULL, formulaPH = ~ tx, formulaMiss = NULL, formulaAux = NULL,
-                               tau = NULL, tband = NULL, hband = NULL, a = NULL, b = NULL, ntgrid = NULL, nvgrid = 100, nboot = 500,  seed = NULL) {
+                               tau = NULL, tband = NULL, hband = NULL, nvgrid = 100, a = NULL, b = NULL, ntgrid = NULL, nboot = 500,  seed = NULL) {
 
 
 
@@ -240,14 +237,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
   }else {
     hband <- hband
   } 
-  if (is.null(a)) {
-    a <- 1/nvgrid
-  }
-  if (is.null(b)) {
-    b <- 1
-  }
-  a0 <- a
-  b1 <- b
+
   nsamp <- NULL
   # kk is the number of strata
   if (is.null(strata)) {
@@ -274,6 +264,19 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
   # Put the marks on the scale 0 to 1:
   vV <- (mark - mn) / (mx - mn)
 
+  if (is.null(a)) {
+    a <- 1/nvgrid
+  }else{
+    a <- max(ceiling((a-mn)/mn*nvgrid),1)/nvgrid
+  }
+  if (is.null(b)) {
+    b <- 1
+  }else{
+    b <- min(floor((b-mn)/mn*nvgrid), nvgrid)/nvgrid
+  }
+  a0 <- a
+  b1 <- b
+  
   #total sample
   nsampa <- sum(nsamp)
   rnsamp <- nsampa

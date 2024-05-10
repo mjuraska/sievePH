@@ -16,10 +16,10 @@ kernel_sievePH(
   tau = NULL,
   tband = NULL,
   hband = NULL,
+  nvgrid = 100,
   a = NULL,
   b = NULL,
   ntgrid = NULL,
-  nvgrid = 100,
   nboot = 500,
   seed = NULL
 )
@@ -70,28 +70,25 @@ deviation of the observed marks for uncensored failure times and \eqn{n} is
 the number of subjects in the dataset. Larger bandwidths are recommended
 for higher percentages of missing marks.}
 
-\item{a}{a numeric value between 0 and 1 specifying the lower bound of the
-range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
-\eqn{H_{20}: HR(v)} does not depend on \eqn{v}, for \eqn{v \in [a, b]}
-where \eqn{v} represents the standardized mark between 0 and 1; \code{a}
-needs to be \code{1/nvgrid} multiplied by a positive integer. By default,
-\code{a} is set as 1/\code{nvgrid}.}
+\item{nvgrid}{an integer value (100 by default) specifying the number of
+equally spaced mark values between the minimum and maximum of the observed
+mark for which the treatment effects are evaluated.}
 
-\item{b}{a numeric value between 0 and 1 specifying the upper bound of the
-range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
-\eqn{H_{20}: HR(v)} does not depend on \eqn{v}, for \eqn{v \in [a, b]}
-where \code{v} represents the standardized mark between 0 and 1; \code{b}
-needs to be \code{1/nvgrid} multiplied by a positive integer. By default,
-\code{b} is set as 1.}
+\item{a}{a numeric value between the minimum and maximum of observed mark
+values specifying the lower bound of the range for testing the null
+hypotheses \eqn{H_{10}: HR(v) = 1} and \eqn{H_{20}: HR(v)} does not depend
+on \eqn{v}, for \eqn{v \in [a, b]}; By default, \code{a} is set as
+\code{(max(mark) - min(mark))/nvgrid + min(mark)}.}
+
+\item{b}{a numeric value between the minimum and maximum of observed mark
+specifying the upper bound of the range for testing the null hypotheses
+\eqn{H_{10}: HR(v) = 1} and \eqn{H_{20}: HR(v)} does not depend on \eqn{v},
+for \eqn{v \in [a, b]}; By default, \code{b} is set as \eqn{max(mark)}.}
 
 \item{ntgrid}{an integer value (\code{NULL} by default) specifying the number
 of equally spaced time points for which the mark-specific baseline hazard
 functions are evaluated. If \code{NULL}, baseline hazard functions are not
 evaluated.}
-
-\item{nvgrid}{an integer value (100 by default) specifying the number of
-equally spaced mark values between the minimum and maximum of the observed
-mark for which the treatment effects are evaluated.}
 
 \item{nboot}{number of bootstrap iterations (500 by default) for simulating
 the distributions of test statistics. If \code{NULL}, the hypotheses tests
@@ -199,7 +196,7 @@ mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 # complete-case estimation discards rows with a missing mark;
 # also, no auxiliary covariate is needed
 fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5, 
-                          hband = 0.3, a = 0.1, b = 1, nvgrid = 20, nboot = 20)
+                          hband = 0.3, nvgrid = 20, a = 0.1, b = 1, nboot = 20)
 
 }
 \references{
