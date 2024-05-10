@@ -3,21 +3,16 @@
 \name{kernel_sievePH}
 \alias{kernel_sievePH}
 \title{Nonparametric Kernel-Smoothed Stratified Mark-Specific Proportional Hazards
-Model with a Univariate Continuous Mark, Missing-at-Random in Some Failures}
+Model with a Univariate Continuous Mark, Fully Observed in All Failures.}
 \usage{
 kernel_sievePH(
   eventTime,
   eventInd,
   mark,
   tx,
-  aux = NULL,
-  auxType = NULL,
   zcov = NULL,
   strata = NULL,
-  missmethod,
   formulaPH = ~tx,
-  formulaMiss = NULL,
-  formulaAux = NULL,
   tau = NULL,
   tband = NULL,
   hband = NULL,
@@ -36,28 +31,13 @@ event time.}
 \item{eventInd}{a numeric vector indicating the event of interest (1 if
 event, 0 if right-censored).}
 
-\item{mark}{a numeric vector specifying a univariate continuous mark subject
-to missingness at random. Missing mark values should be set to \code{NA}.
-For subjects with \code{eventInd = 0}, the value in \code{mark} should also
-be set to \code{NA}.}
+\item{mark}{a numeric vector specifying a univariate continuous mark. No
+missing values are permitted for subjects with \code{eventInd = 1}. For
+subjects with \code{eventInd = 0}, the value(s) in \code{mark} should be
+set to \code{NA}.}
 
 \item{tx}{a numeric vector indicating the treatment group (1 if treatment, 0
 if placebo).}
-
-\item{aux}{a numeric vector specifying a binary or a continuous auxiliary
-covariate which may be potentially useful for predicting missingness, i.e,
-the probability of missing, and for informing about the distribution of
-missing marks.  \code{aux} may be specified when the \code{AIPW} or
-\code{IPW} estimation procedure is employed. The mark missingness model
-only requires that the auxiliary covariates be observed in subjects
-who experienced the event of interest. For subjects with \code{eventInd =
-0}, the value in \code{aux} may be set to \code{NA}. If no auxiliary
-covariate is used, set \code{aux} to the default of \code{NULL}.}
-
-\item{auxType}{a character string describing the data type of \code{aux} if
-\code{aux} is used. Data types allowed include "binary" and "continuous".
-If \code{aux} is not used, \code{auxType} should be set to the default of
-\code{NULL}.}
 
 \item{zcov}{a data frame with one row per subject specifying possibly
 time-dependent covariate(s) (not including \code{tx}). If no covariate is
@@ -65,37 +45,13 @@ used, \code{zcov} should be set to the default of \code{NULL}.}
 
 \item{strata}{a numeric vector specifying baseline strata (\code{NULL} by
 default). If specified, a separate mark-specific baseline hazard is assumed
-for each stratum. If IPW or AIPW method is used, separate models for
-predicting the probability of a missing mark and the missing mark value are
-considered for each stratum.}
-
-\item{missmethod}{a character string for the estimation procedure to use.
-Available missing-mark methods include \code{CC}, \code{IPW}, and
-\code{AIPW}.}
+for each stratum.}
 
 \item{formulaPH}{a one-sided formula object (on the right side of the
 \code{~} operator) specifying the linear predictor in the proportional
 hazards model. Available variables to be used in the formula include
 \code{tx} and variable(s) in \code{zcov}. By default, \code{formulaPH} is
 specified as \code{~ tx}.}
-
-\item{formulaMiss}{a one-sided formula object (on the right side of the
-\code{~} operator) specifying the linear predictor in the logistic
-regression model used for predicting the probability of observing the mark.
-\code{formulaMiss} (\code{NULL} by default) must be provided for \code{IPW}
-and \code{AIPW} methods. Available variables to be used in the formula
-include \code{eventTime}, \code{tx}, \code{aux}, and variable(s) in
-\code{zcov}.}
-
-\item{formulaAux}{a one-sided formula object (on the right side of the
-\code{~} operator) specifying the variables used for estimating the
-conditional distribution of \code{aux}. If \code{aux} is binary, the
-formula specifies the linear predictor in a logistic regression and if
-\code{aux} is continuous, the formula provides a symbolic description of
-variables used in kernel conditional density estimation. \code{formulaAux}
-is optional for the \code{AIPW} estimation procedure. Available variables
-to be used in the formula include \code{eventTime}, \code{tx}, \code{mark},
-and variable(s) in \code{zcov}.}
 
 \item{tau}{a numeric value specifying the duration of study follow-up period.
 Failures beyond \code{tau} are treated right-censored. There needs to be at
@@ -111,7 +67,7 @@ bandwidth of the kernel smoothing function over time. By default,
 kernel smoothing function over mark. By default, \code{hband} is set as
 \eqn{4\sigma n^{-1/3}} where \eqn{\sigma} is the estimated standard
 deviation of the observed marks for uncensored failure times and \eqn{n} is
-the number of subjects in the dataset.  Larger bandwidths are recommended
+the number of subjects in the dataset. Larger bandwidths are recommended
 for higher percentages of missing marks.}
 
 \item{a}{a numeric value between 0 and 1 specifying the lower bound of the
@@ -138,7 +94,8 @@ equally spaced mark values between the minimum and maximum of the observed
 mark for which the treatment effects are evaluated.}
 
 \item{nboot}{number of bootstrap iterations (500 by default) for simulating
-the distributions of test statistics.}
+the distributions of test statistics. If \code{NULL}, the hypotheses tests
+are not performed.}
 
 \item{seed}{an integer specifying the random number generation seed for
 reproducing the test statistics and p-values. By default, a specific seed
@@ -161,7 +118,8 @@ in \eqn{[a, b]} (monotone alternative). \code{TSUP1} and \code{TSUP1m} are
 based on extensions of the classic Kolmogorov-Smirnov supremum-based test.
 \code{Tint1} and \code{Tint1m} are based on generalizations of the
 integration-based Cramer-von Mises test. \code{Tint1} and \code{Tint1m}
-involve integration of deviations over the whole range of the mark.
+involve integration of deviations over the whole range of the mark. If
+\code{nboot} is \code{NULL}, \code{H10} is returned as \code{NULL}.
 
 \item \code{H20}: a data frame with test statistics (first row) and
 corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not
@@ -174,7 +132,8 @@ and \code{Tint2m} include test statistics and p-values for testing
 extensions of the classic Kolmogorov-Smirnov supremum-based test.
 \code{Tint2} and \code{Tint2m} are based on generalizations of the
 integration-based Cramer-von Mises test. \code{Tint2} and \code{Tint2m}
-involve integration of deviations over the whole range of the mark.
+involve integration of deviations over the whole range of the mark. If
+\code{nboot} is \code{NULL}, \code{H20} is returned as \code{NULL}.
 
 \item \code{estBeta}: a data frame summarizing point estimates and standard
 errors of the mark-specific coefficients for treatment at equally-spaced
@@ -183,25 +142,27 @@ values between the minimum and the maximum of the observed mark values.
 \item \code{cBproc1}: a data frame containing equally-spaced mark values in
 the column \code{Mark}, test processes \eqn{Q^{(1)}(v)} for observed data in
 the column \code{Observed}, and \eqn{Q^{(1)}(v)} for \code{nboot} independent
-sets of normal samples in the columns S1, S2, \eqn{\cdots}.
+sets of normal samples in the columns S1, S2, \eqn{\cdots}. If
+\code{nboot} is \code{NULL}, \code{cBproc1} is returned as \code{NULL}.
 
 \item \code{cBproc2}: a data frame containing equally-spaced mark values in
 the column \code{Mark}, test processes \eqn{Q^{(2)}(v)} for observed data in
 the column \code{Observed}, and \eqn{Q^{(2)}(v)} for \code{nboot} independent
-sets of normal samples in the columns S1, S2, \eqn{\cdots}. 
+sets of normal samples in the columns S1, S2, \eqn{\cdots}. If
+\code{nboot} is \code{NULL}, \code{cBproc2} is returned as \code{NULL}.
 
 \item \code{Lambda0}: an array of dimension K x nvgrid x ntgrid for the
   kernel-smoothed baseline hazard function \eqn{\lambda_{0k}, k = 1, \dots,
   K} where \eqn{K} is the number of strata. If \code{ntgrid} is \code{NULL}
-(by default), \code{Lambda0} is not included in the output.}
+(by default), \code{Lambda0} is returned as \code{NULL}.}
 }
 \description{
 \code{kernel_sievePH} implements estimation methods of Sun and Gilbert (2012)
 and hypothesis testing methods of Gilbert and Sun (2015) for a mark-specific
 proportional hazards model accommodating that some failures have a missing
 mark. The methods allow separate baseline mark-specific hazard functions for
-different baseline subgroups. Missing marks are handled via complete-case,
-inverse-probability weighting (IPW), or augmented IPW (AIPW) approaches.
+different baseline subgroups. Missing marks are handled via the complete-case
+approach.
 }
 \details{
 \code{kernel_sievePH} analyzes data from a randomized
@@ -211,11 +172,7 @@ inverse-probability weighting (IPW), or augmented IPW (AIPW) approaches.
   (treatment/placebo), which is based on a stratified mark-specific
   proportional hazards model. This model assumes no parametric form for the
   baseline hazard function nor the treatment effect across different mark
-  values. For data with missing marks, two estimation procedures can be
-  implemented. The first one uses inverse probability weighting (IPW) of the
-  complete-case estimator, which leverages auxiliary predictors of whether
-  the mark is observed, whereas the second one augments the IPW estimator
-  with auxiliary predictors of the missing mark value.
+  values.
 }
 \examples{
 set.seed(20240410)
@@ -239,31 +196,16 @@ while (sum(R, na.rm = TRUE) < 10){
 }
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
-# AIPW estimation, auxiliary covariate is used (not required)
-fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, aux = A, auxType = "binary",
-                      missmethod = "AIPW", formulaMiss = ~ eventTime,
-                      formulaAux = ~ eventTime + tx + mark,
-                      tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-                      nvgrid = 20, nboot = 50)
-\donttest{
 # complete-case estimation discards rows with a missing mark;
 # also, no auxiliary covariate is needed
-fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx,
-                      missmethod = "CC", tau = 3, tband = 0.5, hband = 0.3,
-                      a = 0.1, b = 1, nvgrid = 20, nboot = 50, seed = 1)
-}
+fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5, 
+                          hband = 0.3, a = 0.1, b = 1, nvgrid = 20, nboot = 20)
 
 }
 \references{
-Gilbert, P. B. and Sun, Y. (2015). Inferences on relative failure
-  rates in stratified mark-specific proportional hazards models with missing
-  marks, with application to human immunodeficiency virus vaccine efficacy
-trials. \emph{Journal of the Royal Statistical Society Series C: Applied
-Statistics}, 64(1), 49-73.
-
-  Sun, Y. and Gilbert, P. B. (2012). Estimation of stratified mark‐specific
-proportional hazards models with missing marks. \emph{Scandinavian Journal of
-Statistics}, 39(1), 34-52.
+Sun, Y., Gilbert, P. B., & McKeague, I. W. (2009). Proportional
+  hazards models with continuous marks. \emph{Annals of statistics}, 37(1),
+  394.
 
   Yang, G., Sun, Y., Qi, L., & Gilbert, P. B. (2017). Estimation of
   stratified mark-specific proportional hazards models under two-phase

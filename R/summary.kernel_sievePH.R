@@ -5,7 +5,7 @@
 #'
 #' @aliases print.summary.kernel_sievePH
 #' @param object an object of class \code{kernel_sievePH}, a result of a call to
-#'   \code{\link{kernel_sievePH}}
+#'   \code{\link{kernel_sievePH}} and \code{\link{kernel_sievePHaipw}}.
 #' @param contrast a character string specifying the treatment effect parameter
 #'   of interest. The default value is \code{"te"} (treatment efficacy); other
 #'   options are \code{"hr"} (hazard ratio) and \code{"loghr"} (log hazard
@@ -113,12 +113,12 @@
 #' }
 #' # a missing-at-random mark
 #' mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
-#' # AIPW estimation, auxiliary covariate is used (not required)
-#' fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A, auxType = "binary",
-#'                       missmethod = "AIPW", formulaMiss = ~ eventTime,
+#' # AIPW estimation
+#' fitaug <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, A, auxType = "binary",
+#'                       formulaMiss = ~ eventTime,
 #'                       formulaAux = ~ eventTime + tx + mark,
 #'                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-#'                       nvgrid = 20, nboot = 50)
+#'                       nvgrid = 20, nboot = 20)
 #'                       
 #' sfit <- summary(fitaug)
 #' # print the formatted summary
@@ -131,27 +131,31 @@
 #' @export
 summary.kernel_sievePH <- function(object, 
                             contrast = c("te", "hr", "loghr"),
-                            sieveAlternative = c("twoSided","oneSided"), confLevel = 0.95, ...){
+                            sieveAlternative = c("twoSided", "oneSided"), confLevel = 0.95, ...){
   
   contrast <- match.arg(contrast, choices = c("te", "hr", "loghr"))
-  sieveAlternative <- match.arg(sieveAlternative, choices = c("twoSided","oneSided"))
-  
-  
-  
+  sieveAlternative <- match.arg (sieveAlternative, choices = c("twoSided", "oneSided"))
   # probability level to be used for quantiles in the construction of confidence bounds
-  probLevel <- 1 - (1-confLevel)/2
+  probLevel <- 1 - (1 - confLevel) / 2
  
-  if (sieveAlternative=="oneSided"){
-   
-    HRconstant <- object$H20[,c("TSUP2m", "Tint2m")]
-  
-  } else {
-    HRconstant <- object$H20[,c("TSUP2", "Tint2")]
+  if (!is.null(object$H20)){
+    if (sieveAlternative == "oneSided"){
+      HRconstant <- object$H20[, c("TSUP2m", "Tint2m")]
+    } else {
+      HRconstant <- object$H20[, c("TSUP2", "Tint2")]
+    }
+  }else{
+    HRconstant <- NULL
   }
   
-  HRunity.1sided <- object$H10[,c("TSUP1m", "Tint1m")]
-  HRunity.2sided <- object$H10[,c("TSUP1", "Tint1")]
-    
+  if(!is.null(object$H10)){
+    HRunity.1sided <- object$H10[, c("TSUP1m", "Tint1m")]
+    HRunity.2sided <- object$H10[, c("TSUP1", "Tint1")]
+  }else{
+    HRunity.1sided <- NULL
+    HRunity.2sided <- NULL
+  }
+  
   
   estBeta <- object$estBeta
   
@@ -160,15 +164,15 @@ summary.kernel_sievePH <- function(object,
   betaUB <- estBeta$beta + estBeta$se * qnorm(probLevel)
   betaEst <- estBeta$beta
   # contrast estimates and confidence bounds
-  if (contrast=="te"){
+  if (contrast == "te") {
     est <- 1 - exp(betaEst)
     lb <- 1 - exp(betaUB)
     ub <- 1 - exp(betaLB)
-  } else if (contrast=="hr"){
+  } else if (contrast == "hr") {
     est <- exp(betaEst)
     lb <- exp(betaLB)
     ub <- exp(betaUB)
-  } else if (contrast=="loghr"){
+  } else if (contrast == "loghr"){
     est <- betaEst
     lb <- betaLB
     ub <- betaUB
@@ -196,19 +200,25 @@ print.summary.kernel_sievePH <- function(x, digits=4, ...){
   cat("\nCoefficients:\n")
   print(x$estBeta, digits=digits, print.gap=2)
   cat("\n")
-  cat("Tests of H0: HR(v) = 1 for all v:\n")
-  cat("  Two-sided test:\n")
-  cat("    Supremum-based test p-value: ", format(x$HRunity.2sided[2,"TSUP1"], digits=digits, nsmall=digits), "\n", sep="")
-  cat("    Integration-based test p-value: ", format(x$HRunity.2sided[2,"Tint1"], digits=digits, nsmall=digits), "\n", sep="")
-  cat("  One-sided test:\n")
-  cat("    Supremum-based test p-value: ", format(x$HRunity.1sided[2,"TSUP1m"], digits=digits, nsmall=digits), "\n", sep="")
-  cat("    Integration-based test p-value: ", format(x$HRunity.1sided[2,"Tint1m"], digits=digits, nsmall=digits), "\n", sep="")
-  cat("Tests of H0: HR(v) = HR for all v:\n")
-  if (!is.null(x$HRconstant.2sided)){
-    cat("  Supremum-based test p-value: ", format(x$HRconstant.2sided[2,"TSUP2"], digits=digits, nsmall=digits), "\n", sep="")
-    cat("  Integration-based test p-value: ", format(x$HRconstant.2sided[2,"Tint2"], digits=digits, nsmall=digits), "\n", sep="")
-  } else {
-    cat("  Supremum-based test p-value: ", format(x$HRconstant.1sided[2,"TSUP2m"], digits=digits, nsmall=digits), "\n", sep="")
-    cat("  Integration-based test p-value: ", format(x$HRconstant.1sided[2,"Tint2m"], digits=digits, nsmall=digits), "\n", sep="")
+  if (!is.null(x$HRunity.2sided) & !is.null(x$HRunity.1sided)) {
+    cat("Tests of H0: HR(v) = 1 for all v:\n")
+    cat("  Two-sided test:\n")
+    cat("    Supremum-based test p-value: ", format(x$HRunity.2sided[2,"TSUP1"], digits=digits, nsmall=digits), "\n", sep="")
+    cat("    Integration-based test p-value: ", format(x$HRunity.2sided[2,"Tint1"], digits=digits, nsmall=digits), "\n", sep="")
+    cat("  One-sided test:\n")
+    cat("    Supremum-based test p-value: ", format(x$HRunity.1sided[2,"TSUP1m"], digits=digits, nsmall=digits), "\n", sep="")
+    cat("    Integration-based test p-value: ", format(x$HRunity.1sided[2,"Tint1m"], digits=digits, nsmall=digits), "\n", sep="")
   }
+  
+  if (!is.null(x$HRconstant.2sided) | !is.null(x$HRconstant.1sided)) {
+    cat ("Tests of H0: HR(v) = HR for all v:\n")
+    if (!is.null(x$HRconstant.2sided)) {
+      cat("  Supremum-based test p-value: ", format(x$HRconstant.2sided[2,"TSUP2"], digits=digits, nsmall=digits), "\n", sep="")
+      cat("  Integration-based test p-value: ", format(x$HRconstant.2sided[2,"Tint2"], digits=digits, nsmall=digits), "\n", sep="")
+    } else {
+      cat("  Supremum-based test p-value: ", format(x$HRconstant.1sided[2,"TSUP2m"], digits=digits, nsmall=digits), "\n", sep="")
+      cat("  Integration-based test p-value: ", format(x$HRconstant.1sided[2,"Tint2m"], digits=digits, nsmall=digits), "\n", sep="")
+    }
+  }
+  
 }

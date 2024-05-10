@@ -18,7 +18,7 @@ Proportional Hazards Model Fits}
 }
 \arguments{
 \item{object}{an object of class \code{kernel_sievePH}, a result of a call to
-\code{\link{kernel_sievePH}}}
+\code{\link{kernel_sievePH}} and \code{\link{kernel_sievePHaipw}}.}
 
 \item{contrast}{a character string specifying the treatment effect parameter
 of interest. The default value is \code{"te"} (treatment efficacy); other
@@ -126,11 +126,11 @@ while (sum(R, na.rm = TRUE) < 10){
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 # AIPW estimation, auxiliary covariate is used (not required)
-fitaug <- kernel_sievePH(eventTime, eventInd, mark, tx, A, auxType = "binary",
-                      missmethod = "AIPW", formulaMiss = ~ eventTime,
+fitaug <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, A, auxType = "binary",
+                      formulaMiss = ~ eventTime,
                       formulaAux = ~ eventTime + tx + mark,
                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
-                      nvgrid = 20, nboot = 50)
+                      nvgrid = 20, nboot = 20)
                       
 sfit <- summary(fitaug)
 # print the formatted summary
