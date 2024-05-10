@@ -10,7 +10,7 @@ NULL
 #' proportional hazards model accommodating that some failures have a missing
 #' mark. The methods allow separate baseline mark-specific hazard functions for
 #' different baseline subgroups. Missing marks are handled via augmented IPW
-#' (AIPW) approache.
+#' (AIPW) approach.
 #'
 #' @param eventTime a numeric vector specifying the observed right-censored
 #'   event time.

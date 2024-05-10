@@ -5,12 +5,10 @@ NULL
 #' Nonparametric Kernel-Smoothed Stratified Mark-Specific Proportional Hazards
 #' Model with a Univariate Continuous Mark, Fully Observed in All Failures.
 #'
-#' \code{kernel_sievePH} implements estimation methods of Sun and Gilbert (2012)
-#' and hypothesis testing methods of Gilbert and Sun (2015) for a mark-specific
-#' proportional hazards model accommodating that some failures have a missing
-#' mark. The methods allow separate baseline mark-specific hazard functions for
-#' different baseline subgroups. Missing marks are handled via the complete-case
-#' approach.
+#' \code{kernel_sievePH} implements estimation and hypothesis testing method of
+#' Sun et al. (2009) for a mark-specific proportional hazards model. The methods
+#' allow separate baseline mark-specific hazard functions for different baseline
+#' subgroups.
 #'
 #' @param eventTime a numeric vector specifying the observed right-censored
 #'   event time.
