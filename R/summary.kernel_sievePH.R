@@ -91,36 +91,41 @@
 #' Sun, Y. and Gilbert, P. B. (2012). Estimation of stratified mark‐specific
 #' proportional hazards models with missing marks. \emph{Scandinavian Journal of
 #' Statistics}, 39(1), 34-52.
-#' 
+#'
 #' @examples
 #' set.seed(20240410)
+#' beta <- 2.1
+#' gamma <- -1.3
 #' n <- 200
 #' tx <- rep(0:1, each = n / 2)
-#' tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(-0.4)))
+#' tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(gamma)))
 #' cens <- runif(n, 0, 15)
 #' eventTime <- pmin(tm, cens, 3)
 #' eventInd <- as.numeric(tm <= pmin(cens, 3))
-#' mark <- ifelse(eventInd == 1, c(rbeta(n / 2, 2, 1), rbeta(n / 2, 2, 2)), NA)
+#' alpha <- function(b){ log((1 - exp(-2)) * (b - 2) / (2 * (exp(b - 2) - 1))) }
+#' mark0 <- log(1 - (1 - exp(-2)) * runif(n / 2)) / (-2)
+#' mark1 <- log(1 + (beta - 2) * (1 - exp(-2)) * runif(n / 2) / (2 * exp(alpha(beta)))) /
+#'   (beta - 2)
+#' mark <- ifelse(eventInd == 1, c(mark0, mark1), NA)
 #' # a binary auxiliary covariate
 #' A <- sapply(exp(-0.5 - 0.2 * mark) / (1 + exp(-0.5 - 0.2 * mark)),
 #'             function(p){ ifelse(is.na(p), NA, rbinom(1, 1, p)) })
-#' linPred <- -0.8 + 0.4 * tx - 0.2 * A
+#' linPred <- 1 + 0.4 * tx - 0.2 * A
 #' probs <- exp(linPred) / (1 + exp(linPred))
 #' R <- rep(NA, n)
 #' while (sum(R, na.rm = TRUE) < 10){
-#'  R[eventInd == 1] <- sapply(probs[eventInd == 1],
-#'                             function(p){ rbinom(1, 1, p) })
+#'   R[eventInd == 1] <- sapply(probs[eventInd == 1],
+#'                              function(p){ rbinom(1, 1, p) })
 #' }
 #' # a missing-at-random mark
 #' mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
-#' # AIPW estimation
-#' fitaug <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, A, auxType = "binary",
-#'                       formulaMiss = ~ eventTime,
-#'                       formulaAux = ~ eventTime + tx + mark,
-#'                       tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20,
-#'                       nboot = 20)
-#'                       
-#' sfit <- summary(fitaug)
+#' # AIPW estimation; auxiliary covariate is used (not required)
+#' fit <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, aux = A,
+#'                           auxType = "binary", formulaMiss = ~ eventTime,
+#'                           formulaAux = ~ eventTime + tx + mark,
+#'                           tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20,
+#'                           a = NULL, b = NULL, nboot = 20)
+#' sfit <- summary(fit)
 #' # print the formatted summary
 #' sfit
 #' # treatment efficacy estimates on the grid
@@ -129,15 +134,15 @@
 #' @seealso \code{\link{kernel_sievePH}}
 #'
 #' @export
-summary.kernel_sievePH <- function(object, 
+summary.kernel_sievePH <- function(object,
                             contrast = c("te", "hr", "loghr"),
                             sieveAlternative = c("twoSided", "oneSided"), confLevel = 0.95, ...){
-  
+
   contrast <- match.arg(contrast, choices = c("te", "hr", "loghr"))
   sieveAlternative <- match.arg (sieveAlternative, choices = c("twoSided", "oneSided"))
   # probability level to be used for quantiles in the construction of confidence bounds
   probLevel <- 1 - (1 - confLevel) / 2
- 
+
   if (!is.null(object$H20)){
     if (sieveAlternative == "oneSided"){
       HRconstant <- object$H20[, c("TSUP2m", "Tint2m")]
@@ -147,7 +152,7 @@ summary.kernel_sievePH <- function(object,
   }else{
     HRconstant <- NULL
   }
-  
+
   if(!is.null(object$H10)){
     HRunity.1sided <- object$H10[, c("TSUP1m", "Tint1m")]
     HRunity.2sided <- object$H10[, c("TSUP1", "Tint1")]
@@ -155,10 +160,10 @@ summary.kernel_sievePH <- function(object,
     HRunity.1sided <- NULL
     HRunity.2sided <- NULL
   }
-  
-  
+
+
   estBeta <- object$estBeta
-  
+
   # linear score lower and upper confidence limits with confidence level specified by 'confLevel'
   betaLB <- estBeta$beta - estBeta$se * qnorm(probLevel)
   betaUB <- estBeta$beta + estBeta$se * qnorm(probLevel)
@@ -177,16 +182,16 @@ summary.kernel_sievePH <- function(object,
     lb <- betaLB
     ub <- betaUB
   }
-  
+
   # assemble the contrast matrix of the output list
   contrastDF <- data.frame(estBeta$mark, est, lb, ub)
   colnames(contrastDF) <- c("mark", switch(contrast, te="TE", hr="HR", loghr="LogHR"), "LB", "UB")
-  
+
   out <- list(estBeta, HRunity.2sided, HRunity.1sided, HRconstant, contrastDF)
-  names(out) <- c("estBeta", "HRunity.2sided", "HRunity.1sided", 
+  names(out) <- c("estBeta", "HRunity.2sided", "HRunity.1sided",
                   paste0("HRconstant.", ifelse(sieveAlternative=="oneSided", "1", "2"), "sided"),
                   contrast)
-  
+
   class(out) <- "summary.kernel_sievePH"
   return(out)
 }
@@ -209,7 +214,7 @@ print.summary.kernel_sievePH <- function(x, digits=4, ...){
     cat("    Supremum-based test p-value: ", format(x$HRunity.1sided[2,"TSUP1m"], digits=digits, nsmall=digits), "\n", sep="")
     cat("    Integration-based test p-value: ", format(x$HRunity.1sided[2,"Tint1m"], digits=digits, nsmall=digits), "\n", sep="")
   }
-  
+
   if (!is.null(x$HRconstant.2sided) | !is.null(x$HRconstant.1sided)) {
     cat ("Tests of H0: HR(v) = HR for all v:\n")
     if (!is.null(x$HRconstant.2sided)) {
@@ -220,5 +225,5 @@ print.summary.kernel_sievePH <- function(x, digits=4, ...){
       cat("  Integration-based test p-value: ", format(x$HRconstant.1sided[2,"Tint2m"], digits=digits, nsmall=digits), "\n", sep="")
     }
   }
-  
+
 }

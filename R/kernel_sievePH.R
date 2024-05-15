@@ -142,23 +142,30 @@ NULL
 #'
 #' @examples
 #' set.seed(20240410)
+#' beta <- 2.1
+#' gamma <- -1.3
 #' n <- 200
 #' tx <- rep(0:1, each = n / 2)
-#' tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(-0.4)))
+#' tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(gamma)))
 #' cens <- runif(n, 0, 15)
 #' eventTime <- pmin(tm, cens, 3)
 #' eventInd <- as.numeric(tm <= pmin(cens, 3))
-#' mark <- ifelse(eventInd == 1, c(rbeta(n / 2, 2, 1), rbeta(n / 2, 2, 2)), NA)
+#' alpha <- function(b){ log((1 - exp(-2)) * (b - 2) / (2 * (exp(b - 2) - 1))) }
+#' mark0 <- log(1 - (1 - exp(-2)) * runif(n / 2)) / (-2)
+#' mark1 <- log(1 + (beta - 2) * (1 - exp(-2)) * runif(n / 2) / (2 * exp(alpha(beta)))) /
+#'   (beta - 2)
+#' mark <- ifelse(eventInd == 1, c(mark0, mark1), NA)
 #' # complete-case estimation discards rows with a missing mark;
 #' # also, no auxiliary covariate is needed
-#' fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5, 
-#'                           hband = 0.3, nvgrid = 20, nboot = 20)
+#' fit <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5,
+#'                       hband = 0.3, nvgrid = 20, a = NULL, b = NULL,
+#'                       nboot = 20)
 #'
 #' @importFrom plyr laply
 #'
 #' @export
-kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = NULL, formulaPH = ~ tx, 
-                           tau = NULL, tband = NULL, hband = NULL, nvgrid = 100, a = NULL, b = NULL, 
+kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = NULL, formulaPH = ~ tx,
+                           tau = NULL, tband = NULL, hband = NULL, nvgrid = 100, a = NULL, b = NULL,
                            ntgrid = NULL, nboot = 500,  seed = NULL) {
   if (!is.null(seed)) {
     set.seed(seed)
@@ -196,6 +203,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   mx <- max(mark, na.rm = TRUE) #maximum observed mark value
   # Put the marks on the scale 0 to 1:
   vV <- (mark - mn) / (mx - mn)
+
   if (is.null(a)) {
     a0 <- 1 / nvgrid
   }else{
@@ -222,7 +230,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   vstep <- 1 / nvgrid
   iskip <- a0 / vstep
   # Epanechnikov kernel has squared integral = 3/5 !
-  ekconst <- 3 / 5 
+  ekconst <- 3 / 5
   a1 <- a0 + vstep
   a2 <- a1 + 2 * vstep
   # Read data into the designed variables
@@ -307,7 +315,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   }else{
     estBaseLamInd <- 0
   }
- 
+
   ###################################################################
   CUMB1 <- rep(0,nvgrid)
   for (ispot in 1:nvgrid) {
@@ -317,7 +325,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
       deltak[ks, ] <- Epanker(markm[ks, ], vspot, hband, censor[ks, ])
     }
     # Complete data likelihood estimator: specify weight to be R
-    comfit <- estpipwcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp, 
+    comfit <- estpipwcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp,
                                ncov, time, covart, censor, deltak, R, betacox,
                                ifelse(estBaseLamInd == 1, 1, 0))
     betacom[, ispot] <- comfit$BETA
@@ -380,7 +388,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
         tempcom[ks, 1:nsamp[kk], ispot] <- temp2
       }
     }
-    
+
     #############################################
     S0N <- array(0, dim = c(kk, max(nsamp), nvgrid))
     S1N <- array(0, dim = c(kk * ncov, max(nsamp), nvgrid))
@@ -390,7 +398,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
         BZt <- matrix(0, nrow = nsamp[ks], ncol = 1)
         if(ncov==1){
           BZt[1:nsamp[ks], 1] <- as.matrix(covart[ks, , 1:nsamp[ks]] * betaofv[1, ispot], ncol = 1)
-          
+
         }else{
           BZt <- t(covart[ks, , 1:nsamp[ks]]) %*% betaofv[, ispot]
         }
@@ -410,16 +418,16 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
         }
       }
     }
-    
-    
+
+
     # **************************************************************************
     # finish calculating the quantities needed for GDIST2N
     # **************************************************************************
-    
+
     # **************************************************************************
     # Simulate distribution of \sqrt n(\hat B(v)-B(v)) based on aipw
     # **************************************************************************
-    
+
     CUMB1x <- rep(0, nvgrid)
     CUMB1se <- rep(0, nvgrid)
     BootDist <- matrix(0,nrow = nboot, ncol = nvgrid)
@@ -434,7 +442,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     }
     CUMB1x[iskip:nvgrid] <- CUMB1x[iskip:nvgrid] / nboot
     CUMB1se[iskip:nvgrid] <- sqrt((CUMB1se[iskip:nvgrid] - (CUMB1x[iskip:nvgrid])^2.0 * nboot) / nboot)
-    
+
     # calculate the test statistics for H_{10}:VE(v)=0 for v over [a1,b1], b1=1
     iskipa1 <- a1 / vstep
     nvgrid1 <- b1 / vstep
@@ -457,31 +465,31 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
       vspot <- ispot * vstep
       cBproc1[ispot] <- CUMB1[ispot] - CUMB1[iskipa1]
       cBproc2[ispot] <- (CUMB1[ispot] - CUMB1[iskipa1]) / (vspot - a1) - (CUMB1[nvgrid1] - CUMB1[iskipa1]) / (b1 - a1)
-      
+
       # two-sided tests for testing $H_1$:
       TSUP1 <- max(TSUP1, abs(cBproc1[ispot]))
       Tint1 <- Tint1 + cBproc1[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-      
+
       # one-sided tests for testing $H_1$:
       TSUP1m <- min(TSUP1m, cBproc1[ispot])
       Tint1m <- Tint1m + cBproc1[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-      
+
       if (ispot >= iskipa2) {
         # two-sided tests for testing $H_2$:
         TSUP2 <- max(TSUP2, abs(cBproc2[ispot]))
         Tint2 <- Tint2 + cBproc2[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-        
+
         # one-sided tests for testing $H_2$:
         TSUP2m <- min(TSUP2m, cBproc2[ispot])
         Tint2m <- Tint2m + cBproc2[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
       }
     }
-    
-    
+
+
     # *****************************************************************
     # Find the p-values of the test statistics.
     # *****************************************************************
-    
+
     # the initial values for p-values
     TSUP1pv <- 0.0
     TSUP1mpv <- 0.0
@@ -493,15 +501,15 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     Tint2mpv <- 0.0
     cBproc1s <- matrix(0,nrow = nvgrid, ncol = nboot)
     cBproc2s <- matrix(0,nrow = nvgrid, ncol = nboot)
-    
+
     for (iboot in 1:nboot) {
       cBproc1x <- rep(0, nvgrid)
       cBproc2x <- rep(0, nvgrid)
-      
+
       cBproc1x[iskipa1] <- BootDist[iboot, iskipa1] - BootDist[iboot, iskipa1]
       temp2nd <- (BootDist[iboot, nvgrid1] - BootDist[iboot, iskipa1]) / (b1 - a1)
       cBproc2x[iskipa2] <- (BootDist[iboot, iskipa2] - BootDist[iboot, iskipa1]) / (a2 - a1) - temp2nd
-      
+
       TSUP1x <- abs(cBproc1x[iskipa1])
       TSUP1mx <- cBproc1x[iskipa1]
       TSUP2x <- abs(cBproc2x[iskipa2])
@@ -510,52 +518,52 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
       Tint1mx <- 0
       Tint2x <- 0
       Tint2mx <- 0
-      
+
       for (ispot in (iskipa1 + 1):nvgrid1) {
         vspot <- ispot * vstep
-        
+
         cBproc1x[ispot] <- BootDist[iboot, ispot] - BootDist[iboot, iskipa1]
         cBproc2x[ispot] <- (BootDist[iboot, ispot] - BootDist[iboot, iskipa1]) / (vspot - a1) - temp2nd
-        
+
         # for plotting the Gaussian multiplier realizations; the actual processes need to multiply by sqrt(n):
         cBproc1s[ispot, iboot] <- sqrt(rnsamp) * cBproc1x[ispot]
         cBproc2s[ispot, iboot] <- sqrt(rnsamp) * cBproc2x[ispot]
-        
+
         # two-sided tests for testing $H_1$:
         TSUP1x <- max(TSUP1x, abs(cBproc1x[ispot]))
         Tint1x <- Tint1x + cBproc1x[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-        
+
         # one-sided tests for testing $H_1$:
         TSUP1mx <- min(TSUP1mx, cBproc1x[ispot])
         Tint1mx <- Tint1mx + cBproc1x[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-        
+
         if (ispot >= iskipa2) {
           # two-sided tests for testing $H_2$:
           TSUP2x <- max(TSUP2x, abs(cBproc2x[ispot]))
           Tint2x <- Tint2x + cBproc2x[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-          
+
           # one-sided tests for testing $H_2$:
           TSUP2mx <- min(TSUP2mx, cBproc2x[ispot])
           Tint2mx <- Tint2mx + cBproc2x[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
         }
       }
-      
+
       # calculate bootstrap p-values for H10:
       TSUP1pv <- TSUP1pv + as.numeric(TSUP1x > TSUP1) / nboot
       TSUP1mpv <- TSUP1mpv + as.numeric(TSUP1mx < TSUP1m) / nboot
       Tint1pv <- Tint1pv + as.numeric(Tint1x > Tint1) / nboot
       Tint1mpv <- Tint1mpv + as.numeric(Tint1mx < Tint1m) / nboot
-      
+
       # calculate bootstrap p-values for H20:
       TSUP2pv <- TSUP2pv + as.numeric(TSUP2x > TSUP2) / nboot
       TSUP2mpv <- TSUP2mpv + as.numeric(TSUP2mx < TSUP2m) / nboot
       Tint2pv <- Tint2pv + as.numeric(Tint2x > Tint2) / nboot
       Tint2mpv <- Tint2mpv + as.numeric(Tint2mx < Tint2m) / nboot
-      
-      
+
+
     }
-    
-    
+
+
     # the actual test statistics need to multiply by sqrt(n):
     TSUP1 <- sqrt(rnsamp) * TSUP1
     TSUP1m <- sqrt(rnsamp) * TSUP1m
@@ -565,20 +573,20 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     TSUP2m <- sqrt(rnsamp) * TSUP2m
     Tint2 <- sqrt(rnsamp) * Tint2
     Tint2m <- sqrt(rnsamp) * Tint2m
-    
-    
+
+
     # for plotting the test processes and the Gaussian multiplier processes;
     # the actual test processes need to multiply by sqrt(n):
     for (ispot in (iskipa1 + 1):nvgrid) {
       vspot <- ispot * vstep
       cBproc1[ispot] <- sqrt(rnsamp) * cBproc1[ispot]
-      
+
       if (ispot >= iskipa2) {
         cBproc2[ispot] <- sqrt(rnsamp) * cBproc2[ispot]
-        
+
       }
     }
-    
+
     Rmiss <- Rsum / sumdelta
     test10 <- c(TSUP1,TSUP1m, Tint1,Tint1m)
     pvalue10 <- c(TSUP1pv,TSUP1mpv, Tint1pv,Tint1mpv)
@@ -592,7 +600,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     rownames(ans20) <- c("Test Statistic", "P-value")
     markgrid <- (1:nvgrid) * vstep
     markgrid_original_scale <- markgrid*(mx-mn)+mn
-    cBproc1.df <- data.frame(cbind(markgrid_original_scale[(iskipa1 + 1):nvgrid], vstep*((iskipa1 + 1):nvgrid), 
+    cBproc1.df <- data.frame(cbind(markgrid_original_scale[(iskipa1 + 1):nvgrid], vstep*((iskipa1 + 1):nvgrid),
                                    cBproc1[(iskipa1 + 1):nvgrid], cBproc1s[(iskipa1 + 1):nvgrid,]))
     colnames(cBproc1.df) <- c("Mark", "Standardized mark", "Observed", paste0("S", 1:nboot))
     cBproc2.df <- data.frame(cbind(markgrid_original_scale[(iskipa2):nvgrid], vstep*((iskipa2):nvgrid),
@@ -610,18 +618,18 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     markgrid <- (1:nvgrid) * vstep
     markgrid_original_scale <- markgrid*(mx-mn)+mn
   }
-  
+
   estBeta = data.frame("mark" = markgrid_original_scale,
                        "betacom" = betacom[1,],
                        "secom" = secom[1,])
   colnames(estBeta) <- c("mark", "beta", "se")
-  
+
   if(estBaseLamInd == 1){
     Lambda0 <- Lamktv0
   }else{
     Lambda0 <- NULL
   }
-  
+
   out <- list("cBproc1" = cBproc1,
               "cBproc2" = cBproc2,
               "H10" = H10,
@@ -643,46 +651,46 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
 # C     *****************************************************************
 
 estpvry <- function(tau, KK, N, NP, X, ZT, DELTA) {
-  
+
   BETA = rep(0, NP)
   BETA[1] = -0.7
   var <- matrix(0, nrow = NP, ncol = NP)
-  
+
   KL <- 6
-  
+
   for (KITER in 1:KL) {
     U <- numeric(NP)
     F <- matrix(0, nrow = NP, ncol = NP)
     F2 <- matrix(0, nrow = NP, ncol = NP)
-    
+
     for (ks in 1:KK) {
       if(NP==1){
         BZt <- as.matrix(ZT[ks, , 1:N[ks]] * BETA, ncol = 1)
-        
+
       }else{
         BZt <- t(ZT[ks, , 1:N[ks]]) %*% BETA
-        
+
       }
-      
+
       # c*******************************************************************
-      
+
       mask <- X[ks, 1:N[ks]] <= tau
       indices <- which(mask)
-      
+
       for (i in indices) {
         S0 <- numeric(N[ks])
         S1 <- matrix(0, nrow = NP, ncol = N[ks])
         S2 <- matrix(0, nrow = NP, ncol = NP)
-        
+
         L <- which(X[ks, 1:N[ks]] >= X[ks, i])
-        
-        
+
+
         if(NP == 1){
           ZTL <- ZT[ks,1:NP , L]
           S0[i] <- sum(exp(BZt[L,1]))
           S1[1, i] <- sum(ZTL*exp(BZt[L,1]))
           S2 <- S2 + sum(ZTL*ZTL*exp(BZt[L,1]))
-          
+
         }else{
           S0[i] <- sum(exp(BZt[L, 1]))
           S1[1:NP, i] <-  ZT[ks, 1:NP, L] %*% exp(BZt[L, 1])
@@ -692,7 +700,7 @@ estpvry <- function(tau, KK, N, NP, X, ZT, DELTA) {
             }
           }
         }
-        
+
         # c???
         if (S0[i] > 0.00000001) {
           U <- U + DELTA[ks, i] * (ZT[ks, , i] - S1[, i] / S0[i])
@@ -701,13 +709,13 @@ estpvry <- function(tau, KK, N, NP, X, ZT, DELTA) {
         }
       }
     }
-    
+
     BETA <- BETA + solve(F, U)
   }
-  
+
   # C     the variance of \hat\beta(v) is var in the following
   var <- solve(F) %*% F2 %*% solve(F)
-  
+
   return(list(BETA = BETA, var = var))
 }
 
@@ -721,16 +729,16 @@ Epanker <- function(tk, tvalue, hband, delt) {
   #tk has the same number of elements with delt as a vector; tvalue is a number
   # Calculate the absolute difference between tk and tvalue
   diff <- abs(tk - tvalue)
-  
+
   # Create a logical index vector for abs(tk - tvalue) < hband
   idx <- diff < hband
   idx[is.na(idx)] <- FALSE
   # Initialize the result vector
   result <- rep(0,length(tk))
-  
+
   # Calculate Epanker for elements where abs(tk - tvalue) < hband
   result[idx] <- 3.0 / (4 * hband) * delt[idx] * (1 - (diff[idx] / hband)^2)
-  
+
   return(result)
 }
 
@@ -738,16 +746,16 @@ EpankerV <- function(tk, tvalue, hband, delt) {
   #tk has the same number of elements with delt as a vector; tvalue is a number
   # Calculate the absolute difference between tk and tvalue
   diff <- abs(tk - tvalue)
-  
+
   # Create a logical index vector for abs(tk - tvalue) < hband
   idx <- diff < hband
   idx[is.na(idx)] <- FALSE
   # Initialize the result vector
   result <- rep(0,length(tk))
-  
+
   # Calculate Epanker for elements where abs(tk - tvalue) < hband
   result[idx] <- 3.0 / (4 * hband) * delt * (1 - (diff[idx] / hband)^2)
-  
+
   return(result)
 }
 

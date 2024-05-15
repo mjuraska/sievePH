@@ -171,17 +171,24 @@ subgroups.
 }
 \examples{
 set.seed(20240410)
+beta <- 2.1
+gamma <- -1.3
 n <- 200
 tx <- rep(0:1, each = n / 2)
-tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(-0.4)))
+tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(gamma)))
 cens <- runif(n, 0, 15)
 eventTime <- pmin(tm, cens, 3)
 eventInd <- as.numeric(tm <= pmin(cens, 3))
-mark <- ifelse(eventInd == 1, c(rbeta(n / 2, 2, 1), rbeta(n / 2, 2, 2)), NA)
+alpha <- function(b){ log((1 - exp(-2)) * (b - 2) / (2 * (exp(b - 2) - 1))) }
+mark0 <- log(1 - (1 - exp(-2)) * runif(n / 2)) / (-2)
+mark1 <- log(1 + (beta - 2) * (1 - exp(-2)) * runif(n / 2) / (2 * exp(alpha(beta)))) /
+  (beta - 2)
+mark <- ifelse(eventInd == 1, c(mark0, mark1), NA)
 # complete-case estimation discards rows with a missing mark;
 # also, no auxiliary covariate is needed
-fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5, 
-                          hband = 0.3, nvgrid = 20, nboot = 20)
+fit <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5,
+                      hband = 0.3, nvgrid = 20, a = NULL, b = NULL,
+                      nboot = 20)
 
 }
 \references{

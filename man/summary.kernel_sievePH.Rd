@@ -106,33 +106,38 @@ all \eqn{v}\}, and (2) \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\}. For the tests
 }
 \examples{
 set.seed(20240410)
+beta <- 2.1
+gamma <- -1.3
 n <- 200
 tx <- rep(0:1, each = n / 2)
-tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(-0.4)))
+tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(gamma)))
 cens <- runif(n, 0, 15)
 eventTime <- pmin(tm, cens, 3)
 eventInd <- as.numeric(tm <= pmin(cens, 3))
-mark <- ifelse(eventInd == 1, c(rbeta(n / 2, 2, 1), rbeta(n / 2, 2, 2)), NA)
+alpha <- function(b){ log((1 - exp(-2)) * (b - 2) / (2 * (exp(b - 2) - 1))) }
+mark0 <- log(1 - (1 - exp(-2)) * runif(n / 2)) / (-2)
+mark1 <- log(1 + (beta - 2) * (1 - exp(-2)) * runif(n / 2) / (2 * exp(alpha(beta)))) /
+  (beta - 2)
+mark <- ifelse(eventInd == 1, c(mark0, mark1), NA)
 # a binary auxiliary covariate
 A <- sapply(exp(-0.5 - 0.2 * mark) / (1 + exp(-0.5 - 0.2 * mark)),
             function(p){ ifelse(is.na(p), NA, rbinom(1, 1, p)) })
-linPred <- -0.8 + 0.4 * tx - 0.2 * A
+linPred <- 1 + 0.4 * tx - 0.2 * A
 probs <- exp(linPred) / (1 + exp(linPred))
 R <- rep(NA, n)
 while (sum(R, na.rm = TRUE) < 10){
- R[eventInd == 1] <- sapply(probs[eventInd == 1],
-                            function(p){ rbinom(1, 1, p) })
+  R[eventInd == 1] <- sapply(probs[eventInd == 1],
+                             function(p){ rbinom(1, 1, p) })
 }
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
-# AIPW estimation
-fitaug <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, A, auxType = "binary",
-                      formulaMiss = ~ eventTime,
-                      formulaAux = ~ eventTime + tx + mark,
-                      tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20,
-                      nboot = 20)
-                      
-sfit <- summary(fitaug)
+# AIPW estimation; auxiliary covariate is used (not required)
+fit <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, aux = A,
+                          auxType = "binary", formulaMiss = ~ eventTime,
+                          formulaAux = ~ eventTime + tx + mark,
+                          tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20,
+                          a = NULL, b = NULL, nboot = 20)
+sfit <- summary(fit)
 # print the formatted summary
 sfit
 # treatment efficacy estimates on the grid
