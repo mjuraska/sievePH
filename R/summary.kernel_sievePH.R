@@ -117,7 +117,7 @@
 #' fitaug <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, A, auxType = "binary",
 #'                       formulaMiss = ~ eventTime,
 #'                       formulaAux = ~ eventTime + tx + mark,
-#'                       tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20, a = 0.1, b = 1,
+#'                       tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20,
 #'                       nboot = 20)
 #'                       
 #' sfit <- summary(fitaug)

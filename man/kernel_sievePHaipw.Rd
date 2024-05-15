@@ -195,7 +195,7 @@ and hypothesis testing methods of Gilbert and Sun (2015) for a mark-specific
 proportional hazards model accommodating that some failures have a missing
 mark. The methods allow separate baseline mark-specific hazard functions for
 different baseline subgroups. Missing marks are handled via augmented IPW
-(AIPW) approache.
+(AIPW) approach.
 }
 \details{
 \code{kernel_sievePH} analyzes data from a randomized
@@ -235,8 +235,7 @@ mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 fitaug <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, aux = A, auxType = "binary",
                       formulaMiss = ~ eventTime,
                       formulaAux = ~ eventTime + tx + mark,
-                      tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20, a = 0.1, b = 1,
-                       nboot = 20)
+                      tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20, nboot = 20)
 
 }
 \references{

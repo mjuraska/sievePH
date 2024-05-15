@@ -129,7 +129,7 @@ print(ggplot_sieve(sfit1, mark, tx))
 # fit a model with a univariate mark using the kernel_sievePH method
 fit2 <- kernel_sievePH(eventTime, eventInd, mark, tx,
                       tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20, 
-                      a = 0.1, b = 1, nboot = NULL)
+                      nboot = NULL)
 sfit2 <- summary(fit2)
 print(ggplot_sieve(sfit2, mark, tx))
 

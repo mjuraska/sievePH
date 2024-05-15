@@ -154,12 +154,10 @@ sets of normal samples in the columns S1, S2, \eqn{\cdots}. If
 (by default), \code{Lambda0} is returned as \code{NULL}.}
 }
 \description{
-\code{kernel_sievePH} implements estimation methods of Sun and Gilbert (2012)
-and hypothesis testing methods of Gilbert and Sun (2015) for a mark-specific
-proportional hazards model accommodating that some failures have a missing
-mark. The methods allow separate baseline mark-specific hazard functions for
-different baseline subgroups. Missing marks are handled via the complete-case
-approach.
+\code{kernel_sievePH} implements estimation and hypothesis testing method of
+Sun et al. (2009) for a mark-specific proportional hazards model. The methods
+allow separate baseline mark-specific hazard functions for different baseline
+subgroups.
 }
 \details{
 \code{kernel_sievePH} analyzes data from a randomized
@@ -180,23 +178,10 @@ cens <- runif(n, 0, 15)
 eventTime <- pmin(tm, cens, 3)
 eventInd <- as.numeric(tm <= pmin(cens, 3))
 mark <- ifelse(eventInd == 1, c(rbeta(n / 2, 2, 1), rbeta(n / 2, 2, 2)), NA)
-# a binary auxiliary covariate
-A <- sapply(exp(-0.5 - 0.2 * mark) / (1 + exp(-0.5 - 0.2 * mark)),
-            function(p){ ifelse(is.na(p), NA, rbinom(1, 1, p)) })
-#A <- -0.5 - 0.2 * mark + rnorm(n,0,0.3)
-linPred <- -0.8 + 0.4 * tx - 0.2 * A
-probs <- exp(linPred) / (1 + exp(linPred))
-R <- rep(NA, n)
-while (sum(R, na.rm = TRUE) < 10){
- R[eventInd == 1] <- sapply(probs[eventInd == 1],
-                            function(p){ rbinom(1, 1, p) })
-}
-# a missing-at-random mark
-mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 # complete-case estimation discards rows with a missing mark;
 # also, no auxiliary covariate is needed
 fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5, 
-                          hband = 0.3, nvgrid = 20, a = 0.1, b = 1, nboot = 20)
+                          hband = 0.3, nvgrid = 20, nboot = 20)
 
 }
 \references{

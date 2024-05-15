@@ -149,24 +149,10 @@ NULL
 #' eventTime <- pmin(tm, cens, 3)
 #' eventInd <- as.numeric(tm <= pmin(cens, 3))
 #' mark <- ifelse(eventInd == 1, c(rbeta(n / 2, 2, 1), rbeta(n / 2, 2, 2)), NA)
-#' # a binary auxiliary covariate
-#' A <- sapply(exp(-0.5 - 0.2 * mark) / (1 + exp(-0.5 - 0.2 * mark)),
-#'             function(p){ ifelse(is.na(p), NA, rbinom(1, 1, p)) })
-#' #A <- -0.5 - 0.2 * mark + rnorm(n,0,0.3)
-#' linPred <- -0.8 + 0.4 * tx - 0.2 * A
-#' probs <- exp(linPred) / (1 + exp(linPred))
-#' R <- rep(NA, n)
-#' while (sum(R, na.rm = TRUE) < 10){
-#'  R[eventInd == 1] <- sapply(probs[eventInd == 1],
-#'                             function(p){ rbinom(1, 1, p) })
-#' }
-#' # a missing-at-random mark
-#' mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
-
 #' # complete-case estimation discards rows with a missing mark;
 #' # also, no auxiliary covariate is needed
 #' fitcc <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5, 
-#'                           hband = 0.3, nvgrid = 20, a = 0.1, b = 1, nboot = 20)
+#'                           hband = 0.3, nvgrid = 20, nboot = 20)
 #'
 #' @importFrom plyr laply
 #'
@@ -210,19 +196,16 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   mx <- max(mark, na.rm = TRUE) #maximum observed mark value
   # Put the marks on the scale 0 to 1:
   vV <- (mark - mn) / (mx - mn)
-  
   if (is.null(a)) {
-    a <- 1/nvgrid
+    a0 <- 1 / nvgrid
   }else{
-    a <- max(ceiling((a-mn)/mn*nvgrid),1)/nvgrid
+    a0 <- max(ceiling((a - mn) / (mx - mn) * nvgrid), 1) / nvgrid
   }
   if (is.null(b)) {
-    b <- 1
+    b1 <- 1
   }else{
-    b <- min(floor((b-mn)/mn*nvgrid), nvgrid)/nvgrid
+    b1 <- min(floor((b - mn) / (mx - mn) * nvgrid), nvgrid) / nvgrid
   }
-  a0 <- a
-  b1 <- b
   #total sample
   nsampa <- sum(nsamp)
   rnsamp <- nsampa
@@ -324,7 +307,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   }else{
     estBaseLamInd <- 0
   }
-  
+ 
   ###################################################################
   CUMB1 <- rep(0,nvgrid)
   for (ispot in 1:nvgrid) {

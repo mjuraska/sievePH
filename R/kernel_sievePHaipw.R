@@ -204,8 +204,7 @@ NULL
 #' fitaug <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, aux = A, auxType = "binary",
 #'                       formulaMiss = ~ eventTime,
 #'                       formulaAux = ~ eventTime + tx + mark,
-#'                       tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20, a = 0.1, b = 1,
-#'                        nboot = 20)
+#'                       tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20, nboot = 20)
 #'
 #' @importFrom plyr laply
 #'
@@ -265,17 +264,15 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
   vV <- (mark - mn) / (mx - mn)
 
   if (is.null(a)) {
-    a <- 1/nvgrid
+    a0 <- 1 / nvgrid
   }else{
-    a <- max(ceiling((a-mn)/mn*nvgrid),1)/nvgrid
+    a0 <- max(ceiling((a - mn) / (mx - mn) * nvgrid), 1) / nvgrid
   }
   if (is.null(b)) {
-    b <- 1
+    b1 <- 1
   }else{
-    b <- min(floor((b-mn)/mn*nvgrid), nvgrid)/nvgrid
+    b1 <- min(floor((b - mn) / (mx - mn) * nvgrid), nvgrid) / nvgrid
   }
-  a0 <- a
-  b1 <- b
   
   #total sample
   nsampa <- sum(nsamp)
