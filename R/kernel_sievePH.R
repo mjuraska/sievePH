@@ -158,8 +158,7 @@ NULL
 #' # complete-case estimation discards rows with a missing mark;
 #' # also, no auxiliary covariate is needed
 #' fit <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5,
-#'                       hband = 0.3, nvgrid = 20, a = NULL, b = NULL,
-#'                       nboot = 20)
+#'                       hband = 0.3, nvgrid = 20, nboot = 20)
 #'
 #' @importFrom plyr laply
 #'

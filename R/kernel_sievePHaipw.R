@@ -210,7 +210,7 @@ NULL
 #'                           auxType = "binary", formulaMiss = ~ eventTime,
 #'                           formulaAux = ~ eventTime + tx + mark,
 #'                           tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20,
-#'                           a = NULL, b = NULL, nboot = 20)
+#'                           nboot = 20)
 #'
 #' @importFrom plyr laply
 #'

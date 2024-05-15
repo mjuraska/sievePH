@@ -56,10 +56,10 @@ mark1 <- ifelse(eventInd==1, c(rbeta(n/2, 2, 5), rbeta(n/2, 2, 2)), NA)
 mark2 <- ifelse(eventInd==1, c(rbeta(n/2, 1, 3), rbeta(n/2, 5, 1)), NA)
 
 # test goodness-of-fit for a univariate mark
-testDensRatioGOF(eventInd, mark1, tx, iter=20)
+testDensRatioGOF(eventInd, mark1, tx, iter=15)
 
 # test goodness-of-fit for a bivariate mark
-testDensRatioGOF(eventInd, data.frame(mark1, mark2), tx, iter=20)
+testDensRatioGOF(eventInd, data.frame(mark1, mark2), tx, iter=15)
 
 }
 \references{
