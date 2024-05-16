@@ -188,8 +188,10 @@ mark0 <- log(1 - (1 - exp(-2)) * runif(n / 2)) / (-2)
 mark1 <- log(1 + (beta - 2) * (1 - exp(-2)) * runif(n / 2) / (2 * exp(alpha(beta)))) /
   (beta - 2)
 mark <- ifelse(eventInd == 1, c(mark0, mark1), NA)
-# complete-case estimation discards rows with a missing mark;
-# also, no auxiliary covariate is needed
+# the true TE(v) curve underlying the data-generating mechanism is:
+# TE(v) = 1 - exp{alpha(beta) + beta * v + gamma}
+
+# complete-case estimation discards rows with a missing mark
 fit <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5,
                       hband = 0.3, nvgrid = 20, nboot = 20)
 

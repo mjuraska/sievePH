@@ -157,7 +157,10 @@ NULL
 #' mark1 <- log(1 + (beta - 2) * (1 - exp(-2)) * runif(n / 2) / (2 * exp(alpha(beta)))) /
 #'   (beta - 2)
 #' mark <- ifelse(eventInd == 1, c(mark0, mark1), NA)
-#' # complete-case estimation discards rows with a missing mark;
+#' # the true TE(v) curve underlying the data-generating mechanism is:
+#' # TE(v) = 1 - exp{alpha(beta) + beta * v + gamma}
+#'
+#' # complete-case estimation discards rows with a missing mark
 #' fit <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5,
 #'                       hband = 0.3, nvgrid = 20, nboot = 20)
 #'
@@ -175,15 +178,15 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   }else {
     tau <- tau
   }
-  
+
   if (min(eventTime) <= 0 | sum(is.na(eventTime)) > 0) {
     stop("eventTime needs to be greater than 0 and have no missing values")
   }
-  
+
   if (sum(!unique(tx) %in% c(0,1)) > 0) {
     stop("Treatment groups need to take value 0 or 1")
   }
-  
+
   if (is.null(tband)) {
     tband <- (tau - min(eventTime)) / 5
   }

@@ -195,6 +195,9 @@ NULL
 #' mark1 <- log(1 + (beta - 2) * (1 - exp(-2)) * runif(n / 2) / (2 * exp(alpha(beta)))) /
 #'   (beta - 2)
 #' mark <- ifelse(eventInd == 1, c(mark0, mark1), NA)
+#' # the true TE(v) curve underlying the data-generating mechanism is:
+#' # TE(v) = 1 - exp{alpha(beta) + beta * v + gamma}
+#'
 #' # a binary auxiliary covariate
 #' A <- sapply(exp(-0.5 - 0.2 * mark) / (1 + exp(-0.5 - 0.2 * mark)),
 #'             function(p){ ifelse(is.na(p), NA, rbinom(1, 1, p)) })
@@ -207,8 +210,8 @@ NULL
 #' }
 #' # a missing-at-random mark
 #' mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
+#'
 #' # AIPW estimation; auxiliary covariate is used (not required)
-#' # True VE curve is VE(v) = 1 - exp{alpha(beta) + beta * v + gamma}
 #' fit <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, aux = A,
 #'                           auxType = "binary", formulaMiss = ~ eventTime,
 #'                           formulaAux = ~ eventTime + tx + mark,
@@ -231,11 +234,11 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
     nauxiliary <- 1
   }
   missmark <- 1
-  
+
   if (min(eventTime) <= 0 | sum(is.na(eventTime)) > 0) {
     stop("eventTime needs to be greater than 0 and have no missing values")
   }
-  
+
   if (sum(!unique(tx) %in% c(0,1)) > 0) {
     stop("Treatment groups need to take value 0 or 1")
   }

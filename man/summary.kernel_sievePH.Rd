@@ -119,6 +119,9 @@ mark0 <- log(1 - (1 - exp(-2)) * runif(n / 2)) / (-2)
 mark1 <- log(1 + (beta - 2) * (1 - exp(-2)) * runif(n / 2) / (2 * exp(alpha(beta)))) /
   (beta - 2)
 mark <- ifelse(eventInd == 1, c(mark0, mark1), NA)
+# the true TE(v) curve underlying the data-generating mechanism is:
+# TE(v) = 1 - exp{alpha(beta) + beta * v + gamma}
+
 # a binary auxiliary covariate
 A <- sapply(exp(-0.5 - 0.2 * mark) / (1 + exp(-0.5 - 0.2 * mark)),
             function(p){ ifelse(is.na(p), NA, rbinom(1, 1, p)) })
@@ -131,6 +134,7 @@ while (sum(R, na.rm = TRUE) < 10){
 }
 # a missing-at-random mark
 mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
+
 # AIPW estimation; auxiliary covariate is used (not required)
 fit <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, aux = A,
                           auxType = "binary", formulaMiss = ~ eventTime,
