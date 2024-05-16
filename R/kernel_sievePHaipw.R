@@ -94,6 +94,8 @@ NULL
 #' @param nboot number of bootstrap iterations (500 by default) for simulating
 #'   the distributions of test statistics. If \code{NULL}, the hypotheses tests
 #'   are not performed.
+#' @param maxit Maximum number of iterations to attempt for convergence in
+#'   estimation. The default is 6.
 #' @param seed an integer specifying the random number generation seed for
 #'   reproducing the test statistics and p-values. By default, a specific seed
 #'   is not set.
@@ -216,16 +218,26 @@ NULL
 #'
 #' @export
 kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = NULL, zcov = NULL, strata = NULL, formulaPH = ~ tx, formulaMiss = NULL, formulaAux = NULL,
-                               tau = NULL, tband = NULL, hband = NULL, nvgrid = 100, a = NULL, b = NULL, ntgrid = NULL, nboot = 500,  seed = NULL) {
+                               tau = NULL, tband = NULL, hband = NULL, nvgrid = 100, a = NULL, b = NULL, ntgrid = NULL, nboot = 500,  seed = NULL, maxit = 6) {
 
 
-
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
   if (is.null(aux)) {
     nauxiliary <- 0
   }else {
     nauxiliary <- 1
   }
   missmark <- 1
+  
+  if (min(eventTime) <= 0 | sum(is.na(eventTime)) > 0) {
+    stop("eventTime needs to be greater than 0 and have no missing values")
+  }
+  
+  if (sum(!unique(tx) %in% c(0,1)) > 0) {
+    stop("Treatment groups need to take value 0 or 1")
+  }
 
   if (is.null(tau)) {
     tau <- max(eventTime)
@@ -272,15 +284,19 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
   if (is.null(a)) {
     a0 <- 1 / nvgrid
   }else{
+    if (a <= mn) {
+      stop("a needs to be greater than the minimum of the observed marks")
+    }
     a0 <- max(ceiling((a - mn) / (mx - mn) * nvgrid), 1) / nvgrid
   }
   if (is.null(b)) {
     b1 <- 1
   }else{
+    if(b >= mx) {
+      stop("b needs to be no greater than the maximum of the observed marks")
+    }
     b1 <- min(floor((b - mn) / (mx - mn) * nvgrid), nvgrid) / nvgrid
   }
-  a0 <- a
-  b1 <- b
 
   #total sample
   nsampa <- sum(nsamp)
@@ -608,7 +624,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
 
     # The inverse probability weighted estimator: ipw
     ipwfit <- estpipwcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp,
-                                ncov, time, covart, censor, deltak, wght, betacom[,ispot],0)
+                                ncov, time, covart, censor, deltak, wght, betacom[,ispot], maxit, 0)
 
     betaipw[, ispot] <- ipwfit$BETA
     seipw[, ispot] <- sqrt(diag(ipwfit$var))
@@ -686,7 +702,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
       # initial value
       betaaug0 <- betaipw[, ispot]
       estpaug_result = estpaugcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp, ncov, time, covart,
-                                        censor, deltak, wght, DRHOipw, betaaug0,
+                                        censor, deltak, wght, DRHOipw, betaaug0, maxit,
                                         ifelse(estBaseLamInd ==1, 1, 0))
       betaaug[, ispot] <- estpaug_result$BETA
       seaug[, ispot] <- sqrt(diag(estpaug_result$var))

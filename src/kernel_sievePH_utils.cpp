@@ -30,7 +30,7 @@ Rcpp::List estpcomcplusplus(double tau,int KK, arma::ivec N, int NP,
   arma::vec BETA(NP);
   arma::mat F(NP, NP, arma::fill::zeros);
   arma::mat var(NP, NP, arma::fill::zeros);
- 
+
   int KL = 6;
   for(int j = 0; j < NP; j++){
     BETA(j) = BETA0(j);
@@ -99,7 +99,7 @@ Rcpp::List estpcomcplusplus(double tau,int KK, arma::ivec N, int NP,
 // [[Rcpp::export]]
 Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, int KK, arma::ivec N, int NP,
                    arma::mat X, arma::cube ZT, arma::mat CENSOR, arma::mat DELTA,
-                   arma::mat WGHT, arma::vec BETA0, int estBaseLamInd) {
+                   arma::mat WGHT, arma::vec BETA0, int maxit, int estBaseLamInd) {
   const int mxn = max(N);
 
   arma::mat BZt(mxn, 1, arma::fill::zeros);
@@ -114,14 +114,15 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
   arma::mat LAMBDA0(KK, mxn, arma::fill::zeros);
   arma::vec BETA (NP);
   arma::mat LAMBDAk0(KK, ntgrid, arma::fill::zeros);
-
+  arma::vec change(NP, arma::fill::ones);
+  int Kiter = 1;
+  
   for(int j = 0; j < NP; j++){
     BETA(j) = BETA0(j);
   }
 
-  int KL = 6;
-
-  for (int Kiter = 1; Kiter <= KL; Kiter++) {
+  while (arma::sum(change) > 0.00001 && Kiter <= maxit) {
+  //for (int Kiter = 1; Kiter <= maxit; Kiter++) {
     F.zeros();
     F2.zeros();
     U.zeros();
@@ -133,31 +134,31 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
           BZt(i, 0) += BETA(j) * ZT(ks, j, i);
         }
       }
-
+      
       for (int i = 0; i < N(ks); i++) {
         if (X(ks, i) <= tau) {
           S0(ks, i) = 0.0;
           S1.col(i).zeros();
           S2.zeros();
-
+          
           for (int l = 0; l < N(ks); l++) {
             if (X(ks, l) >= X(ks, i)) {
               S0(ks, i) += exp(BZt(l, 0)) * WGHT(ks, l);
-
+              
               for (int j = 0; j < NP; j++) {
                 S1(j, i) += exp(BZt(l, 0)) * ZT(ks, j, l) * WGHT(ks, l);
-
+                
                 for (int k = 0; k < NP; k++) {
                   S2(j, k) += exp(BZt(l, 0)) * ZT(ks, j, l) * ZT(ks, k, l) * WGHT(ks, l);
                 }
               }
             }
           }
-
+          
           if (S0(ks, i) > 0.00000001) {
             for (int j = 0; j < NP; j++) {
               U(j) += DELTA(ks, i) * (ZT(ks, j, i) - S1(j, i) / S0(ks, i)) * WGHT(ks, i);
-
+              
               for (int k = 0; k < NP; k++) {
                 F(j, k) += DELTA(ks, i) * (S2(j, k) / S0(ks, i) - S1(j, i) * S1(k, i) / pow(S0(ks, i), 2)) * WGHT(ks, i);
                 F2(j, k) += pow(DELTA(ks, i), 2) * (ZT(ks, j, i) - S1(j, i) / S0(ks, i)) * (ZT(ks, k, i) - S1(k, i) / S0(ks, i)) * pow(WGHT(ks, i), 2);
@@ -165,30 +166,31 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
             }
           }
         }
-      }
-
-      if (Kiter == KL) {
-        for (int i = 0; i < N(ks); i++) {
-          double TEMPB = 0.0;
-          for (int ii = 0; ii < N(ks); ii++) {
-            if (X(ks, ii) <= tau && S0(ks, ii) > 0.00000001) {
-              TEMPB += Epankercplusplus(X(ks, ii), X(ks, i), TBAND, CENSOR(ks, ii)) * DELTA(ks, ii) * WGHT(ks, ii) / S0(ks, ii);
-            }
-          }
-          LAMBDA0(ks, i) = TEMPB;
-        }
-      }
-    }
-
-    BETA += arma::solve(F, U);
-  }
+      }}
+      Kiter = Kiter +1;
+      change = arma::solve(F, U);
+      BETA += change;
+    };
+  
 
   var = arma::inv(F) * F2 * arma::inv(F);
   invF  = arma::inv(F);
   
+  for (int ks = 0; ks < KK; ks++) {
+    for (int i = 0; i < N(ks); i++) {
+      double TEMPB = 0.0;
+      for (int ii = 0; ii < N(ks); ii++) {
+        if (X(ks, ii) <= tau && S0(ks, ii) > 0.00000001) {
+          TEMPB += Epankercplusplus(X(ks, ii), X(ks, i), TBAND, CENSOR(ks, ii)) * DELTA(ks, ii) * WGHT(ks, ii) / S0(ks, ii);
+        }
+      }
+      LAMBDA0(ks, i) = TEMPB;
+    }
+  }
+
   if(estBaseLamInd == 1){
     for (int ks = 0; ks < KK; ks++) {
-      for (int Itgrid = 1; Itgrid <= ntgrid; Itgrid++) {
+      for (int Itgrid = 0; Itgrid < ntgrid; Itgrid++) {
         double tvalue = tstep * Itgrid;
         double TEMPB = 0.0;
         for (int ii = 0; ii < N(ks); ii++) {
@@ -196,7 +198,7 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
               TEMPB += Epankercplusplus(X(ks, ii), tvalue, TBAND, CENSOR(ks, ii)) * (DELTA(ks, ii)*WGHT(ks, ii)/ S0(ks,ii));
           }
         }
-        LAMBDAk0(ks, Itgrid - 1) = TEMPB;
+        LAMBDAk0(ks, Itgrid) = TEMPB;
       }
     } 
   }
@@ -216,7 +218,7 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
 // [[Rcpp::export]]
 Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, int KK, arma::ivec N, int NP,
              arma::mat X, arma::cube ZT, arma::mat CENSOR, arma::mat DELTA,
-             arma::mat WGHT, arma::mat DRHOipw, arma::vec BETA0, int estBaseLamInd) {
+             arma::mat WGHT, arma::mat DRHOipw, arma::vec BETA0, int maxit, int estBaseLamInd) {
   const int mxn = max(N);
   arma::mat BZt(mxn, 1, arma::fill::zeros);
   arma::mat S0(KK, mxn, arma::fill::zeros);
@@ -231,11 +233,14 @@ Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
   arma::mat invF(NP, NP, arma::fill::zeros);
   arma::mat var(NP, NP, arma::fill::zeros);
   arma::mat LAMBDAk0(KK, ntgrid, arma::fill::zeros);
-  int KL = 6;
+  arma::vec change(NP, arma::fill::ones);
+  int Kiter = 1; 
+  
   for(int j = 0; j < NP; j++){
     BETA(j) = BETA0(j);
   }
-  for (int Kiter = 1; Kiter <= KL; Kiter++) {
+  while (arma::sum(change) > 0.00001 && Kiter <= maxit) {
+  //for (int Kiter = 1; Kiter <= maxit; Kiter++) {
     F.zeros();
     F2.zeros();
     S0.zeros();
@@ -278,30 +283,31 @@ Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
           }
         }
       }
-
-      if (Kiter == KL) {
-        for (int i = 0; i < N(ks); i++) {
-          double TEMPB = 0.0;
-          for (int ii = 0; ii < N(ks); ii++) {
-            if (X(ks, ii) <= tau && S0(ks, ii) > 0.00000001) {
-                TEMPB += Epankercplusplus(X(ks, ii), X(ks, i), TBAND, CENSOR(ks, ii)) * (WGHT(ks, ii) * DELTA(ks, ii) + (1.0 - WGHT(ks, ii)) * CENSOR(ks, ii) * DRHOipw(ks, ii)) / S0(ks, ii);
-            }
-          }
-          LAMBDA0(ks, i) = TEMPB;
-        }
-      }
     }
-
-    BETA += arma::solve(F, U);
+    Kiter = Kiter +1;
+    change = arma::solve(F, U);
+    BETA += change;
   }
 
   invF = arma::inv(F);
   var = invF * F2 * invF;
   
+  
+  for (int ks = 0; ks < KK; ks++) {
+    for (int i = 0; i < N(ks); i++) {
+      double TEMPB = 0.0;
+      for (int ii = 0; ii < N(ks); ii++) {
+        if (X(ks, ii) <= tau && S0(ks, ii) > 0.00000001) {
+          TEMPB += Epankercplusplus(X(ks, ii), X(ks, i), TBAND, CENSOR(ks, ii)) * (WGHT(ks, ii) * DELTA(ks, ii) + (1.0 - WGHT(ks, ii)) * CENSOR(ks, ii) * DRHOipw(ks, ii)) / S0(ks, ii);
+        }
+      }
+      LAMBDA0(ks, i) = TEMPB;
+    }
+  }
+  
   if(estBaseLamInd == 1){
-
     for (int ks = 0; ks < KK; ks++) {
-      for (int Itgrid = 1; Itgrid <= ntgrid; Itgrid++) {
+      for (int Itgrid = 0; Itgrid < ntgrid; Itgrid++) {
         double tvalue = tstep * Itgrid;
         double TEMPB = 0.0;
         for (int ii = 0; ii < N(ks); ii++) {
@@ -311,7 +317,7 @@ Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
             }
           }
         }
-        LAMBDAk0(ks, Itgrid - 1) = TEMPB;
+        LAMBDAk0(ks, Itgrid) = TEMPB;
       }
     } 
   }

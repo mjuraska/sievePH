@@ -64,6 +64,8 @@ NULL
 #' @param nboot number of bootstrap iterations (500 by default) for simulating
 #'   the distributions of test statistics. If \code{NULL}, the hypotheses tests
 #'   are not performed.
+#' @param maxit Maximum number of iterations to attempt for convergence in
+#'   estimation. The default is 6.
 #' @param seed an integer specifying the random number generation seed for
 #'   reproducing the test statistics and p-values. By default, a specific seed
 #'   is not set.
@@ -156,7 +158,6 @@ NULL
 #'   (beta - 2)
 #' mark <- ifelse(eventInd == 1, c(mark0, mark1), NA)
 #' # complete-case estimation discards rows with a missing mark;
-#' # also, no auxiliary covariate is needed
 #' fit <- kernel_sievePH(eventTime, eventInd, mark, tx, tau = 3, tband = 0.5,
 #'                       hband = 0.3, nvgrid = 20, nboot = 20)
 #'
@@ -165,7 +166,7 @@ NULL
 #' @export
 kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = NULL, formulaPH = ~ tx,
                            tau = NULL, tband = NULL, hband = NULL, nvgrid = 100, a = NULL, b = NULL,
-                           ntgrid = NULL, nboot = 500,  seed = NULL) {
+                           ntgrid = NULL, nboot = 500,  seed = NULL, maxit = 6) {
   if (!is.null(seed)) {
     set.seed(seed)
   }
@@ -174,6 +175,15 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   }else {
     tau <- tau
   }
+  
+  if (min(eventTime) <= 0 | sum(is.na(eventTime)) > 0) {
+    stop("eventTime needs to be greater than 0 and have no missing values")
+  }
+  
+  if (sum(!unique(tx) %in% c(0,1)) > 0) {
+    stop("Treatment groups need to take value 0 or 1")
+  }
+  
   if (is.null(tband)) {
     tband <- (tau - min(eventTime)) / 5
   }
@@ -206,11 +216,17 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   if (is.null(a)) {
     a0 <- 1 / nvgrid
   }else{
+    if (a <= mn) {
+      stop("a needs to be greater than the minimum of the observed marks")
+    }
     a0 <- max(ceiling((a - mn) / (mx - mn) * nvgrid), 1) / nvgrid
   }
   if (is.null(b)) {
     b1 <- 1
   }else{
+    if(b >= mx) {
+      stop("b needs to be no greater than the maximum of the observed marks")
+    }
     b1 <- min(floor((b - mn) / (mx - mn) * nvgrid), nvgrid) / nvgrid
   }
   #total sample
@@ -325,7 +341,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     }
     # Complete data likelihood estimator: specify weight to be R
     comfit <- estpipwcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp,
-                               ncov, time, covart, censor, deltak, R, betacox,
+                               ncov, time, covart, censor, deltak, R, betacox, maxit,
                                ifelse(estBaseLamInd == 1, 1, 0))
     betacom[, ispot] <- comfit$BETA
     secom[, ispot] <- sqrt(diag(comfit$var))

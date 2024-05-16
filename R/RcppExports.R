@@ -9,12 +9,12 @@ estpcomcplusplus <- function(tau, KK, N, NP, X, ZT, DELTA, WGHT, BETA0) {
     .Call(`_sievePH_estpcomcplusplus`, tau, KK, N, NP, X, ZT, DELTA, WGHT, BETA0)
 }
 
-estpipwcplusplus <- function(tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, BETA0, estBaseLamInd) {
-    .Call(`_sievePH_estpipwcplusplus`, tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, BETA0, estBaseLamInd)
+estpipwcplusplus <- function(tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, BETA0, maxit, estBaseLamInd) {
+    .Call(`_sievePH_estpipwcplusplus`, tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, BETA0, maxit, estBaseLamInd)
 }
 
-estpaugcplusplus <- function(tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, DRHOipw, BETA0, estBaseLamInd) {
-    .Call(`_sievePH_estpaugcplusplus`, tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, DRHOipw, BETA0, estBaseLamInd)
+estpaugcplusplus <- function(tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, DRHOipw, BETA0, maxit, estBaseLamInd) {
+    .Call(`_sievePH_estpaugcplusplus`, tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, DRHOipw, BETA0, maxit, estBaseLamInd)
 }
 
 GDIST2Ncplusplus <- function(nvgrid, iskip, zdev, KK, N, NP, X, ZT, betaofv, SigmaInv, S0N, S1N, tempaug, AsigInv) {

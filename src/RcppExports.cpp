@@ -45,8 +45,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // estpipwcplusplus
-Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, int KK, arma::ivec N, int NP, arma::mat X, arma::cube ZT, arma::mat CENSOR, arma::mat DELTA, arma::mat WGHT, arma::vec BETA0, int estBaseLamInd);
-RcppExport SEXP _sievePH_estpipwcplusplus(SEXP tauSEXP, SEXP tstepSEXP, SEXP ntgridSEXP, SEXP TBANDSEXP, SEXP KKSEXP, SEXP NSEXP, SEXP NPSEXP, SEXP XSEXP, SEXP ZTSEXP, SEXP CENSORSEXP, SEXP DELTASEXP, SEXP WGHTSEXP, SEXP BETA0SEXP, SEXP estBaseLamIndSEXP) {
+Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, int KK, arma::ivec N, int NP, arma::mat X, arma::cube ZT, arma::mat CENSOR, arma::mat DELTA, arma::mat WGHT, arma::vec BETA0, int maxit, int estBaseLamInd);
+RcppExport SEXP _sievePH_estpipwcplusplus(SEXP tauSEXP, SEXP tstepSEXP, SEXP ntgridSEXP, SEXP TBANDSEXP, SEXP KKSEXP, SEXP NSEXP, SEXP NPSEXP, SEXP XSEXP, SEXP ZTSEXP, SEXP CENSORSEXP, SEXP DELTASEXP, SEXP WGHTSEXP, SEXP BETA0SEXP, SEXP maxitSEXP, SEXP estBaseLamIndSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -63,14 +63,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type DELTA(DELTASEXP);
     Rcpp::traits::input_parameter< arma::mat >::type WGHT(WGHTSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type BETA0(BETA0SEXP);
+    Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
     Rcpp::traits::input_parameter< int >::type estBaseLamInd(estBaseLamIndSEXP);
-    rcpp_result_gen = Rcpp::wrap(estpipwcplusplus(tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, BETA0, estBaseLamInd));
+    rcpp_result_gen = Rcpp::wrap(estpipwcplusplus(tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, BETA0, maxit, estBaseLamInd));
     return rcpp_result_gen;
 END_RCPP
 }
 // estpaugcplusplus
-Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, int KK, arma::ivec N, int NP, arma::mat X, arma::cube ZT, arma::mat CENSOR, arma::mat DELTA, arma::mat WGHT, arma::mat DRHOipw, arma::vec BETA0, int estBaseLamInd);
-RcppExport SEXP _sievePH_estpaugcplusplus(SEXP tauSEXP, SEXP tstepSEXP, SEXP ntgridSEXP, SEXP TBANDSEXP, SEXP KKSEXP, SEXP NSEXP, SEXP NPSEXP, SEXP XSEXP, SEXP ZTSEXP, SEXP CENSORSEXP, SEXP DELTASEXP, SEXP WGHTSEXP, SEXP DRHOipwSEXP, SEXP BETA0SEXP, SEXP estBaseLamIndSEXP) {
+Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, int KK, arma::ivec N, int NP, arma::mat X, arma::cube ZT, arma::mat CENSOR, arma::mat DELTA, arma::mat WGHT, arma::mat DRHOipw, arma::vec BETA0, int maxit, int estBaseLamInd);
+RcppExport SEXP _sievePH_estpaugcplusplus(SEXP tauSEXP, SEXP tstepSEXP, SEXP ntgridSEXP, SEXP TBANDSEXP, SEXP KKSEXP, SEXP NSEXP, SEXP NPSEXP, SEXP XSEXP, SEXP ZTSEXP, SEXP CENSORSEXP, SEXP DELTASEXP, SEXP WGHTSEXP, SEXP DRHOipwSEXP, SEXP BETA0SEXP, SEXP maxitSEXP, SEXP estBaseLamIndSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -88,8 +89,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type WGHT(WGHTSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type DRHOipw(DRHOipwSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type BETA0(BETA0SEXP);
+    Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
     Rcpp::traits::input_parameter< int >::type estBaseLamInd(estBaseLamIndSEXP);
-    rcpp_result_gen = Rcpp::wrap(estpaugcplusplus(tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, DRHOipw, BETA0, estBaseLamInd));
+    rcpp_result_gen = Rcpp::wrap(estpaugcplusplus(tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, DRHOipw, BETA0, maxit, estBaseLamInd));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -121,8 +123,8 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_sievePH_Epankercplusplus", (DL_FUNC) &_sievePH_Epankercplusplus, 4},
     {"_sievePH_estpcomcplusplus", (DL_FUNC) &_sievePH_estpcomcplusplus, 9},
-    {"_sievePH_estpipwcplusplus", (DL_FUNC) &_sievePH_estpipwcplusplus, 14},
-    {"_sievePH_estpaugcplusplus", (DL_FUNC) &_sievePH_estpaugcplusplus, 15},
+    {"_sievePH_estpipwcplusplus", (DL_FUNC) &_sievePH_estpipwcplusplus, 15},
+    {"_sievePH_estpaugcplusplus", (DL_FUNC) &_sievePH_estpaugcplusplus, 16},
     {"_sievePH_GDIST2Ncplusplus", (DL_FUNC) &_sievePH_GDIST2Ncplusplus, 14},
     {NULL, NULL, 0}
 };

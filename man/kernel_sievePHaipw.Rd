@@ -25,7 +25,8 @@ kernel_sievePHaipw(
   b = NULL,
   ntgrid = NULL,
   nboot = 500,
-  seed = NULL
+  seed = NULL,
+  maxit = 6
 )
 }
 \arguments{
@@ -133,6 +134,9 @@ are not performed.}
 \item{seed}{an integer specifying the random number generation seed for
 reproducing the test statistics and p-values. By default, a specific seed
 is not set.}
+
+\item{maxit}{Maximum number of iterations to attempt for convergence in
+estimation. The default is 6.}
 }
 \value{
 An object of class \code{kernel_sievePH} which can be processed by
