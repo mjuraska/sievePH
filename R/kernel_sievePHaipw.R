@@ -208,6 +208,7 @@ NULL
 #' # a missing-at-random mark
 #' mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
 #' # AIPW estimation; auxiliary covariate is used (not required)
+#' # True VE curve is VE(v) = 1 - exp{alpha(beta) + beta * v + gamma}
 #' fit <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, aux = A,
 #'                           auxType = "binary", formulaMiss = ~ eventTime,
 #'                           formulaAux = ~ eventTime + tx + mark,
