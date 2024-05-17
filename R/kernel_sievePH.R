@@ -337,7 +337,6 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   }else{
     estBaseLamInd <- 0
   }
-
   ###################################################################
   CUMB1 <- rep(0,nvgrid)
   for (ispot in 1:nvgrid) {
