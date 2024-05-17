@@ -296,7 +296,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
   if (is.null(b)) {
     b1 <- 1
   }else{
-    if(b >= mx) {
+    if(b > mx) {
       stop("b needs to be no greater than the maximum of the observed marks")
     }
     b1 <- min(floor((b - mn) / (mx - mn) * nvgrid), nvgrid) / nvgrid

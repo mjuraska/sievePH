@@ -187,6 +187,10 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     stop("Treatment groups need to take value 0 or 1")
   }
 
+  if (sum(is.na(mark) & eventInd == 1) > 0){
+    stop("No missing mark values are permitted for subjects with eventInd = 1")
+  }
+  
   if (is.null(tband)) {
     tband <- (tau - min(eventTime)) / 5
   }
@@ -215,7 +219,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   mx <- max(mark, na.rm = TRUE) #maximum observed mark value
   # Put the marks on the scale 0 to 1:
   vV <- (mark - mn) / (mx - mn)
-
+ 
   if (is.null(a)) {
     a0 <- 1 / nvgrid
   }else{
@@ -227,7 +231,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   if (is.null(b)) {
     b1 <- 1
   }else{
-    if(b >= mx) {
+    if(b > mx) {
       stop("b needs to be no greater than the maximum of the observed marks")
     }
     b1 <- min(floor((b - mn) / (mx - mn) * nvgrid), nvgrid) / nvgrid
