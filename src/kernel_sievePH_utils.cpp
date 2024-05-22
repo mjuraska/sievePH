@@ -121,7 +121,7 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
     BETA(j) = BETA0(j);
   }
 
-  while (arma::sum(change) > 0.00001 && Kiter <= maxit) {
+  while (arma::sum(arma::abs(change)) > 0.00001 && Kiter <= maxit) {
   //for (int Kiter = 1; Kiter <= maxit; Kiter++) {
     F.zeros();
     F2.zeros();
@@ -170,6 +170,9 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
       Kiter = Kiter +1;
       change = arma::solve(F, U);
       BETA += change;
+      //Rcpp::Rcout << "F" << F << std::endl;
+      //Rcpp::Rcout << "U" << U << std::endl;
+      
     };
   
 
@@ -239,7 +242,7 @@ Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
   for(int j = 0; j < NP; j++){
     BETA(j) = BETA0(j);
   }
-  while (arma::sum(change) > 0.00001 && Kiter <= maxit) {
+  while (arma::sum(arma::abs(change)) > 0.00001 && Kiter <= maxit) {
   //for (int Kiter = 1; Kiter <= maxit; Kiter++) {
     F.zeros();
     F2.zeros();

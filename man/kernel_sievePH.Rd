@@ -55,7 +55,7 @@ hazards model. Available variables to be used in the formula include
 specified as \code{~ tx}.}
 
 \item{tau}{a numeric value specifying the duration of study follow-up period.
-Failures beyond \code{tau} are treated right-censored. There needs to be at
+Failures beyond \code{tau} are treated as right-censored. There needs to be at
 least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored by
 \code{tau} for the estimation to be stable. By default, \code{tau} is set
 as the maximum of \code{eventTime}.}
@@ -84,7 +84,7 @@ on \eqn{v}, for \eqn{v \in [a, b]}; By default, \code{a} is set as
 \item{b}{a numeric value between the minimum and maximum of observed mark
 specifying the upper bound of the range for testing the null hypotheses
 \eqn{H_{10}: HR(v) = 1} and \eqn{H_{20}: HR(v)} does not depend on \eqn{v},
-for \eqn{v \in [a, b]}; By default, \code{b} is set as \eqn{max(mark)}.}
+for \eqn{v \in [a, b]}; By default, \code{b} is set as \code{max(mark)}.}
 
 \item{ntgrid}{an integer value (\code{NULL} by default) specifying the number
 of equally spaced time points for which the mark-specific baseline hazard
@@ -92,15 +92,14 @@ functions are evaluated. If \code{NULL}, baseline hazard functions are not
 evaluated.}
 
 \item{nboot}{number of bootstrap iterations (500 by default) for simulating
-the distributions of test statistics. If \code{NULL}, the hypotheses tests
-are not performed.}
+the distributions of the test statistics. If \code{NULL}, the hypotheses
+tests are not performed.}
 
-\item{seed}{an integer specifying the random number generation seed for
-reproducing the test statistics and p-values. By default, a specific seed
-is not set.}
+\item{seed}{an integer specifying the random seed for reproducing the test
+statistics and p-values. By default, a specific seed is not set.}
 
 \item{maxit}{Maximum number of iterations to attempt for convergence in
-estimation. The default is 6.}
+estimation. The default number is 6.}
 }
 \value{
 An object of class \code{kernel_sievePH} which can be processed by
@@ -109,12 +108,12 @@ An object of class \code{kernel_sievePH} which can be processed by
   following components:
 \itemize{
 \item \code{H10}: a data frame with test statistics (first row) and
-corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for v
-\eqn{\in [a, b]}. Columns \code{TSUP1} and \code{Tint1} include test
+corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for 
+\eqn{v \in [a, b]}. Columns \code{TSUP1} and \code{Tint1} include test
 statistics and p-values for testing \eqn{H_{10}} vs. \eqn{H_{1a}: HR(v) \neq
 1} for any v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP1m}
 and \code{Tint1m} include test statistics and p-values for testing
-\eqn{H_{10}} vs. \eqn{H_{1m}: HR(v) \leq 1} with strict inequality for some v
+\eqn{H_{10}} vs. \eqn{H_{1m}: HR(v) \leq 1} with strict inequality for some \eqn{v}
 in \eqn{[a, b]} (monotone alternative). \code{TSUP1} and \code{TSUP1m} are
 based on extensions of the classic Kolmogorov-Smirnov supremum-based test.
 \code{Tint1} and \code{Tint1m} are based on generalizations of the
@@ -124,11 +123,11 @@ involve integration of deviations over the whole range of the mark. If
 
 \item \code{H20}: a data frame with test statistics (first row) and
 corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not
-depend on v \eqn{\in [a, b]}. Columns \code{TSUP2} and \code{Tint2} include
+depend on \eqn{v \in [a, b]}. Columns \code{TSUP2} and \code{Tint2} include
 test statistics and p-values for testing \eqn{H_{20}} vs. \eqn{H_{2a}}: HR
-depends on v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP2m}
+depends on \eqn{v \in [a, b]} (general alternative). Columns \code{TSUP2m}
 and \code{Tint2m} include test statistics and p-values for testing
-\eqn{H_{20}} vs. \eqn{H_{2m}}: HR increases as v increases \eqn{\in [a, b]}
+\eqn{H_{20}} vs. \eqn{H_{2m}}: HR increases as \eqn{v} increases \eqn{\in [a, b]}
 (monotone alternative). \code{TSUP2} and \code{TSUP2m} are based on
 extensions of the classic Kolmogorov-Smirnov supremum-based test.
 \code{Tint2} and \code{Tint2m} are based on generalizations of the

@@ -9,8 +9,8 @@ NULL
 #' and hypothesis testing methods of Gilbert and Sun (2015) for a mark-specific
 #' proportional hazards model accommodating that some failures have a missing
 #' mark. The methods allow separate baseline mark-specific hazard functions for
-#' different baseline subgroups. Missing marks are handled via augmented IPW
-#' (AIPW) approach.
+#' different baseline subgroups. Missing marks are handled via complete-case,
+#' inverse-probability weighting (IPW), or augmented IPW (AIPW) approaches.
 #'
 #' @param eventTime a numeric vector specifying the observed right-censored
 #'   event time.
@@ -25,11 +25,12 @@ NULL
 #' @param aux a numeric vector specifying a binary or a continuous auxiliary
 #'   covariate which may be potentially useful for predicting missingness, i.e,
 #'   the probability of missing, and for informing about the distribution of
-#'   missing marks. The mark missingness model only requires that the auxiliary
-#'   covariates be observed in subjects who experienced the event of interest.
-#'   For subjects with \code{eventInd = 0}, the value in \code{aux} may be set
-#'   to \code{NA}. If no auxiliary covariate is used, set \code{aux} to the
-#'   default of \code{NULL}.
+#'   missing marks.  \code{aux} may be specified when the \code{AIPW} or
+#'   \code{IPW} estimation procedure is employed. The mark missingness model
+#'   only requires that the auxiliary covariates be observed in subjects
+#'   who experienced the event of interest. For subjects with \code{eventInd =
+#'   0}, the value in \code{aux} may be set to \code{NA}. If no auxiliary
+#'   covariate is used, set \code{aux} to the default of \code{NULL}.
 #' @param auxType a character string describing the data type of \code{aux} if
 #'   \code{aux} is used. Data types allowed include "binary" and "continuous".
 #'   If \code{aux} is not used, \code{auxType} should be set to the default of
@@ -39,8 +40,12 @@ NULL
 #'   used, \code{zcov} should be set to the default of \code{NULL}.
 #' @param strata a numeric vector specifying baseline strata (\code{NULL} by
 #'   default). If specified, a separate mark-specific baseline hazard is assumed
-#'   for each stratum. It also allows the models of the probability of
-#'   complete-case and of the mark distribution to differ across strata.
+#'   for each stratum. If IPW or AIPW method is used, separate models for
+#'   predicting the probability of a missing mark and the missing mark value are
+#'   considered for each stratum.
+#' @param missmethod a character string for the estimation procedure to use.
+#'   Available missing-mark methods include \code{CC}, \code{IPW}, and
+#'   \code{AIPW}.
 #' @param formulaPH a one-sided formula object (on the right side of the
 #'   \code{~} operator) specifying the linear predictor in the proportional
 #'   hazards model. Available variables to be used in the formula include
@@ -49,20 +54,21 @@ NULL
 #' @param formulaMiss a one-sided formula object (on the right side of the
 #'   \code{~} operator) specifying the linear predictor in the logistic
 #'   regression model used for predicting the probability of observing the mark.
-#'   \code{formulaMiss} must be provided for the \code{AIPW} method. Available
-#'   variables to be used in the formula include \code{eventTime}, \code{tx},
-#'   \code{aux}, and variable(s) in \code{zcov}.
+#'   \code{formulaMiss} (\code{NULL} by default) must be provided for \code{IPW}
+#'   and \code{AIPW} methods. Available variables to be used in the formula
+#'   include \code{eventTime}, \code{tx}, \code{aux}, and variable(s) in
+#'   \code{zcov}.
 #' @param formulaAux a one-sided formula object (on the right side of the
 #'   \code{~} operator) specifying the variables used for estimating the
-#'   conditional probability distribution or conditional density of \code{aux}.
-#'   If \code{aux} is binary, the formula specifies the linear predictor in a
-#'   logistic regression and if \code{aux} is continuous, the formula provides a
-#'   symbolic description of variables to be used in kernel conditional density
-#'   estimation. \code{formulaAux} is optional for the \code{AIPW} estimation
-#'   procedure. Available variables to be used in the formula include
-#'   \code{eventTime}, \code{tx}, \code{mark}, and variable(s) in \code{zcov}.
+#'   conditional distribution of \code{aux}. If \code{aux} is binary, the
+#'   formula specifies the linear predictor in a logistic regression and if
+#'   \code{aux} is continuous, the formula provides a symbolic description of
+#'   variables used in kernel conditional density estimation. \code{formulaAux}
+#'   is optional for the \code{AIPW} estimation procedure. Available variables
+#'   to be used in the formula include \code{eventTime}, \code{tx}, \code{mark},
+#'   and variable(s) in \code{zcov}.
 #' @param tau a numeric value specifying the duration of study follow-up period.
-#'   Failures beyond \code{tau} are treated as right-censored. There needs to be at
+#'   Failures beyond \code{tau} are treated right-censored. There needs to be at
 #'   least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored by
 #'   \code{tau} for the estimation to be stable. By default, \code{tau} is set
 #'   as the maximum of \code{eventTime}.
@@ -73,31 +79,32 @@ NULL
 #'   kernel smoothing function over mark. By default, \code{hband} is set as
 #'   \eqn{4\sigma n^{-1/3}} where \eqn{\sigma} is the estimated standard
 #'   deviation of the observed marks for uncensored failure times and \eqn{n} is
-#'   the number of subjects in the dataset. Larger bandwidths are recommended
+#'   the number of subjects in the dataset.  Larger bandwidths are recommended
 #'   for higher percentages of missing marks.
-#' @param nvgrid an integer value (100 by default) specifying the number of
-#'   equally spaced mark values between the minimum and maximum of the observed
-#'   mark for which the treatment effects are evaluated.
-#' @param a a numeric value between the minimum and maximum of observed mark
-#'   values specifying the lower bound of the range for testing the null
-#'   hypotheses \eqn{H_{10}: HR(v) = 1} and \eqn{H_{20}: HR(v)} does not depend
-#'   on \eqn{v}, for \eqn{v \in [a, b]}; By default, \code{a} is set as
-#'   \code{(max(mark) - min(mark))/nvgrid + min(mark)}.
-#' @param b a numeric value between the minimum and maximum of observed mark
-#'   specifying the upper bound of the range for testing the null hypotheses
-#'   \eqn{H_{10}: HR(v) = 1} and \eqn{H_{20}: HR(v)} does not depend on \eqn{v},
-#'   for \eqn{v \in [a, b]}; By default, \code{b} is set as \code{max(mark)}.
+#' @param a a numeric value between 0 and 1 specifying the lower bound of the
+#'   range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
+#'   \eqn{H_{20}: HR(v)} does not depend on \eqn{v}, for \eqn{v \in [a, b]}
+#'   where \eqn{v} represents the standardized mark between 0 and 1; \code{a}
+#'   needs to be \code{1/nvgrid} multiplied by a positive integer. By default,
+#'   \code{a} is set as 1/\code{nvgrid}.
+#' @param b a numeric value between 0 and 1 specifying the upper bound of the
+#'   range for testing the null hypotheses \eqn{H_{10}: HR(v) = 1} and
+#'   \eqn{H_{20}: HR(v)} does not depend on \eqn{v}, for \eqn{v \in [a, b]}
+#'   where \code{v} represents the standardized mark between 0 and 1; \code{b}
+#'   needs to be \code{1/nvgrid} multiplied by a positive integer. By default,
+#'   \code{b} is set as 1.
 #' @param ntgrid an integer value (\code{NULL} by default) specifying the number
 #'   of equally spaced time points for which the mark-specific baseline hazard
 #'   functions are evaluated. If \code{NULL}, baseline hazard functions are not
 #'   evaluated.
+#' @param nvgrid an integer value (100 by default) specifying the number of
+#'   equally spaced mark values between the minimum and maximum of the observed
+#'   mark for which the treatment effects are evaluated.
 #' @param nboot number of bootstrap iterations (500 by default) for simulating
-#'   the distributions of the test statistics. If \code{NULL}, the hypotheses
-#'   tests are not performed.
-#' @param maxit Maximum number of iterations to attempt for convergence in
-#'   estimation. The default number is 6.
-#' @param seed an integer specifying the random seed for reproducing the test
-#'   statistics and p-values. By default, a specific seed is not set.
+#'   the distributions of test statistics.
+#' @param seed an integer specifying the random number generation seed for
+#'   reproducing the test statistics and p-values. By default, a specific seed
+#'   is not set.
 #'
 #' @details \code{kernel_sievePH} analyzes data from a randomized
 #'   placebo-controlled trial that evaluates treatment efficacy for a
@@ -106,9 +113,11 @@ NULL
 #'   (treatment/placebo), which is based on a stratified mark-specific
 #'   proportional hazards model. This model assumes no parametric form for the
 #'   baseline hazard function nor the treatment effect across different mark
-#'   values. For data with missing marks, the estimation procedure leverages
-#'   auxiliary predictors of whether the mark is observed and augments the IPW
-#'   estimator with auxiliary predictors of the missing mark value.
+#'   values. For data with missing marks, two estimation procedures can be
+#'   implemented. The first one uses inverse probability weighting (IPW) of the
+#'   complete-case estimator, which leverages auxiliary predictors of whether
+#'   the mark is observed, whereas the second one augments the IPW estimator
+#'   with auxiliary predictors of the missing mark value.
 #'
 #' @return An object of class \code{kernel_sievePH} which can be processed by
 #'   \code{\link{summary.kernel_sievePH}} to obtain or print a summary of the
@@ -119,29 +128,27 @@ NULL
 #' corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for v
 #' \eqn{\in [a, b]}. Columns \code{TSUP1} and \code{Tint1} include test
 #' statistics and p-values for testing \eqn{H_{10}} vs. \eqn{H_{1a}: HR(v) \neq
-#' 1} for any \eqn{v \in [a, b]} (general alternative). Columns \code{TSUP1m}
+#' 1} for any v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP1m}
 #' and \code{Tint1m} include test statistics and p-values for testing
-#' \eqn{H_{10}} vs. \eqn{H_{1m}: HR(v) \leq 1} with strict inequality for some \eqn{v} in
-#' \eqn{[a, b]} (monotone alternative). \code{TSUP1} and \code{TSUP1m} are
+#' \eqn{H_{10}} vs. \eqn{H_{1m}: HR(v) \leq 1} with strict inequality for some v
+#' in \eqn{[a, b]} (monotone alternative). \code{TSUP1} and \code{TSUP1m} are
 #' based on extensions of the classic Kolmogorov-Smirnov supremum-based test.
 #' \code{Tint1} and \code{Tint1m} are based on generalizations of the
 #' integration-based Cramer-von Mises test. \code{Tint1} and \code{Tint1m}
-#' involve integration of deviations over the whole range of the mark. If
-#' \code{nboot} is \code{NULL}, \code{H10} is returned as \code{NULL}.
+#' involve integration of deviations over the whole range of the mark.
 #'
 #' \item \code{H20}: a data frame with test statistics (first row) and
 #' corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not
-#' depend on \eqn{v \in [a, b]}. Columns \code{TSUP2} and \code{Tint2} include
+#' depend on v \eqn{\in [a, b]}. Columns \code{TSUP2} and \code{Tint2} include
 #' test statistics and p-values for testing \eqn{H_{20}} vs. \eqn{H_{2a}}: HR
-#' depends on \eqn{v \in [a, b]} (general alternative). Columns \code{TSUP2m}
+#' depends on v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP2m}
 #' and \code{Tint2m} include test statistics and p-values for testing
-#' \eqn{H_{20}} vs. \eqn{H_{2m}}: HR increases as \eqn{v} increases \eqn{\in [a, b]}
+#' \eqn{H_{20}} vs. \eqn{H_{2m}}: HR increases as v increases \eqn{\in [a, b]}
 #' (monotone alternative). \code{TSUP2} and \code{TSUP2m} are based on
 #' extensions of the classic Kolmogorov-Smirnov supremum-based test.
 #' \code{Tint2} and \code{Tint2m} are based on generalizations of the
 #' integration-based Cramer-von Mises test. \code{Tint2} and \code{Tint2m}
-#' involve integration of deviations over the whole range of the mark. If
-#' \code{nboot} is \code{NULL}, \code{H20} is returned as \code{NULL}.
+#' involve integration of deviations over the whole range of the mark.
 #'
 #' \item \code{estBeta}: a data frame summarizing point estimates and standard
 #' errors of the mark-specific coefficients for treatment at equally-spaced
@@ -150,20 +157,18 @@ NULL
 #' \item \code{cBproc1}: a data frame containing equally-spaced mark values in
 #' the column \code{Mark}, test processes \eqn{Q^{(1)}(v)} for observed data in
 #' the column \code{Observed}, and \eqn{Q^{(1)}(v)} for \code{nboot} independent
-#' sets of normal samples in the columns S1, S2, \eqn{\cdots}. If
-#' \code{nboot} is \code{NULL}, \code{cBproc1} is returned as \code{NULL}.
+#' sets of normal samples in the columns S1, S2, \eqn{\cdots}.
 #'
 #' \item \code{cBproc2}: a data frame containing equally-spaced mark values in
 #' the column \code{Mark}, test processes \eqn{Q^{(2)}(v)} for observed data in
 #' the column \code{Observed}, and \eqn{Q^{(2)}(v)} for \code{nboot} independent
-#' sets of normal samples in the columns S1, S2, \eqn{\cdots}. If
-#' \code{nboot} is \code{NULL}, \code{cBproc2} is returned as \code{NULL}.
+#' sets of normal samples in the columns S1, S2, \eqn{\cdots}. 
 #'
 #' \item \code{Lambda0}: an array of dimension K x nvgrid x ntgrid for the
 #'   kernel-smoothed baseline hazard function \eqn{\lambda_{0k}, k = 1, \dots,
 #'   K} where \eqn{K} is the number of strata. If \code{ntgrid} is \code{NULL}
-#' (by default), \code{Lambda0} is returned as \code{NULL}.}
-#'
+#' (by default), \code{Lambda0} is not included in the output.}
+#'   
 #' @references Gilbert, P. B. and Sun, Y. (2015). Inferences on relative failure
 #'   rates in stratified mark-specific proportional hazards models with missing
 #'   marks, with application to human immunodeficiency virus vaccine efficacy
@@ -181,67 +186,68 @@ NULL
 #'
 #' @examples
 #' set.seed(20240410)
-#' beta <- 2.1
-#' gamma <- -1.3
 #' n <- 200
 #' tx <- rep(0:1, each = n / 2)
-#' tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(gamma)))
+#' tm <- c(rexp(n / 2, 0.2), rexp(n / 2, 0.2 * exp(-0.4)))
 #' cens <- runif(n, 0, 15)
 #' eventTime <- pmin(tm, cens, 3)
 #' eventInd <- as.numeric(tm <= pmin(cens, 3))
-#' alpha <- function(b){ log((1 - exp(-2)) * (b - 2) / (2 * (exp(b - 2) - 1))) }
-#' mark0 <- log(1 - (1 - exp(-2)) * runif(n / 2)) / (-2)
-#' mark1 <- log(1 + (beta - 2) * (1 - exp(-2)) * runif(n / 2) / (2 * exp(alpha(beta)))) /
-#'   (beta - 2)
-#' mark <- ifelse(eventInd == 1, c(mark0, mark1), NA)
-#' # the true TE(v) curve underlying the data-generating mechanism is:
-#' # TE(v) = 1 - exp{alpha(beta) + beta * v + gamma}
-#'
+#' mark <- ifelse(eventInd == 1, c(rbeta(n / 2, 2, 1), rbeta(n / 2, 2, 2)), NA)
 #' # a binary auxiliary covariate
 #' A <- sapply(exp(-0.5 - 0.2 * mark) / (1 + exp(-0.5 - 0.2 * mark)),
 #'             function(p){ ifelse(is.na(p), NA, rbinom(1, 1, p)) })
-#' linPred <- 1 + 0.4 * tx - 0.2 * A
+#' #A <- -0.5 - 0.2 * mark + rnorm(n,0,0.3)
+#' linPred <- -0.8 + 0.4 * tx - 0.2 * A
 #' probs <- exp(linPred) / (1 + exp(linPred))
 #' R <- rep(NA, n)
 #' while (sum(R, na.rm = TRUE) < 10){
-#'   R[eventInd == 1] <- sapply(probs[eventInd == 1],
-#'                              function(p){ rbinom(1, 1, p) })
+#'  R[eventInd == 1] <- sapply(probs[eventInd == 1],
+#'                             function(p){ rbinom(1, 1, p) })
 #' }
 #' # a missing-at-random mark
 #' mark[eventInd == 1] <- ifelse(R[eventInd == 1] == 1, mark[eventInd == 1], NA)
-#'
-#' # AIPW estimation; auxiliary covariate is used (not required)
-#' fit <- kernel_sievePHaipw(eventTime, eventInd, mark, tx, aux = A,
-#'                           auxType = "binary", formulaMiss = ~ eventTime,
-#'                           formulaAux = ~ eventTime + tx + mark,
-#'                           tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20,
-#'                           nboot = 20)
+#' # AIPW estimation, auxiliary covariate is used (not required)
+#' fitaug <- kernel_sievePHunified(eventTime, eventInd, mark, tx, aux = A, auxType = "binary",
+#'                       missmethod = "AIPW", formulaMiss = ~ eventTime,
+#'                       formulaAux = ~ eventTime + tx + mark,
+#'                       tau = 3, tband = 0.5, hband = 0.3, a = 0.1, b = 1,
+#'                       nvgrid = 20, nboot = 50)
+#' \donttest{
+#' # complete-case estimation discards rows with a missing mark;
+#' # also, no auxiliary covariate is needed
+#' fitcc <- kernel_sievePHunified(eventTime, eventInd, mark, tx,
+#'                       missmethod = "CC", tau = 3, tband = 0.5, hband = 0.3,
+#'                       a = 0.1, b = 1, nvgrid = 20, nboot = 50, seed = 1)
+#' }
 #'
 #' @importFrom plyr laply
 #'
 #' @export
-kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = NULL, zcov = NULL, strata = NULL, formulaPH = ~ tx, formulaMiss = NULL, formulaAux = NULL,
-                               tau = NULL, tband = NULL, hband = NULL, nvgrid = 100, a = NULL, b = NULL, ntgrid = NULL, nboot = 500,  seed = NULL, maxit = 6) {
+kernel_sievePHunified <- function(eventTime, eventInd, mark, tx, aux = NULL, auxType = NULL, zcov = NULL, strata = NULL, missmethod, formulaPH = ~ tx, formulaMiss = NULL, formulaAux = NULL,
+                               tau = NULL, tband = NULL, hband = NULL, a = NULL, b = NULL, ntgrid = NULL, nvgrid = 100, nboot = 500,  seed = NULL) {
 
 
+#browser()
+  # nauxiliary a numeric indicator for whether any auxiliary variable is used in augmenting the IPW estimation equations
+  if (missmethod == "CC") {
+    nauxiliary <- 0
+    missmark <- 0
+  }else if (missmethod == "IPW") {
+    nauxiliary <- 0
+    missmark <- 1
+  }else if (missmethod == "AIPW") {
+    if (is.null(aux)) {
+      nauxiliary <- 0
+    }else {
+      nauxiliary <- 1
+    }
+    missmark <- 1
+  }else {
+    stop("Missing-Mark Method Missing")
+  }
   if (!is.null(seed)) {
     set.seed(seed)
   }
-  if (is.null(aux)) {
-    nauxiliary <- 0
-  }else {
-    nauxiliary <- 1
-  }
-  missmark <- 1
-
-  if (min(eventTime) <= 0 | sum(is.na(eventTime)) > 0) {
-    stop("eventTime needs to be greater than 0 and have no missing values")
-  }
-
-  if (sum(!unique(tx) %in% c(0,1)) > 0) {
-    stop("Treatment groups need to take value 0 or 1")
-  }
-
   if (is.null(tau)) {
     tau <- max(eventTime)
   }else {
@@ -251,13 +257,20 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
     tband <- (tau - min(eventTime)) / 5
   } else {
     tband <- tband
-  }
+  } 
   if (is.null(hband)) {
     hband <- 4*sqrt(var(mark[eventInd == 1], na.rm = TRUE)) * length(eventInd)^{-1/3}
   }else {
     hband <- hband
+  } 
+  if (is.null(a)) {
+    a <- 1/nvgrid
   }
-
+  if (is.null(b)) {
+    b <- 1
+  }
+  a0 <- a
+  b1 <- b
   nsamp <- NULL
   # kk is the number of strata
   if (is.null(strata)) {
@@ -279,27 +292,11 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
 
  # The code inputs mark on its own scale, and re-scales it to 0-1 before doing the analysis.
   vV <- mark
-  mn <- min(mark, na.rm = TRUE) #minimum observed mark value
-  mx <- max(mark, na.rm = TRUE) #maximum observed mark value
+  keep <- which((mark != 99) & (!is.na(mark)))
+  mn <- min(mark[keep], na.rm = TRUE) #minimum observed mark value
+  mx <- max(mark[keep], na.rm = TRUE) #maximum observed mark value
   # Put the marks on the scale 0 to 1:
-  vV <- (mark - mn) / (mx - mn)
-
-  if (is.null(a)) {
-    a0 <- 1 / nvgrid
-  }else{
-    if (a <= mn) {
-      stop("a needs to be greater than the minimum of the observed marks")
-    }
-    a0 <- max(ceiling((a - mn) / (mx - mn) * nvgrid), 1) / nvgrid
-  }
-  if (is.null(b)) {
-    b1 <- 1
-  }else{
-    if(b > mx) {
-      stop("b needs to be no greater than the maximum of the observed marks")
-    }
-    b1 <- min(floor((b - mn) / (mx - mn) * nvgrid), nvgrid) / nvgrid
-  }
+  vV[keep] <- (mark[keep] - mn) / (mx - mn)
 
   #total sample
   nsampa <- sum(nsamp)
@@ -461,7 +458,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
           colnames(availabledf) <- c("R", "eventTime", "tx")
         }
         if ("aux" %in% formulaMissDecomp) {
-          stop("`aux` is not available")
+          stop("`aux` is not available") 
         }
       }
 
@@ -534,13 +531,13 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
         covartG[ks, 1:ncovG, 1:nsamp[ks]] <- t(model.matrix(terms(formulaAuxNew), mf)[,-1])
         covartGvarNames <- colnames(mf)[-1]
       }
-
+      
     }
-
+    
   }
   # Compute cenG; the logistic regression is only based on cases with observed marks
   cenG <- censor * R
-
+  
   if (nauxiliary == 1) {
     G <- array(1, dim = c(kk, n_max, nvgrid))
     if(auxType == "binary") {
@@ -603,7 +600,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
   LAMBDA0aug <- array(0, dim = c(kk, max(nsamp), nvgrid))
   betaofv <- array(0, dim = c(ncov, nvgrid))
   SigmaInv <- array(0, dim = c(ncov, ncov, nvgrid))
-
+ 
   # baseline hazard functions:
   Lamktv0 <- array(0, dim = c(kk, ifelse(is.null(ntgrid), 1, ntgrid), nvgrid))
   if (!is.null(ntgrid)) {
@@ -611,6 +608,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
   }else{
     estBaseLamInd <- 0
   }
+  browser()
   ###################################################################
   for (ispot in 1:nvgrid) {
     vspot <- ispot * vstep
@@ -624,10 +622,9 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
     betacom[, ispot] <- comfit$BETA
     secom[, ispot] <- sqrt(diag(comfit$var))
 
-
     # The inverse probability weighted estimator: ipw
-    ipwfit <- estpipwcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp,
-                                ncov, time, covart, censor, deltak, wght, betacom[,ispot], maxit, 0)
+    ipwfit <- estpipwcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp, 
+                                ncov, time, covart, censor, deltak, wght, betacox, 6, 0)
 
     betaipw[, ispot] <- ipwfit$BETA
     seipw[, ispot] <- sqrt(diag(ipwfit$var))
@@ -658,7 +655,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
           BZIPW <- array(0, dim = c(max(nsamp),1))
           if(ncov == 1){
             BZIPW[valid_indices, 1] <- covart[ks, 1, valid_indices] * betaipw[1, ispot]
-          }else{
+          }else{           
             BZIPW[valid_indices, 1] <- t(covart[ks, , valid_indices]) %*% betaipw[, ispot] #summing over J
           }
 
@@ -673,7 +670,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
 ########################################################
 # CALCULATE CKLAMBDA(KS,I, u)= $ K_h(u-v) \lambda_k(t,u|z) h_k(a|t,u,z) du$ AT $W_{ki}=(T_{ki},Z_{ki})$:
 # K_h(u-v)du is
-#DRHOipw is the derivative of rho_k^{ipw}(v,w_i) w.r.t v in equation 10.
+#DRHOipw is the derivative of rho_k^{ipw}(v,w_i) w.r.t v in equation 10. 
     CKLAMBDAIPW <- array(0, dim = c(kk, max(nsamp), nvgrid))
     for (ks in 1:kk) {
       for (i in 1:nsamp[ks]) {
@@ -704,9 +701,8 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
 
       # initial value
       betaaug0 <- betaipw[, ispot]
-      estpaug_result = estpaugcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp, ncov, time, covart,
-                                        censor, deltak, wght, DRHOipw, betaaug0, maxit,
-                                        ifelse(estBaseLamInd ==1, 1, 0))
+      estpaug_result = estpaugcplusplus(tau, tstep, ifelse(is.null(ntgrid), 1, ntgrid), tband, kk, nsamp, ncov, time, covart, 
+                                        censor, deltak, wght, DRHOipw, betaaug0)
       betaaug[, ispot] <- estpaug_result$BETA
       seaug[, ispot] <- sqrt(diag(estpaug_result$var))
       if (ispot >= iskip & ispot > 1) {
@@ -735,287 +731,299 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
       }
     }
 
-
-    if(!is.null(nboot)){
-      # **************************************************************************
-      # calculate the quantities needed for GDIST2N
-      # **************************************************************************
-      AsigInv <- array(0, dim = c(ncov * ncov, nvgrid, nvgrid))
-      tempaug <- array(0, dim = c(kk, max(nsamp), nvgrid))
-      for (ispot in iskip:nvgrid) {
-        va <- vstep * (ispot - 1.0)
-        vb <- vstep * ispot
-        vspot <- ispot * vstep
-        sigtemp <- matrix(0.0, nrow = ncov, ncol = ncov)
-        for(mspot in iskip:nvgrid){
-          vmspot <- mspot * vstep
-          sigtemp <- sigtemp + SigmaInv[, , mspot] * Epanker(vspot, vmspot, hband, 1.0) * vstep
-          AsigInv[, ispot, mspot] <- as.vector(sigtemp[1:ncov, 1:ncov])
-        }
-        DRHOaug <- matrix(0, nrow = kk, ncol = max(nsamp))
-        for(ks in 1:kk){
-          valid_indices <- which((time[ks,] <= tau) & (censor[ks,] > 0.5) & (CLAMBDAUG[ks,] > 0.00000001))
-          DRHOaug[ks, valid_indices] <- G[ks, valid_indices, ispot] * LAMBDAUG[ks, valid_indices, ispot] / CLAMBDAUG[ks, valid_indices]
-          DRHOaug[ks, !valid_indices] <- 0.0
-          temp1 <- (1.0 - wght[ks, ]) * DRHOaug[ks, ] * vstep
-          temp1[!(time[ks, ] <= tau) | !(censor[ks, ] > 0.5)] <- 0.0
-          temp2 <- wght[ks, ]
-          temp2[!(time[ks, ] <= tau) | !(markm[ks, ] > va) | !(markm[ks, ] <= vb) | !(censor[ks, ] > 0.5)] <- 0.0
-          tempaug[ks, 1:nsamp[kk], ispot] <- temp1 + temp2
-        }
+    # **************************************************************************
+    # calculate the quantities needed for GDIST2N
+    # **************************************************************************
+    AsigInv <- array(0, dim = c(ncov * ncov, nvgrid, nvgrid))
+    tempaug <- array(0, dim = c(kk, max(nsamp), nvgrid))
+    for (ispot in iskip:nvgrid) {
+      va <- vstep * (ispot - 1.0)
+      vb <- vstep * ispot
+      vspot <- ispot * vstep
+      sigtemp <- matrix(0.0, nrow = ncov, ncol = ncov)
+      for(mspot in iskip:nvgrid){
+        vmspot <- mspot * vstep
+        sigtemp <- sigtemp + SigmaInv[, , mspot] * Epanker(vspot, vmspot, hband, 1.0) * vstep
+        AsigInv[, ispot, mspot] <- as.vector(sigtemp[1:ncov, 1:ncov])
       }
+      DRHOaug <- matrix(0, nrow = kk, ncol = max(nsamp))
+      for(ks in 1:kk){
+        valid_indices <- which((time[ks,] <= tau) & (censor[ks,] > 0.5) & (CLAMBDAUG[ks,] > 0.00000001))
+        DRHOaug[ks, valid_indices] <- G[ks, valid_indices, ispot] * LAMBDAUG[ks, valid_indices, ispot] / CLAMBDAUG[ks, valid_indices]
+        DRHOaug[ks, !valid_indices] <- 0.0
+        temp1 <- (1.0 - wght[ks, ]) * DRHOaug[ks, ] * vstep
+        temp1[!(time[ks, ] <= tau) | !(censor[ks, ] > 0.5)] <- 0.0
+        temp2 <- wght[ks, ]
+        temp2[!(time[ks, ] <= tau) | !(markm[ks, ] > va) | !(markm[ks, ] <= vb) | !(censor[ks, ] > 0.5)] <- 0.0
+        tempaug[ks, 1:nsamp[kk], ispot] <- temp1 + temp2
+      }
+    }
 
-      #############################################
-      S0N <- array(0, dim = c(kk, max(nsamp),nvgrid))
-      S1N <- array(0, dim = c(kk * ncov, max(nsamp), nvgrid))
+#############################################
+    S0N <- array(0, dim = c(kk, max(nsamp),nvgrid))
+    S1N <- array(0, dim = c(kk * ncov, max(nsamp), nvgrid))
 
-      for (ispot in iskip:nvgrid) {
-        for (ks in 1:kk) {
-          # for time independent covariates
-          BZt <- matrix(0, nrow = nsamp[ks], ncol = 1)
-          if(ncov == 1){
-            BZt[1:nsamp[ks], 1] <- as.matrix(covart[ks, , 1:nsamp[ks]] * betaofv[1, ispot], ncol = 1)
-          }else{
-            BZt <- t(covart[ks, , 1:nsamp[ks]]) %*% betaofv[, ispot]
-          }
-          S0 <- rep(0, nsamp[ks])
-          S1 <- matrix(0, nrow = ncov, ncol = nsamp[ks])
-          for (i in 1:nsamp[ks]) {
-            valid_indices <- which(time[ks, 1:nsamp[ks]] >= time[ks, i])
-            S0[i] <- sum(exp(BZt[valid_indices, 1]))
-            for(J in 1:ncov){
-              S1[J,i] <- sum(covart[ks,J , valid_indices]*exp(BZt[valid_indices, 1]))
-            }
-          }
-          S0N[ks, 1:nsamp[ks], ispot] <- S0
-          arrayseq <- seq((ks-1)*ncov +1, (ks*ncov), 1)
-          # browser()
-          for (a in arrayseq) {
-            S1N[a, 1:nsamp[ks], ispot] <- S1[a, ]
+    for (ispot in iskip:nvgrid) {
+      for (ks in 1:kk) {
+        # for time independent covariates
+        BZt <- matrix(0, nrow = nsamp[ks], ncol = 1)
+        if(ncov == 1){
+          BZt[1:nsamp[ks], 1] <- as.matrix(covart[ks, , 1:nsamp[ks]] * betaofv[1, ispot], ncol = 1)
+        }else{
+          BZt <- t(covart[ks, , 1:nsamp[ks]]) %*% betaofv[, ispot]
+        }
+        S0 <- rep(0, nsamp[ks])
+        S1 <- matrix(0, nrow = ncov, ncol = nsamp[ks])
+        for (i in 1:nsamp[ks]) {
+          valid_indices <- which(time[ks, 1:nsamp[ks]] >= time[ks, i])
+          S0[i] <- sum(exp(BZt[valid_indices, 1]))
+          for(J in 1:ncov){
+            S1[J,i] <- sum(covart[ks,J , valid_indices]*exp(BZt[valid_indices, 1]))
           }
         }
+        S0N[ks, 1:nsamp[ks], ispot] <- S0
+        arrayseq <- seq((ks-1)*ncov +1, (ks*ncov), 1)
+       # browser()
+        for (a in arrayseq) {
+          S1N[a, 1:nsamp[ks], ispot] <- S1[a, ]
+        }  
       }
+    }
 
 
-      # **************************************************************************
-      # finish calculating the quantities needed for GDIST2N
-      # **************************************************************************
+    # **************************************************************************
+    # finish calculating the quantities needed for GDIST2N
+    # **************************************************************************
 
-      # **************************************************************************
-      # Simulate distribution of \sqrt n(\hat B(v)-B(v)) based on aipw
-      # **************************************************************************
+    # **************************************************************************
+    # Simulate distribution of \sqrt n(\hat B(v)-B(v)) based on aipw
+    # **************************************************************************
 
 
 
-      CUMB1x <- rep(0, nvgrid)
-      CUMB1se <- rep(0, nvgrid)
-      BootDist <- matrix(0, nrow = nboot, ncol = nvgrid)
-      for (iboot in 1:nboot) {
-        zdev <- matrix(rnorm(kk * max(nsamp)), nrow = kk, ncol = max(nsamp))
-        #CUMBDIST is simulated B(v)
-        CUMBDIST <- GDIST2Ncplusplus(nvgrid, iskip, zdev, kk, nsamp, ncov, time, covart,
-                                     betaofv, SigmaInv, S0N, S1N, tempaug, AsigInv)
-        CUMB1x[iskip:nvgrid] <- CUMB1x[iskip:nvgrid] + CUMBDIST[1, iskip:nvgrid]
-        CUMB1se[iskip:nvgrid] <- CUMB1se[iskip:nvgrid] + CUMBDIST[1, iskip:nvgrid]^2.0
-        BootDist[iboot, ] <- CUMBDIST[1, ]
+    CUMB1x <- rep(0, nvgrid)
+    CUMB1se <- rep(0, nvgrid)
+    BootDist <- matrix(0, nrow = nboot, ncol = nvgrid)
+    for (iboot in 1:nboot) {
+      zdev <- matrix(rnorm(kk * max(nsamp)), nrow = kk, ncol = max(nsamp))
+      #CUMBDIST is simulated B(v)
+      CUMBDIST <- GDIST2Ncplusplus(nvgrid, iskip, zdev, kk, nsamp, ncov, time, covart,
+                                    betaofv, SigmaInv, S0N, S1N, tempaug, AsigInv)
+      CUMB1x[iskip:nvgrid] <- CUMB1x[iskip:nvgrid] + CUMBDIST[1, iskip:nvgrid]
+      CUMB1se[iskip:nvgrid] <- CUMB1se[iskip:nvgrid] + CUMBDIST[1, iskip:nvgrid]^2.0
+      BootDist[iboot, ] <- CUMBDIST[1, ]
+    }
+    CUMB1x[iskip:nvgrid] <- CUMB1x[iskip:nvgrid] / nboot
+    CUMB1se[iskip:nvgrid] <- sqrt((CUMB1se[iskip:nvgrid] - (CUMB1x[iskip:nvgrid])^2.0 * nboot) / nboot)
+
+    # **************************************************************
+    # This data application version is different from the simulation
+    # version; it is more flexible; it can construct test statistics
+    # on [a1,b1] or [a2,b1].
+    # **************************************************************
+
+    # calculate the test statistics for H_{10}:VE(v)=0 for v over [a1,b1], b1=1
+    iskipa1 <- a1 / vstep
+    nvgrid1 <- b1 / vstep
+
+    # calculate the test statistics for H_{20}:VE(v)=VE for v over [a2,b1], a2>a1
+    iskipa2 <- a2 / vstep
+    cBproc1 <- rep(0, nvgrid)
+    cBproc2 <- rep(0, nvgrid)
+    cBproc1[iskipa1] <- CUMB1[iskipa1] - CUMB1[iskipa1]
+    cBproc2[iskipa2] <- (CUMB1[iskipa2] - CUMB1[iskipa1]) / (a2 - a1) - (CUMB1[nvgrid1] - CUMB1[iskipa1]) / (b1 - a1)
+    TSUP1 <- abs(cBproc1[iskipa1])
+    TSUP1m <- cBproc1[iskipa1]
+    TSUP2 <- abs(cBproc2[iskipa2])
+    TSUP2m <- cBproc2[iskipa2]
+    Tint1 <- 0
+    Tint1m <- 0
+    Tint2 <- 0
+    Tint2m <- 0
+    for (ispot in (iskipa1 + 1):nvgrid1) {
+      vspot <- ispot * vstep
+      cBproc1[ispot] <- CUMB1[ispot] - CUMB1[iskipa1]
+      cBproc2[ispot] <- (CUMB1[ispot] - CUMB1[iskipa1]) / (vspot - a1) - (CUMB1[nvgrid1] - CUMB1[iskipa1]) / (b1 - a1)
+
+      # two-sided tests for testing $H_1$:
+      TSUP1 <- max(TSUP1, abs(cBproc1[ispot]))
+      Tint1 <- Tint1 + cBproc1[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
+
+      # one-sided tests for testing $H_1$:
+      TSUP1m <- min(TSUP1m, cBproc1[ispot])
+      Tint1m <- Tint1m + cBproc1[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
+
+      if (ispot >= iskipa2) {
+        # two-sided tests for testing $H_2$:
+        TSUP2 <- max(TSUP2, abs(cBproc2[ispot]))
+        Tint2 <- Tint2 + cBproc2[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
+
+        # one-sided tests for testing $H_2$:
+        TSUP2m <- min(TSUP2m, cBproc2[ispot])
+        Tint2m <- Tint2m + cBproc2[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
       }
-      CUMB1x[iskip:nvgrid] <- CUMB1x[iskip:nvgrid] / nboot
-      CUMB1se[iskip:nvgrid] <- sqrt((CUMB1se[iskip:nvgrid] - (CUMB1x[iskip:nvgrid])^2.0 * nboot) / nboot)
+    }
 
-      # **************************************************************
-      # This data application version is different from the simulation
-      # version; it is more flexible; it can construct test statistics
-      # on [a1,b1] or [a2,b1].
-      # **************************************************************
 
-      # calculate the test statistics for H_{10}:VE(v)=0 for v over [a1,b1], b1=1
-      iskipa1 <- a1 / vstep
-      nvgrid1 <- b1 / vstep
+    # *****************************************************************
+    # Find the p-values of the test statistics.
+    # *****************************************************************
 
-      # calculate the test statistics for H_{20}:VE(v)=VE for v over [a2,b1], a2>a1
-      iskipa2 <- a2 / vstep
-      cBproc1 <- rep(0, nvgrid)
-      cBproc2 <- rep(0, nvgrid)
-      cBproc1[iskipa1] <- CUMB1[iskipa1] - CUMB1[iskipa1]
-      cBproc2[iskipa2] <- (CUMB1[iskipa2] - CUMB1[iskipa1]) / (a2 - a1) - (CUMB1[nvgrid1] - CUMB1[iskipa1]) / (b1 - a1)
-      TSUP1 <- abs(cBproc1[iskipa1])
-      TSUP1m <- cBproc1[iskipa1]
-      TSUP2 <- abs(cBproc2[iskipa2])
-      TSUP2m <- cBproc2[iskipa2]
-      Tint1 <- 0
-      Tint1m <- 0
-      Tint2 <- 0
-      Tint2m <- 0
+    # the initial values for p-values
+    TSUP1pv <- 0.0
+    TSUP1mpv <- 0.0
+    TSUP2pv <- 0.0
+    TSUP2mpv <- 0.0
+    Tint1pv <- 0.0
+    Tint1mpv <- 0.0
+    Tint2pv <- 0.0
+    Tint2mpv <- 0.0
+    cBproc1s <- matrix(0,nrow = nvgrid, ncol = nboot)
+    cBproc2s <- matrix(0,nrow = nvgrid, ncol = nboot)
+
+    for (iboot in 1:nboot) {
+      cBproc1x <- rep(0, nvgrid)
+      cBproc2x <- rep(0, nvgrid)
+      cBproc1x[iskipa1] <- BootDist[iboot, iskipa1] - BootDist[iboot, iskipa1]
+      temp2nd <- (BootDist[iboot, nvgrid1] - BootDist[iboot, iskipa1]) / (b1 - a1)
+      cBproc2x[iskipa2] <- (BootDist[iboot, iskipa2] - BootDist[iboot, iskipa1]) / (a2 - a1) - temp2nd
+      TSUP1x <- abs(cBproc1x[iskipa1])
+      TSUP1mx <- cBproc1x[iskipa1]
+      TSUP2x <- abs(cBproc2x[iskipa2])
+      TSUP2mx <- cBproc2x[iskipa2]
+      Tint1x <- 0
+      Tint1mx <- 0
+      Tint2x <- 0
+      Tint2mx <- 0
+
       for (ispot in (iskipa1 + 1):nvgrid1) {
         vspot <- ispot * vstep
-        cBproc1[ispot] <- CUMB1[ispot] - CUMB1[iskipa1]
-        cBproc2[ispot] <- (CUMB1[ispot] - CUMB1[iskipa1]) / (vspot - a1) - (CUMB1[nvgrid1] - CUMB1[iskipa1]) / (b1 - a1)
+        cBproc1x[ispot] <- BootDist[iboot, ispot] - BootDist[iboot, iskipa1]
+        cBproc2x[ispot] <- (BootDist[iboot, ispot] - BootDist[iboot, iskipa1]) / (vspot - a1) - temp2nd
 
-        # two-sided tests for testing $H_1$:
-        TSUP1 <- max(TSUP1, abs(cBproc1[ispot]))
-        Tint1 <- Tint1 + cBproc1[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
+        # for plotting the Gaussian multiplier realizations; the actual processes need to multiply by sqrt(n):
+        cBproc1s[ispot, iboot] <- sqrt(rnsamp) * cBproc1x[ispot]
+        cBproc2s[ispot, iboot] <- sqrt(rnsamp) * cBproc2x[ispot]
+
+       # two-sided tests for testing $H_1$:
+        TSUP1x <- max(TSUP1x, abs(cBproc1x[ispot]))
+        Tint1x <- Tint1x + cBproc1x[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
 
         # one-sided tests for testing $H_1$:
-        TSUP1m <- min(TSUP1m, cBproc1[ispot])
-        Tint1m <- Tint1m + cBproc1[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
+        TSUP1mx <- min(TSUP1mx, cBproc1x[ispot])
+        Tint1mx <- Tint1mx + cBproc1x[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
 
         if (ispot >= iskipa2) {
           # two-sided tests for testing $H_2$:
-          TSUP2 <- max(TSUP2, abs(cBproc2[ispot]))
-          Tint2 <- Tint2 + cBproc2[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
+          TSUP2x <- max(TSUP2x, abs(cBproc2x[ispot]))
+          Tint2x <- Tint2x + cBproc2x[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
 
           # one-sided tests for testing $H_2$:
-          TSUP2m <- min(TSUP2m, cBproc2[ispot])
-          Tint2m <- Tint2m + cBproc2[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
+          TSUP2mx <- min(TSUP2mx, cBproc2x[ispot])
+          Tint2mx <- Tint2mx + cBproc2x[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
         }
       }
 
+      # calculate bootstrap p-values for H10:
+      TSUP1pv <- TSUP1pv + as.numeric(TSUP1x > TSUP1) / nboot
+      TSUP1mpv <- TSUP1mpv + as.numeric(TSUP1mx < TSUP1m) / nboot
+      Tint1pv <- Tint1pv + as.numeric(Tint1x > Tint1) / nboot
+      Tint1mpv <- Tint1mpv + as.numeric(Tint1mx < Tint1m) / nboot
 
-      # *****************************************************************
-      # Find the p-values of the test statistics.
-      # *****************************************************************
-
-      # the initial values for p-values
-      TSUP1pv <- 0.0
-      TSUP1mpv <- 0.0
-      TSUP2pv <- 0.0
-      TSUP2mpv <- 0.0
-      Tint1pv <- 0.0
-      Tint1mpv <- 0.0
-      Tint2pv <- 0.0
-      Tint2mpv <- 0.0
-      cBproc1s <- matrix(0,nrow = nvgrid, ncol = nboot)
-      cBproc2s <- matrix(0,nrow = nvgrid, ncol = nboot)
-
-      for (iboot in 1:nboot) {
-        cBproc1x <- rep(0, nvgrid)
-        cBproc2x <- rep(0, nvgrid)
-        cBproc1x[iskipa1] <- BootDist[iboot, iskipa1] - BootDist[iboot, iskipa1]
-        temp2nd <- (BootDist[iboot, nvgrid1] - BootDist[iboot, iskipa1]) / (b1 - a1)
-        cBproc2x[iskipa2] <- (BootDist[iboot, iskipa2] - BootDist[iboot, iskipa1]) / (a2 - a1) - temp2nd
-        TSUP1x <- abs(cBproc1x[iskipa1])
-        TSUP1mx <- cBproc1x[iskipa1]
-        TSUP2x <- abs(cBproc2x[iskipa2])
-        TSUP2mx <- cBproc2x[iskipa2]
-        Tint1x <- 0
-        Tint1mx <- 0
-        Tint2x <- 0
-        Tint2mx <- 0
-
-        for (ispot in (iskipa1 + 1):nvgrid1) {
-          vspot <- ispot * vstep
-          cBproc1x[ispot] <- BootDist[iboot, ispot] - BootDist[iboot, iskipa1]
-          cBproc2x[ispot] <- (BootDist[iboot, ispot] - BootDist[iboot, iskipa1]) / (vspot - a1) - temp2nd
-
-          # for plotting the Gaussian multiplier realizations; the actual processes need to multiply by sqrt(n):
-          cBproc1s[ispot, iboot] <- sqrt(rnsamp) * cBproc1x[ispot]
-          cBproc2s[ispot, iboot] <- sqrt(rnsamp) * cBproc2x[ispot]
-
-          # two-sided tests for testing $H_1$:
-          TSUP1x <- max(TSUP1x, abs(cBproc1x[ispot]))
-          Tint1x <- Tint1x + cBproc1x[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-
-          # one-sided tests for testing $H_1$:
-          TSUP1mx <- min(TSUP1mx, cBproc1x[ispot])
-          Tint1mx <- Tint1mx + cBproc1x[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-
-          if (ispot >= iskipa2) {
-            # two-sided tests for testing $H_2$:
-            TSUP2x <- max(TSUP2x, abs(cBproc2x[ispot]))
-            Tint2x <- Tint2x + cBproc2x[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-
-            # one-sided tests for testing $H_2$:
-            TSUP2mx <- min(TSUP2mx, cBproc2x[ispot])
-            Tint2mx <- Tint2mx + cBproc2x[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-          }
-        }
-
-        # calculate bootstrap p-values for H10:
-        TSUP1pv <- TSUP1pv + as.numeric(TSUP1x > TSUP1) / nboot
-        TSUP1mpv <- TSUP1mpv + as.numeric(TSUP1mx < TSUP1m) / nboot
-        Tint1pv <- Tint1pv + as.numeric(Tint1x > Tint1) / nboot
-        Tint1mpv <- Tint1mpv + as.numeric(Tint1mx < Tint1m) / nboot
-
-        # calculate bootstrap p-values for H20:
-        TSUP2pv <- TSUP2pv + as.numeric(TSUP2x > TSUP2) / nboot
-        TSUP2mpv <- TSUP2mpv + as.numeric(TSUP2mx < TSUP2m) / nboot
-        Tint2pv <- Tint2pv + as.numeric(Tint2x > Tint2) / nboot
-        Tint2mpv <- Tint2mpv + as.numeric(Tint2mx < Tint2m) / nboot
-      }
-
-
-      # the actual test statistics need to multiply by sqrt(n):
-      TSUP1 <- sqrt(rnsamp) * TSUP1
-      TSUP1m <- sqrt(rnsamp) * TSUP1m
-      Tint1 <- sqrt(rnsamp) * Tint1
-      Tint1m <- sqrt(rnsamp) * Tint1m
-      TSUP2 <- sqrt(rnsamp) * TSUP2
-      TSUP2m <- sqrt(rnsamp) * TSUP2m
-      Tint2 <- sqrt(rnsamp) * Tint2
-      Tint2m <- sqrt(rnsamp) * Tint2m
-
-      # for plotting the test processes and the Gaussian multiplier processes;
-      # the actual test processes need to multiply by sqrt(n):
-      for (ispot in (iskipa1 + 1):nvgrid) {
-        vspot <- ispot * vstep
-        cBproc1[ispot] <- sqrt(rnsamp) * cBproc1[ispot]
-
-        if (ispot >= iskipa2) {
-          cBproc2[ispot] <- sqrt(rnsamp) * cBproc2[ispot]
-        }
-      }
-
-      Rmiss <- Rsum / sumdelta
-      test10 <- c(TSUP1,TSUP1m, Tint1,Tint1m)
-      pvalue10 <- c(TSUP1pv,TSUP1mpv, Tint1pv,Tint1mpv)
-      ans10 <- data.frame(rbind(test10,pvalue10))
-      colnames(ans10) <- c("TSUP1","TSUP1m", "Tint1","Tint1m")
-      rownames(ans10) <- c("Test Statistic", "P-value")
-      test20 <- c(TSUP2,TSUP2m, Tint2,Tint2m)
-      pvalue20 <- c(TSUP2pv,TSUP2mpv, Tint2pv,Tint2mpv)
-      ans20 <- data.frame(rbind(test20,pvalue20))
-      colnames(ans20) <- c("TSUP2","TSUP2m", "Tint2","Tint2m")
-      rownames(ans20) <- c("Test Statistic", "P-value")
-      markgrid <- (1:nvgrid) * vstep
-      markgrid_original_scale <- markgrid*(mx-mn)+mn
-      cBproc1.df <- data.frame(cbind(markgrid_original_scale[(iskipa1 + 1):nvgrid], vstep*((iskipa1 + 1):nvgrid),
-                                     cBproc1[(iskipa1 + 1):nvgrid], cBproc1s[(iskipa1 + 1):nvgrid,]))
-      colnames(cBproc1.df) <- c("Mark", "Standardized mark","Observed", paste0("S", 1:nboot))
-      cBproc2.df <- data.frame(cbind(markgrid_original_scale[(iskipa2):nvgrid], vstep*((iskipa2):nvgrid),
-                                     cBproc2[iskipa2:nvgrid], cBproc2s[iskipa2:nvgrid, ]))
-      colnames(cBproc2.df) <- c("Mark", "Standardized mark", "Observed", paste0("S", 1:nboot))
-      cBproc1 <- cBproc1.df[, -2]
-      cBproc2 <- cBproc2.df[, -2]
-      H10 <- ans10
-      H20 <- ans20
-
-    }else{
-      cBproc1 <- NULL
-      cBproc2 <- NULL
-      H10 <- NULL
-      H20 <- NULL
-      markgrid <- (1:nvgrid) * vstep
-      markgrid_original_scale <- markgrid*(mx-mn)+mn
+      # calculate bootstrap p-values for H20:
+      TSUP2pv <- TSUP2pv + as.numeric(TSUP2x > TSUP2) / nboot
+      TSUP2mpv <- TSUP2mpv + as.numeric(TSUP2mx < TSUP2m) / nboot
+      Tint2pv <- Tint2pv + as.numeric(Tint2x > Tint2) / nboot
+      Tint2mpv <- Tint2mpv + as.numeric(Tint2mx < Tint2m) / nboot
     }
 
-    estBeta <- data.frame("mark" = markgrid_original_scale,
-                          "betaaug" = betaaug[1, ],
-                          "seaug" = seaug[1, ])
+
+    # the actual test statistics need to multiply by sqrt(n):
+    TSUP1 <- sqrt(rnsamp) * TSUP1
+    TSUP1m <- sqrt(rnsamp) * TSUP1m
+    Tint1 <- sqrt(rnsamp) * Tint1
+    Tint1m <- sqrt(rnsamp) * Tint1m
+    TSUP2 <- sqrt(rnsamp) * TSUP2
+    TSUP2m <- sqrt(rnsamp) * TSUP2m
+    Tint2 <- sqrt(rnsamp) * Tint2
+    Tint2m <- sqrt(rnsamp) * Tint2m
+
+    # for plotting the test processes and the Gaussian multiplier processes;
+    # the actual test processes need to multiply by sqrt(n):
+    for (ispot in (iskipa1 + 1):nvgrid) {
+      vspot <- ispot * vstep
+      cBproc1[ispot] <- sqrt(rnsamp) * cBproc1[ispot]
+
+      if (ispot >= iskipa2) {
+        cBproc2[ispot] <- sqrt(rnsamp) * cBproc2[ispot]
+      }
+    }
+
+    Rmiss <- Rsum / sumdelta
+    test10 <- c(TSUP1,TSUP1m, Tint1,Tint1m)
+    pvalue10 <- c(TSUP1pv,TSUP1mpv, Tint1pv,Tint1mpv)
+    ans10 <- data.frame(rbind(test10,pvalue10))
+    colnames(ans10) <- c("TSUP1","TSUP1m", "Tint1","Tint1m")
+    rownames(ans10) <- c("Test Statistic", "P-value")
+    test20 <- c(TSUP2,TSUP2m, Tint2,Tint2m)
+    pvalue20 <- c(TSUP2pv,TSUP2mpv, Tint2pv,Tint2mpv)
+    ans20 <- data.frame(rbind(test20,pvalue20))
+    colnames(ans20) <- c("TSUP2","TSUP2m", "Tint2","Tint2m")
+    rownames(ans20) <- c("Test Statistic", "P-value")
+    markgrid <- (1:nvgrid) * vstep
+    markgrid_original_scale <- markgrid*(mx-mn)+mn
+    cBproc1.df <- data.frame(cbind(markgrid_original_scale[(iskipa1 + 1):nvgrid], vstep*((iskipa1 + 1):nvgrid), 
+    cBproc1[(iskipa1 + 1):nvgrid], cBproc1s[(iskipa1 + 1):nvgrid,]))
+    colnames(cBproc1.df) <- c("Mark", "Standardized mark","Observed", paste0("S", 1:nboot))
+    cBproc2.df <- data.frame(cbind(markgrid_original_scale[(iskipa2):nvgrid], vstep*((iskipa2):nvgrid),
+    cBproc2[iskipa2:nvgrid], cBproc2s[iskipa2:nvgrid, ]))
+    colnames(cBproc2.df) <- c("Mark", "Standardized mark", "Observed", paste0("S", 1:nboot))
+    #browser()
+    if (missmethod == "CC") {
+      estBeta <- data.frame("mark" = markgrid_original_scale,
+                           "betacom" = betacom[1, ],
+                           "secom" = secom[1, ])
+    }else if (missmethod == "IPW"){
+      estBeta <- data.frame("mark" = markgrid_original_scale,
+                           "betaipw" = betaipw[1, ],
+                           "seipw" = seipw[1, ])
+    }else if (missmethod == "AIPW"){
+      estBeta <- data.frame("mark" = markgrid_original_scale,
+                           "betaaug" = betaaug[1, ],
+                           "seaug" = seaug[1, ])
+    }
     colnames(estBeta) <- c("mark", "beta", "se")
-
-    if(estBaseLamInd == 1){
-      Lambda0 <- Lamktv0
-    }else{
-      Lambda0 <- NULL
+    if (estBaseLamInd == 1) {
+      out <- list("cBproc1" = cBproc1.df[, -2],
+                  "cBproc2" = cBproc2.df[, -2],
+                  "H10" = ans10,
+                  "H20" = ans20,
+                  "estBetadebug" = data.frame("mark" = markgrid_original_scale,
+                                              "betacom" = t(betacom),
+                                              "secom" = t(secom),
+                                              "betaipw" = t(betaipw),
+                                              "seipw" = t(seipw),
+                                              "betaaug" = t(betaaug),
+                                              "seaug" = t(seaug)),
+                  "estBeta" = estBeta,
+                  "Lambda0" = Lamktv0
+  )
+    }else {
+      out <- list("cBproc1" = cBproc1.df[, -2],
+                  "cBproc2" = cBproc2.df[, -2],
+                  "H10" = ans10,
+                  "H20" = ans20,
+                  "estBeta" = estBeta,
+                  "estBetadebug" = data.frame("mark" = markgrid_original_scale,
+                                              "betacom" = t(betacom),
+                                              "secom" = t(secom),
+                                              "betaipw" = t(betaipw),
+                                              "seipw" = t(seipw),
+                                              "betaaug" = t(betaaug),
+                                              "seaug" = t(seaug))
+    )
     }
-
-    out <- list("cBproc1" = cBproc1,
-                "cBproc2" = cBproc2,
-                "H10" = H10,
-                "H20" = H20,
-                "estBeta" = estBeta,
-                "Lambda0" = Lambda0)
-
+    
   class(out) <- "kernel_sievePH"
   return(out)
 
@@ -1034,6 +1042,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
 estpvry <- function(tau, KK, N, NP, X, ZT, DELTA) {
 
   BETA <- rep(0, NP)
+  BETA[1] <- -0.7
   var <- matrix(0, nrow = NP, ncol = NP)
   KL <- 6
   for (KITER in 1:KL) {
@@ -1097,7 +1106,7 @@ estpvry <- function(tau, KK, N, NP, X, ZT, DELTA) {
 # ******************************************************************
 
 estplogit <- function(KK, N, NPL, Z, R, D) {
-
+  
   UL <- numeric(NPL)
   UL2 <- numeric(NPL)
   FL <- matrix(0, nrow = NPL, ncol = NPL)
@@ -1108,15 +1117,15 @@ estplogit <- function(KK, N, NPL, Z, R, D) {
       UL <- numeric(NPL)
       UL2 <- numeric(NPL)
       FL <- matrix(0, nrow = NPL, ncol = NPL)
-
+      
       TZ <- t(Z[ks, , 1:N[ks]] )%*% (PSI[ks, ])
       P <- exp(TZ) / (1.0 + exp(TZ))
-
+      
       for (j in 1:NPL) {
         UL[j] <- sum((R[ks, 1:N[ks]] * D[ks, 1:N[ks]] * (1.0 - P) -
                         (1.0 - R[ks, 1:N[ks]]) * D[ks, 1:N[ks]] * P) *
                        Z[ks, j, 1:N[ks]], na.rm = TRUE)
-        UL2[j] <- UL[j]
+        UL2[j] <- UL[j]      
         for (k in 1:NPL) {
           FL[j, k] <- sum((R[ks, 1:N[ks]] * D[ks, 1:N[ks]] +
                              (1.0 - R[ks, 1:N[ks]]) * D[ks, 1:N[ks]]) *
@@ -1124,13 +1133,13 @@ estplogit <- function(KK, N, NPL, Z, R, D) {
                             Z[ks, j, 1:N[ks]] * Z[ks, k, 1:N[ks]], na.rm = TRUE)
         }
       }
-
+      
       # Solve the system of linear equations using solve()
       PSI[ks, ] <- PSI[ks, ] + solve(FL, UL)
-    }
+    }  
     FVAR[ks, , ] <- solve(FL)
   }
-
+  
   return(list(PSI = PSI, FVAR = FVAR))
 }
 
