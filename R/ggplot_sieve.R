@@ -77,7 +77,6 @@ ggplot_sieve <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NU
                          plotHeights=c(0.33, 0.67)){
 
   contrast <- names(x)[length(names(x))]
-
   # a 2-dimensional plot only when the mark is univariate
   if (NCOL(x[[contrast]])==4){
     if (is.null(xlab)){ xlab <- colnames(x[[contrast]])[1] }
@@ -178,10 +177,13 @@ ggplot_sieve <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NU
             axis.ticks.x = element_blank(),
             plot.margin=unit(topPlotMargin, "lines")) +
       coord_cartesian(clip = "off")
-
+  if(!is.null(tx) & is.null(mark)) {
     p <- ggpubr::ggarrange(p2, p1, heights = plotHeights, ncol=1, nrow=2, align = "v")
     # p <- p2 + p1 + patchwork::plot_layout(ncol=1, height=plotHeights)
-
+  } else {
+    p <- p1
+  }
+    
   } else {
     stop("Plotting of results is available for univariate marks only using this function.\n
          Consider plot.summary.sievePH() for bivariat marks.")

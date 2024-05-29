@@ -65,11 +65,13 @@ bandwidth of the kernel smoothing function over time. By default,
 \code{tband} is set as (\code{tau}-min(\code{eventTime}))/5.}
 
 \item{hband}{a numeric value between 0 and 1 specifying the bandwidth of the
-kernel smoothing function over mark. By default, \code{hband} is set as
-\eqn{4\sigma n^{-1/3}} where \eqn{\sigma} is the estimated standard
-deviation of the observed marks for uncensored failure times and \eqn{n} is
-the number of subjects in the dataset. Larger bandwidths are recommended
-for higher percentages of missing marks.}
+kernel smoothing function over min-max normalized mark which is defined as
+\code{(v - min(v)) / (max(v) - min(v))} where \code{v} is the observed
+mark. By default, \code{hband} is set as \eqn{4\sigma n^{-1/3}} where
+\eqn{\sigma} is the estimated standard deviation of the min-max normalized
+marks for uncensored failure times and \eqn{n} is the number of subjects in
+the dataset. Larger bandwidths are recommended for higher percentages of
+missing marks.}
 
 \item{nvgrid}{an integer value (100 by default) specifying the number of
 equally spaced mark values between the minimum and maximum of the observed

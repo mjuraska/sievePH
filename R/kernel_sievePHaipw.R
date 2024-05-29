@@ -62,19 +62,21 @@ NULL
 #'   procedure. Available variables to be used in the formula include
 #'   \code{eventTime}, \code{tx}, \code{mark}, and variable(s) in \code{zcov}.
 #' @param tau a numeric value specifying the duration of study follow-up period.
-#'   Failures beyond \code{tau} are treated as right-censored. There needs to be at
-#'   least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored by
-#'   \code{tau} for the estimation to be stable. By default, \code{tau} is set
-#'   as the maximum of \code{eventTime}.
+#'   Failures beyond \code{tau} are treated as right-censored. There needs to be
+#'   at least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored
+#'   by \code{tau} for the estimation to be stable. By default, \code{tau} is
+#'   set as the maximum of \code{eventTime}.
 #' @param tband a numeric value between 0 and \code{tau} specifying the
 #'   bandwidth of the kernel smoothing function over time. By default,
 #'   \code{tband} is set as (\code{tau}-min(\code{eventTime}))/5.
 #' @param hband a numeric value between 0 and 1 specifying the bandwidth of the
-#'   kernel smoothing function over mark. By default, \code{hband} is set as
-#'   \eqn{4\sigma n^{-1/3}} where \eqn{\sigma} is the estimated standard
-#'   deviation of the observed marks for uncensored failure times and \eqn{n} is
-#'   the number of subjects in the dataset. Larger bandwidths are recommended
-#'   for higher percentages of missing marks.
+#'   kernel smoothing function over min-max normalized mark which is defined as
+#'   \code{(v - min(v)) / (max(v) - min(v))} where \code{v} is the observed
+#'   mark. By default, \code{hband} is set as \eqn{4\sigma n^{-1/3}} where
+#'   \eqn{\sigma} is the estimated standard deviation of the min-max normalized
+#'   marks for uncensored failure times and \eqn{n} is the number of subjects in
+#'   the dataset. Larger bandwidths are recommended for higher percentages of
+#'   missing marks.
 #' @param nvgrid an integer value (100 by default) specifying the number of
 #'   equally spaced mark values between the minimum and maximum of the observed
 #'   mark for which the treatment effects are evaluated.
@@ -252,11 +254,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
   } else {
     tband <- tband
   }
-  if (is.null(hband)) {
-    hband <- 4*sqrt(var(mark[eventInd == 1], na.rm = TRUE)) * length(eventInd)^{-1/3}
-  }else {
-    hband <- hband
-  }
+  
 
   nsamp <- NULL
   # kk is the number of strata
@@ -283,7 +281,14 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
   mx <- max(mark, na.rm = TRUE) #maximum observed mark value
   # Put the marks on the scale 0 to 1:
   vV <- (mark - mn) / (mx - mn)
-
+ 
+  if (is.null(hband)) {
+    hband <- 4*sqrt(var(vV[eventInd == 1], na.rm = TRUE)) * length(eventInd)^{-1/3}
+  }else {
+    hband <- hband
+  }
+  
+  
   if (is.null(a)) {
     a0 <- 1 / nvgrid
   }else{
