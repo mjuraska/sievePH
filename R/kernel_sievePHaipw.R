@@ -285,6 +285,9 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
   if (is.null(hband)) {
     hband <- 4*sqrt(var(vV[eventInd == 1], na.rm = TRUE)) * length(eventInd)^{-1/3}
   }else {
+    if(hband <=0 | hband >=1){
+      stop("hband needs to be between 0 and 1")
+    }
     hband <- hband
   }
   
