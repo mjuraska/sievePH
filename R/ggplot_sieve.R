@@ -177,7 +177,7 @@ ggplot_sieve <- function(x, mark=NULL, tx=NULL, xlim=NULL, ylim=NULL, xtickAt=NU
             axis.ticks.x = element_blank(),
             plot.margin=unit(topPlotMargin, "lines")) +
       coord_cartesian(clip = "off")
-  if(!is.null(tx) & is.null(mark)) {
+  if(!is.null(tx) & !is.null(mark)) {
     p <- ggpubr::ggarrange(p2, p1, heights = plotHeights, ncol=1, nrow=2, align = "v")
     # p <- p2 + p1 + patchwork::plot_layout(ncol=1, height=plotHeights)
   } else {
