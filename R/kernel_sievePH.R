@@ -54,7 +54,7 @@ NULL
 #'   values specifying the lower bound of the range for testing the null
 #'   hypotheses \eqn{H_{10}: HR(v) = 1} and \eqn{H_{20}: HR(v)} does not depend
 #'   on \eqn{v}, for \eqn{v \in [a, b]}; By default, \code{a} is set as
-#'   \code{(max(mark) - min(mark))/nvgrid + min(mark)}.
+#'   \code{min(mark)}.
 #' @param b a numeric value between the minimum and maximum of observed mark
 #'   specifying the upper bound of the range for testing the null hypotheses
 #'   \eqn{H_{10}: HR(v) = 1} and \eqn{H_{20}: HR(v)} does not depend on \eqn{v},
@@ -227,12 +227,12 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   }
   
   if (is.null(a)) {
-    a0 <- 1 / nvgrid
+    a0 <- 0
   }else{
-    if (a <= mn) {
-      stop("a needs to be greater than the minimum of the observed marks")
+    if (a < mn) {
+      stop("a needs to be no smaller than the minimum of the observed marks")
     }
-    a0 <- max(ceiling((a - mn) / (mx - mn) * nvgrid), 1) / nvgrid
+    a0 <- max(round((a - mn) / (mx - mn) * nvgrid), 0) / nvgrid
   }
   if (is.null(b)) {
     b1 <- 1
@@ -393,63 +393,16 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     # **************************************************************************
     # calculate the quantities needed for GDIST2N
     # **************************************************************************
-    AsigInv <- array(0, dim = c(ncov * ncov, nvgrid, nvgrid))
-    tempcom <- array(0, dim = c(kk, max(nsamp), nvgrid))
-    for (ispot in iskip:nvgrid) {
-      va <- vstep * (ispot - 1.0)
-      vb <- vstep * ispot
-      vspot <- ispot * vstep
-      sigtemp <- matrix(0.0, nrow = ncov, ncol = ncov)
-      for (mspot in iskip:nvgrid) {
-        vmspot <- mspot * vstep
-        sigtemp <- sigtemp + SigmaInv[, , mspot] * Epanker(vspot, vmspot, hband, 1.0) * vstep
-        AsigInv[, ispot, mspot] <- as.vector(sigtemp[1:ncov, 1:ncov])
-      }
-      DRHOcom <- matrix(0, nrow = kk, ncol = max(nsamp))
-      for (ks in 1:kk) {
-        valid_indices <- which((time[ks, ] <= tau) & (censor[ks, ] > 0.5) & (CLAMBDAcom[ks, ] > 0.00000001))
-        DRHOcom[ks, valid_indices] <- LAMBDAcom[ks, valid_indices, ispot] / CLAMBDAcom[ks, valid_indices]
-        DRHOcom[ks, !valid_indices] <- 0.0
-        temp2 <- wght[ks, ]
-        temp2[!(time[ks, ] <= tau) | !(markm[ks, ] > va) | !(markm[ks, ] <= vb) | !(censor[ks, ] > 0.5)] <- 0.0
-        tempcom[ks, 1:nsamp[kk], ispot] <- temp2
-      }
-    }
-
+    # calculate AsigInv and tempaug 
+    out <- AsigInvTempaug(SigmaInv, G, LAMBDAcom, CLAMBDAcom, wght, time, censor, markm,
+                          ncov, nvgrid, kk, nsamp, vstep, hband, iskip, tau)
+    AsigInv <- out$AsigInv
+    tempcom <- out$tempaug
     #############################################
-    S0N <- array(0, dim = c(kk, max(nsamp), nvgrid))
-    S1N <- array(0, dim = c(kk * ncov, max(nsamp), nvgrid))
-    for (ispot in iskip:nvgrid) {
-      for (ks in 1:kk) {
-        # for time independent covariates
-        BZt <- matrix(0, nrow = nsamp[ks], ncol = 1)
-        if(ncov==1){
-          BZt[1:nsamp[ks], 1] <- as.matrix(covart[ks, , 1:nsamp[ks]] * betaofv[1, ispot], ncol = 1)
-
-        }else{
-          BZt <- t(covart[ks, , 1:nsamp[ks]]) %*% betaofv[, ispot]
-        }
-        S0 <- rep(0, nsamp[ks])
-        S1 <- matrix(0, nrow = ncov, ncol = nsamp[ks])
-        for (i in 1:nsamp[ks]) {
-          valid_indices <- which(time[ks, 1:nsamp[ks]] >= time[ks, i])
-          S0[i] <- sum(exp(BZt[valid_indices, 1]))
-          for(J in 1:ncov){
-            S1[J, i] <- sum(covart[ks, J, valid_indices]*exp(BZt[valid_indices, 1]))
-          }
-        }
-        S0N[ks, 1:nsamp[ks], ispot] <- S0
-        arrayseq <- seq((ks-1)*ncov +1, (ks*ncov), 1)
-        for (a in arrayseq) {
-          S1N[a, 1:nsamp[ks], ispot] <- S1[a, ]
-        }
-      }
-    }
-
-
-    # **************************************************************************
-    # finish calculating the quantities needed for GDIST2N
-    # **************************************************************************
+    # calculate S1N and S0N
+    out <- S0NS1N(covart, betaofv, time, nsamp, kk, nvgrid, ncov, iskip) 
+    S1N <- out$S1N
+    S0N <- out$S0N
 
     # **************************************************************************
     # Simulate distribution of \sqrt n(\hat B(v)-B(v)) based on aipw
@@ -487,31 +440,29 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     Tint1m <- 0
     Tint2 <- 0
     Tint2m <- 0
-    for (ispot in (iskipa1 + 1):nvgrid1) {
-      vspot <- ispot * vstep
-      cBproc1[ispot] <- CUMB1[ispot] - CUMB1[iskipa1]
-      cBproc2[ispot] <- (CUMB1[ispot] - CUMB1[iskipa1]) / (vspot - a1) - (CUMB1[nvgrid1] - CUMB1[iskipa1]) / (b1 - a1)
-
-      # two-sided tests for testing $H_1$:
-      TSUP1 <- max(TSUP1, abs(cBproc1[ispot]))
-      Tint1 <- Tint1 + cBproc1[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-
-      # one-sided tests for testing $H_1$:
-      TSUP1m <- min(TSUP1m, cBproc1[ispot])
-      Tint1m <- Tint1m + cBproc1[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-
-      if (ispot >= iskipa2) {
-        # two-sided tests for testing $H_2$:
-        TSUP2 <- max(TSUP2, abs(cBproc2[ispot]))
-        Tint2 <- Tint2 + cBproc2[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-
-        # one-sided tests for testing $H_2$:
-        TSUP2m <- min(TSUP2m, cBproc2[ispot])
-        Tint2m <- Tint2m + cBproc2[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-      }
-    }
-
-
+    
+    vspot <- seq(iskipa1 + 1, nvgrid1, 1) * vstep
+    seqtest <- seq(iskipa1 + 1, nvgrid1, 1)
+    cBproc1[seqtest] <- CUMB1[seqtest] - CUMB1[iskipa1]
+    cBproc2[seqtest] <- (CUMB1[seqtest] - CUMB1[iskipa1]) / (vspot - a1) - (CUMB1[nvgrid1] - CUMB1[iskipa1]) / (b1 - a1)
+    #browser()
+    # two-sided tests for testing H_1
+    TSUP1 <- max(TSUP1, abs(cBproc1[seqtest]))
+    Tint1 <- Tint1 + sum(cBproc1[seqtest]^2 * (CUMB1se[seqtest]^2 - CUMB1se[seqtest - 1]^2))
+    
+    # one-sided tests for testing H_1
+    TSUP1m <- min(TSUP1m, cBproc1[seqtest])
+    Tint1m <- Tint1m + sum(cBproc1[seqtest] * (CUMB1se[seqtest]^2 - CUMB1se[seqtest - 1]^2))
+    
+    # two-sided tests for testing H_2
+    valid_indices <- seq(iskipa1 + 1, nvgrid1)[seq(iskipa1 + 1, nvgrid1) >= iskipa2] 
+    TSUP2 <- max(TSUP2, abs(cBproc2[valid_indices]))
+    Tint2 <- Tint2 + sum(cBproc2[valid_indices]^2 * (CUMB1se[valid_indices]^2 - CUMB1se[valid_indices - 1]^2))
+    
+    # one-sided tests for testing H_2
+    TSUP2m <- min(TSUP2m, cBproc2[valid_indices])
+    Tint2m <- Tint2m + sum(cBproc2[valid_indices] * (CUMB1se[valid_indices]^2 - CUMB1se[valid_indices - 1]^2))
+    
     # *****************************************************************
     # Find the p-values of the test statistics.
     # *****************************************************************
@@ -531,11 +482,9 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     for (iboot in 1:nboot) {
       cBproc1x <- rep(0, nvgrid)
       cBproc2x <- rep(0, nvgrid)
-
       cBproc1x[iskipa1] <- BootDist[iboot, iskipa1] - BootDist[iboot, iskipa1]
       temp2nd <- (BootDist[iboot, nvgrid1] - BootDist[iboot, iskipa1]) / (b1 - a1)
       cBproc2x[iskipa2] <- (BootDist[iboot, iskipa2] - BootDist[iboot, iskipa1]) / (a2 - a1) - temp2nd
-
       TSUP1x <- abs(cBproc1x[iskipa1])
       TSUP1mx <- cBproc1x[iskipa1]
       TSUP2x <- abs(cBproc2x[iskipa2])
@@ -544,51 +493,45 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
       Tint1mx <- 0
       Tint2x <- 0
       Tint2mx <- 0
-
-      for (ispot in (iskipa1 + 1):nvgrid1) {
-        vspot <- ispot * vstep
-
-        cBproc1x[ispot] <- BootDist[iboot, ispot] - BootDist[iboot, iskipa1]
-        cBproc2x[ispot] <- (BootDist[iboot, ispot] - BootDist[iboot, iskipa1]) / (vspot - a1) - temp2nd
-
-        # for plotting the Gaussian multiplier realizations; the actual processes need to multiply by sqrt(n):
-        cBproc1s[ispot, iboot] <- sqrt(rnsamp) * cBproc1x[ispot]
-        cBproc2s[ispot, iboot] <- sqrt(rnsamp) * cBproc2x[ispot]
-
-        # two-sided tests for testing $H_1$:
-        TSUP1x <- max(TSUP1x, abs(cBproc1x[ispot]))
-        Tint1x <- Tint1x + cBproc1x[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-
-        # one-sided tests for testing $H_1$:
-        TSUP1mx <- min(TSUP1mx, cBproc1x[ispot])
-        Tint1mx <- Tint1mx + cBproc1x[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-
-        if (ispot >= iskipa2) {
-          # two-sided tests for testing $H_2$:
-          TSUP2x <- max(TSUP2x, abs(cBproc2x[ispot]))
-          Tint2x <- Tint2x + cBproc2x[ispot]^2 * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-
-          # one-sided tests for testing $H_2$:
-          TSUP2mx <- min(TSUP2mx, cBproc2x[ispot])
-          Tint2mx <- Tint2mx + cBproc2x[ispot] * (CUMB1se[ispot]^2 - CUMB1se[ispot - 1]^2)
-        }
-      }
-
+      
+      seqispot <- (iskipa1 + 1):nvgrid1
+      seqvspot <- seqispot * vstep
+      
+      cBproc1x[seqispot] <- BootDist[iboot, seqispot] - BootDist[iboot, iskipa1]
+      cBproc2x[seqispot] <- (BootDist[iboot, seqispot] - BootDist[iboot, iskipa1]) / (seqvspot - a1) - temp2nd
+      
+      # for plotting the Gaussian multiplier realizations; the actual processes need to multiply by sqrt(n):
+      cBproc1s[seqispot, iboot] <- sqrt(rnsamp) * cBproc1x[seqispot]
+      cBproc2s[seqispot, iboot] <- sqrt(rnsamp) * cBproc2x[seqispot]
+      
+      # two-sided tests for testing $H_1$:
+      TSUP1x <- max(TSUP1x, abs(cBproc1x[seqispot]))
+      Tint1x <- Tint1x + sum(cBproc1x[seqispot]^2 * (CUMB1se[seqispot]^2 - CUMB1se[seqispot - 1]^2))
+      
+      # one-sided tests for testing $H_1$:
+      TSUP1mx <- min(TSUP1mx, cBproc1x[seqispot])
+      Tint1mx <- Tint1mx + sum(cBproc1x[seqispot] * (CUMB1se[seqispot]^2 - CUMB1se[seqispot - 1]^2))
+      
+      valid_indices <- seq(iskipa1 + 1, nvgrid1)[seq(iskipa1 + 1, nvgrid1) >= iskipa2] 
+      TSUP2x <- max(TSUP2x, abs(cBproc2x[valid_indices]))
+      Tint2x <- Tint2x + sum(cBproc2x[valid_indices]^2 * (CUMB1se[valid_indices]^2 - CUMB1se[valid_indices - 1]^2))
+      
+      # one-sided tests for testing $H_2$:
+      TSUP2mx <- min(TSUP2mx, cBproc2x[valid_indices])
+      Tint2mx <- Tint2mx + sum(cBproc2x[valid_indices] * (CUMB1se[valid_indices]^2 - CUMB1se[valid_indices - 1]^2))
+      
       # calculate bootstrap p-values for H10:
       TSUP1pv <- TSUP1pv + as.numeric(TSUP1x > TSUP1) / nboot
       TSUP1mpv <- TSUP1mpv + as.numeric(TSUP1mx < TSUP1m) / nboot
       Tint1pv <- Tint1pv + as.numeric(Tint1x > Tint1) / nboot
       Tint1mpv <- Tint1mpv + as.numeric(Tint1mx < Tint1m) / nboot
-
+      
       # calculate bootstrap p-values for H20:
       TSUP2pv <- TSUP2pv + as.numeric(TSUP2x > TSUP2) / nboot
       TSUP2mpv <- TSUP2mpv + as.numeric(TSUP2mx < TSUP2m) / nboot
       Tint2pv <- Tint2pv + as.numeric(Tint2x > Tint2) / nboot
       Tint2mpv <- Tint2mpv + as.numeric(Tint2mx < Tint2m) / nboot
-
-
     }
-
 
     # the actual test statistics need to multiply by sqrt(n):
     TSUP1 <- sqrt(rnsamp) * TSUP1
@@ -603,15 +546,10 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
 
     # for plotting the test processes and the Gaussian multiplier processes;
     # the actual test processes need to multiply by sqrt(n):
-    for (ispot in (iskipa1 + 1):nvgrid) {
-      vspot <- ispot * vstep
-      cBproc1[ispot] <- sqrt(rnsamp) * cBproc1[ispot]
 
-      if (ispot >= iskipa2) {
-        cBproc2[ispot] <- sqrt(rnsamp) * cBproc2[ispot]
-
-      }
-    }
+    cBproc1[(iskipa1 + 1):nvgrid] <- sqrt(rnsamp) * cBproc1[(iskipa1 + 1):nvgrid]
+    cBproc2[(iskipa1 + 1):nvgrid] <- sqrt(rnsamp) * cBproc2[(iskipa1 + 1):nvgrid]
+    
 
     Rmiss <- Rsum / sumdelta
     test10 <- c(TSUP1,TSUP1m, Tint1,Tint1m)
@@ -646,8 +584,8 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
   }
 
   estBeta = data.frame("mark" = markgrid_original_scale,
-                       "betacom" = betacom[1,],
-                       "secom" = secom[1,])
+                       "betacom" = betacom[1, ],
+                       "secom" = secom[1, ])
   colnames(estBeta) <- c("mark", "beta", "se")
 
   if(estBaseLamInd == 1){

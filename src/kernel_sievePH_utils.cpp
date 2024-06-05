@@ -1,7 +1,9 @@
 #include <RcppArmadillo.h>
-
-
 // [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+using namespace std;
 
 // [[Rcpp::export]]
 double Epankercplusplus(double tk, double tvalue, double hband, double delt) {
@@ -13,6 +15,8 @@ double Epankercplusplus(double tk, double tvalue, double hband, double delt) {
 
   return result;
 }
+
+
 
 
 // [[Rcpp::export]]
@@ -116,11 +120,8 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
   arma::mat LAMBDAk0(KK, ntgrid, arma::fill::zeros);
   arma::vec change(NP, arma::fill::ones);
   int Kiter = 1;
+  BETA = BETA0;
   
-  for(int j = 0; j < NP; j++){
-    BETA(j) = BETA0(j);
-  }
-
   while (arma::sum(arma::abs(change)) > 0.00001 && Kiter <= maxit) {
   //for (int Kiter = 1; Kiter <= maxit; Kiter++) {
     F.zeros();
@@ -198,7 +199,7 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
         double TEMPB = 0.0;
         for (int ii = 0; ii < N(ks); ii++) {
           if (X(ks, ii) <= tau && S0(ks,ii) > 0.00000001) {
-              TEMPB += Epankercplusplus(X(ks, ii), tvalue, TBAND, CENSOR(ks, ii)) * (DELTA(ks, ii)*WGHT(ks, ii)/ S0(ks,ii));
+              TEMPB += Epankercplusplus(X(ks, ii), tvalue, TBAND, CENSOR(ks, ii)) * (DELTA(ks, ii) * WGHT(ks, ii)/ S0(ks,ii));
           }
         }
         LAMBDAk0(ks, Itgrid) = TEMPB;
@@ -334,71 +335,137 @@ Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
     );
 }
 
+// [[Rcpp::export]]
+Rcpp::List AsigInvTempaug(arma::cube SigmaInv, arma::cube G, arma::cube LAMBDAUG, arma::mat CLAMBDAUG,
+                          arma::mat wght, arma::mat time, arma::mat censor, arma::mat markm,
+                          int ncov, int nvgrid, int kk, arma::vec nsamp, double vstep, double hband,
+                          int iskip, double tau) {
+  
+  arma::cube AsigInv(ncov * ncov, nvgrid, nvgrid, arma::fill::zeros);
+  arma::cube tempaug(kk, arma::max(nsamp), nvgrid, arma::fill::zeros);
+  
+  for (int ispot = iskip; ispot <= nvgrid; ispot++) {
+    double va = vstep * (ispot - 1.0);
+    double vb = vstep * ispot;
+    double vspot = ispot * vstep;
+    arma::mat sigtemp(ncov, ncov, arma::fill::zeros);
+    
+    for (int mspot = iskip; mspot <= nvgrid; mspot++) {
+      double vmspot = mspot * vstep;
+      sigtemp += SigmaInv.slice(mspot - 1) * Epankercplusplus(vspot, vmspot, hband, 1.0) * vstep;
+      AsigInv.subcube(0, ispot - 1, mspot - 1, ncov*ncov-1, ispot - 1, mspot - 1) = arma::vectorise(sigtemp);
+    }
+    
+    arma::mat DRHOaug(kk, arma::max(nsamp), arma::fill::zeros);
+    
+    for (int ks = 0; ks < kk; ks++) {
+      arma::uvec valid_indices = arma::find((time.row(ks) <= tau) && (censor.row(ks) >= 0.5) && (CLAMBDAUG.row(ks) >= 0.00000001));
+      arma::rowvec Grow(arma::max(nsamp));
+      arma::rowvec LAMBDAUGrow(arma::max(nsamp));
+      arma::rowvec DRHOaugrow(arma::max(nsamp));
+      DRHOaugrow.zeros();
+      for (int ii = 0; ii < arma::max(nsamp); ii++){
+        Grow(ii) = G(ks, ii, ispot - 1);
+        LAMBDAUGrow(ii) = LAMBDAUG(ks, ii, ispot - 1);
+      }
+      arma:: rowvec CLAMBDAUGrow = CLAMBDAUG.row(ks);
+      DRHOaugrow.elem(valid_indices) = Grow.elem(valid_indices) % LAMBDAUGrow.elem(valid_indices) / CLAMBDAUGrow.elem(valid_indices);
+      
+      arma::rowvec temp1 = (1.0 - wght.row(ks)) % DRHOaugrow * vstep;
+      temp1.elem(arma::find((time.row(ks) > tau) || (censor.row(ks) < 0.5))).zeros();
+      
+      arma::rowvec temp2 = wght.row(ks);
+      temp2.elem(arma::find((time.row(ks) > tau) || (markm.row(ks) < va) || (markm.row(ks) > vb) || (censor.row(ks) <= 0.5))).zeros();
+      tempaug.subcube(ks, 0, ispot - 1, ks, max(nsamp)-1, ispot - 1) = temp1 + temp2;
+      
+    }
+  }
+  
+  return Rcpp::List::create(Rcpp::Named("AsigInv") = AsigInv,
+                            Rcpp::Named("tempaug") = tempaug);
+}
+
+
+// [[Rcpp::export]]
+Rcpp::List S0NS1N(arma::cube covart, arma::mat beta, arma::mat time, arma::uvec nsamp,
+                  int kk, int nvgrid, int ncov, int iskip) {
+  
+  int mxn = arma::max(nsamp);
+  arma::cube S0N(kk, mxn, nvgrid, arma::fill::zeros);
+  arma::cube S1N(kk * ncov, mxn, nvgrid, arma::fill::zeros);
+  arma::vec BZt(mxn);
+  int s = 0;
+  for (int ispot = iskip - 1; ispot < nvgrid; ispot++) {
+    
+    for (int ks = 0; ks < kk; ks++) {
+      arma::mat covartks(ncov, mxn);
+      covartks = covart.subcube(ks, 0, 0, ks, ncov - 1, mxn - 1);
+      BZt = arma::trans(covartks) * beta.col(ispot);
+      for (int i = 0; i < nsamp(ks); i++) {
+        arma::uvec valid_indices = arma::find(time.row(ks) >= time(ks, i));
+        S0N(ks, i, ispot) = arma::sum(arma::exp(BZt(valid_indices)));
+        s = ks *ncov;
+        for (int j = 0; j < ncov; j++) {
+          arma::vec covartks = covart.subcube(ks, j, 0, ks, j, nsamp(ks) - 1);
+          S1N(s, i, ispot) = arma::sum(covartks.elem(valid_indices) % arma::exp(BZt.elem(valid_indices)));
+          s = s + 1;
+        }
+      }
+      
+    }
+  }
+  
+  return Rcpp::List::create(Rcpp::Named("S0N") = S0N,
+                            Rcpp::Named("S1N") = S1N);
+}
 
 // [[Rcpp::export]]
 arma::mat GDIST2Ncplusplus(int nvgrid, int iskip, arma::mat zdev, int KK, arma::ivec N, int NP,
-                  arma::mat X, arma::cube ZT, arma::mat betaofv, arma::cube SigmaInv,
+                  arma::mat X, arma::cube ZT, arma::mat beta, arma::cube SigmaInv,
                   arma::cube S0N, arma::cube S1N, arma::cube tempaug, arma::cube AsigInv) {
-  const int mxn = max(N);
-
-  arma::mat BZt(mxn, 1, arma::fill::zeros);
+  
+  int mxn = max(N);
+  arma::vec BZt(mxn, arma::fill::zeros);
   arma::vec Sx0(mxn, arma::fill::zeros);
   arma::mat Sx1(NP, mxn, arma::fill::zeros);
   arma::mat BU1(NP, nvgrid , arma::fill::zeros);
   arma::mat CUMBDIST(NP, nvgrid, arma::fill::zeros);
-
+  
   for (int ispot = iskip - 1; ispot < nvgrid; ispot++) {
     for (int ks = 0; ks < KK; ks++) {
+      arma::mat ZTks(NP, mxn);
+      ZTks = ZT.subcube(ks, 0, 0, ks, NP - 1, mxn - 1);
+      BZt.col(0) = arma::trans(ZTks) * beta.col(ispot);
       for (int i = 0; i < N(ks); i++) {
-        BZt(i,0) = 0.0;
+        Sx0.zeros();
+        Sx1.zeros();
+        arma::uvec risk_indices = arma::find(X.row(ks) >= X(ks, i));
+        arma::rowvec zdevks = zdev.row(ks);
+        Sx0(i) = arma::sum(arma::exp(BZt(risk_indices)) % zdevks.elem(risk_indices));
         for(int j = 0; j < NP; j++){
-          BZt(i, 0) = BZt(i, 0) + betaofv(j, ispot)* ZT (ks, j, i);
+          arma::vec ZTjL = ZT.subcube(ks, j, 0, ks, j, mxn - 1);
+          Sx1(j, i) = Sx1(j, i) + arma::sum(arma::exp(BZt(risk_indices)) % zdevks.elem(risk_indices) % ZTjL(risk_indices));
         }
-      }
-      //Rcpp::Rcout << BZt << std::endl;
-
-      for (int i = 0; i < N(ks); i++) {
-        Sx0(i) = 0.0;
-        Sx1.col(i).zeros();
-
-        for (int L = 0; L < N(ks); L++) {
-          if (X(ks, L) >= X(ks, i)) {
-            Sx0(i) += exp(BZt(L, 0)) * zdev(ks, L);
-            for (int j = 0; j < NP; j++) {
-              Sx1(j, i) += exp(BZt(L, 0)) * ZT(ks, j, L) * zdev(ks, L);
-            }
-          }
-        }
-       // Rcpp::Rcout << "S0(I) "<< Sx0(I) << std::endl;
-        //Rcpp::Rcout << "S1(I) "<< Sx1(0, I) << std::endl;
-
+        
+        //Rcpp::Rcout << "2 " << std::endl;
         if (S0N(ks, i, ispot) > 0.00000001) {
           for (int j = 0; j < NP; j++) {
-            for (int mspot = iskip - 1; mspot < nvgrid; mspot++) {
-              double tempBU1 = 0.0;
-              double tempXBU2 = 0.0;
-              for(int k = 0; k < NP; k++){
-                int index = j*NP + k;
-                int indexS1N = ks*NP + k;
-                tempBU1 = tempBU1 + AsigInv (index, ispot, mspot)*(ZT(ks, k, i) - S1N(indexS1N, i, ispot)/ S0N(ks, i, ispot));
+            arma::mat AsigInvk = AsigInv.subcube(j*NP, ispot, iskip - 1, (j+1)*NP - 1, ispot, nvgrid - 1);
+            arma::vec S1Nk = S1N.subcube(ks*NP, i, ispot, (ks+1)*NP - 1, i, ispot);
+            arma::vec ZTk = ZT.subcube(ks, 0, i, ks, NP - 1, i);
+            arma::vec Sx1k = Sx1.col(i);
+            arma::vec tempBU1 = arma::trans(AsigInvk) * (ZTk - S1Nk / S0N(ks, i, ispot));
+            arma::vec tempXBU2 = arma::trans(AsigInvk) * (Sx1k - Sx0(i) * S1Nk / S0N(ks, i, ispot)) / S0N(ks, i, ispot);
 
-                tempXBU2 = tempXBU2 + AsigInv (index, ispot, mspot)*(Sx1(k, i) - Sx0(i) * S1N(indexS1N, i, ispot) / S0N(ks, i, ispot)) / S0N(ks, i, ispot);
-              }
-
-
-              CUMBDIST(j, mspot) += (tempBU1 * zdev(ks, i) - tempXBU2) * tempaug(ks, i, ispot);
-              //Rcpp::Rcout << "tempBU1 "<< tempBU1 << std::endl;
-
-
-            }
+            CUMBDIST.submat(j, iskip - 1, j, nvgrid - 1) += arma::trans((tempBU1 * zdev(ks, i) - tempXBU2) * tempaug(ks, i, ispot));
+           
           }
         }
       }
-    }
-  }
-
-
-  //CUMBDIST = BU1;
-
+    }//loop ks
+  }//loop ispot
   return CUMBDIST;
 }
+
+
+

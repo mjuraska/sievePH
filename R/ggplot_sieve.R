@@ -57,7 +57,7 @@
 #'                       tau = 3, tband = 0.5, hband = 0.3, nvgrid = 20, 
 #'                       nboot = NULL)
 #' sfit2 <- summary(fit2)
-#' print(ggplot_sieve(sfit2, mark, tx))
+#' print(ggplot_sieve(sfit2, mark, tx, xlim = markRng))
 #'
 #' @seealso \code{\link{plot.summary.sievePH}}, \code{\link{sievePH}}, \code{\link{summary.sievePH}}, \code{\link{kernel_sievePH}}, \code{\link{summary.kernel_sievePH}}
 #'
