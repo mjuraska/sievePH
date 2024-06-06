@@ -306,7 +306,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
     if(b > mx) {
       stop("b needs to be no greater than the maximum of the observed marks")
     }
-    b1 <- min(round((b - mn) / (mx - mn) * nvgrid), nvgrid) / nvgrid
+    b1 <- min(floor((b - mn) / (mx - mn) * nvgrid), nvgrid) / nvgrid
   }
 
   #total sample
@@ -325,7 +325,7 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
   }
 
   vstep <- 1 / nvgrid
-  iskip <- a0 / vstep
+  iskip <- max(round(a0 / vstep, 0), 1)
 
   # Epanechnikov kernel has squared integral = 3/5 !
   ekconst <- 3 / 5
@@ -670,9 +670,9 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
             BZIPW[valid_indices, 1] <- t(covart[ks, , valid_indices]) %*% betaipw[, ispot] #summing over J
           }
 
-          #the original fortran code had LAMBDA0 for nvgrid only
-          LAMBDAIPW[ks, valid_indices, ispot] <- LAMBDA0ipw[ks, valid_indices,nvgrid] * exp(BZIPW[valid_indices,1])
-          CLAMBDAIPW[ks, valid_indices] <- CLAMBDAIPW[ks, valid_indices] + LAMBDA0ipw[ks, valid_indices,nvgrid] * exp(BZIPW[valid_indices,1]) * G[ks,valid_indices,ispot]*vstep
+          #Note: To reproduce the original fortran code, change ispot to nvgrid for LAMBDA0ipw
+          LAMBDAIPW[ks, valid_indices, ispot] <- LAMBDA0ipw[ks, valid_indices, ispot] * exp(BZIPW[valid_indices,1])
+          CLAMBDAIPW[ks, valid_indices] <- CLAMBDAIPW[ks, valid_indices] + LAMBDA0ipw[ks, valid_indices, ispot] * exp(BZIPW[valid_indices, 1]) * G[ks, valid_indices, ispot]*vstep
         }
       }
     }
@@ -762,14 +762,13 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
       # **************************************************************************
       # Simulate distribution of \sqrt n(\hat B(v)-B(v)) based on aipw
       # **************************************************************************
-
       CUMB1x <- rep(0, nvgrid)
       CUMB1se <- rep(0, nvgrid)
       BootDist <- matrix(0, nrow = nboot, ncol = nvgrid)
       for (iboot in 1:nboot) {
         zdev <- matrix(rnorm(kk * max(nsamp)), nrow = kk, ncol = max(nsamp))
         #CUMBDIST is simulated B(v)
-        browser()
+       
         CUMBDIST <- GDIST2Ncplusplus(nvgrid, iskip, zdev, kk, nsamp, ncov, time, covart,
                                      betaofv, SigmaInv, S0N, S1N, tempaug, AsigInv)
         
@@ -787,11 +786,11 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
       # **************************************************************
 
       # calculate the test statistics for H_{10}:VE(v)=0 for v over [a1,b1], b1=1
-      iskipa1 <- a1 / vstep
-      nvgrid1 <- b1 / vstep
+      iskipa1 <- round(a1 / vstep, 0)
+      nvgrid1 <- round(b1 / vstep, 0)
 
       # calculate the test statistics for H_{20}:VE(v)=VE for v over [a2,b1], a2>a1
-      iskipa2 <- a2 / vstep
+      iskipa2 <- round(a2 / vstep, 0)
       cBproc1 <- rep(0, nvgrid)
       cBproc2 <- rep(0, nvgrid)
       cBproc1[iskipa1] <- CUMB1[iskipa1] - CUMB1[iskipa1]
@@ -808,7 +807,6 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
       seqtest <- seq(iskipa1 + 1, nvgrid1, 1)
       cBproc1[seqtest] <- CUMB1[seqtest] - CUMB1[iskipa1]
       cBproc2[seqtest] <- (CUMB1[seqtest] - CUMB1[iskipa1]) / (vspot - a1) - (CUMB1[nvgrid1] - CUMB1[iskipa1]) / (b1 - a1)
-      #browser()
       # two-sided tests for testing H_1
       TSUP1 <- max(TSUP1, abs(cBproc1[seqtest]))
       Tint1 <- Tint1 + sum(cBproc1[seqtest]^2 * (CUMB1se[seqtest]^2 - CUMB1se[seqtest - 1]^2))
@@ -944,7 +942,6 @@ kernel_sievePHaipw <- function(eventTime, eventInd, mark, tx, aux = NULL, auxTyp
       markgrid <- (1:nvgrid) * vstep
       markgrid_original_scale <- markgrid*(mx-mn)+mn
     }
-
     estBeta <- data.frame("mark" = markgrid_original_scale,
                           "betaaug" = betaaug[1, ],
                           "seaug" = seaug[1, ])

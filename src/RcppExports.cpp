@@ -25,6 +25,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// EpankercplusplusV
+arma::vec EpankercplusplusV(arma::vec tks, double tvalue, double hband, arma::vec delt);
+RcppExport SEXP _sievePH_EpankercplusplusV(SEXP tksSEXP, SEXP tvalueSEXP, SEXP hbandSEXP, SEXP deltSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::vec >::type tks(tksSEXP);
+    Rcpp::traits::input_parameter< double >::type tvalue(tvalueSEXP);
+    Rcpp::traits::input_parameter< double >::type hband(hbandSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type delt(deltSEXP);
+    rcpp_result_gen = Rcpp::wrap(EpankercplusplusV(tks, tvalue, hband, delt));
+    return rcpp_result_gen;
+END_RCPP
+}
 // estpcomcplusplus
 Rcpp::List estpcomcplusplus(double tau, int KK, arma::ivec N, int NP, arma::mat X, arma::cube ZT, arma::mat DELTA, arma::mat WGHT, arma::vec BETA0);
 RcppExport SEXP _sievePH_estpcomcplusplus(SEXP tauSEXP, SEXP KKSEXP, SEXP NSEXP, SEXP NPSEXP, SEXP XSEXP, SEXP ZTSEXP, SEXP DELTASEXP, SEXP WGHTSEXP, SEXP BETA0SEXP) {
@@ -95,9 +109,53 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// AsigInvTempaug
+Rcpp::List AsigInvTempaug(arma::cube SigmaInv, arma::cube G, arma::cube LAMBDAUG, arma::mat CLAMBDAUG, arma::mat wght, arma::mat time, arma::mat censor, arma::mat markm, int ncov, int nvgrid, int kk, arma::vec nsamp, double vstep, double hband, int iskip, double tau);
+RcppExport SEXP _sievePH_AsigInvTempaug(SEXP SigmaInvSEXP, SEXP GSEXP, SEXP LAMBDAUGSEXP, SEXP CLAMBDAUGSEXP, SEXP wghtSEXP, SEXP timeSEXP, SEXP censorSEXP, SEXP markmSEXP, SEXP ncovSEXP, SEXP nvgridSEXP, SEXP kkSEXP, SEXP nsampSEXP, SEXP vstepSEXP, SEXP hbandSEXP, SEXP iskipSEXP, SEXP tauSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type SigmaInv(SigmaInvSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type LAMBDAUG(LAMBDAUGSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type CLAMBDAUG(CLAMBDAUGSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type wght(wghtSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type time(timeSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type censor(censorSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type markm(markmSEXP);
+    Rcpp::traits::input_parameter< int >::type ncov(ncovSEXP);
+    Rcpp::traits::input_parameter< int >::type nvgrid(nvgridSEXP);
+    Rcpp::traits::input_parameter< int >::type kk(kkSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type nsamp(nsampSEXP);
+    Rcpp::traits::input_parameter< double >::type vstep(vstepSEXP);
+    Rcpp::traits::input_parameter< double >::type hband(hbandSEXP);
+    Rcpp::traits::input_parameter< int >::type iskip(iskipSEXP);
+    Rcpp::traits::input_parameter< double >::type tau(tauSEXP);
+    rcpp_result_gen = Rcpp::wrap(AsigInvTempaug(SigmaInv, G, LAMBDAUG, CLAMBDAUG, wght, time, censor, markm, ncov, nvgrid, kk, nsamp, vstep, hband, iskip, tau));
+    return rcpp_result_gen;
+END_RCPP
+}
+// S0NS1N
+Rcpp::List S0NS1N(arma::cube covart, arma::mat beta, arma::mat time, arma::uvec nsamp, int kk, int nvgrid, int ncov, int iskip);
+RcppExport SEXP _sievePH_S0NS1N(SEXP covartSEXP, SEXP betaSEXP, SEXP timeSEXP, SEXP nsampSEXP, SEXP kkSEXP, SEXP nvgridSEXP, SEXP ncovSEXP, SEXP iskipSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type covart(covartSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type time(timeSEXP);
+    Rcpp::traits::input_parameter< arma::uvec >::type nsamp(nsampSEXP);
+    Rcpp::traits::input_parameter< int >::type kk(kkSEXP);
+    Rcpp::traits::input_parameter< int >::type nvgrid(nvgridSEXP);
+    Rcpp::traits::input_parameter< int >::type ncov(ncovSEXP);
+    Rcpp::traits::input_parameter< int >::type iskip(iskipSEXP);
+    rcpp_result_gen = Rcpp::wrap(S0NS1N(covart, beta, time, nsamp, kk, nvgrid, ncov, iskip));
+    return rcpp_result_gen;
+END_RCPP
+}
 // GDIST2Ncplusplus
-arma::mat GDIST2Ncplusplus(int nvgrid, int iskip, arma::mat zdev, int KK, arma::ivec N, int NP, arma::mat X, arma::cube ZT, arma::mat betaofv, arma::cube SigmaInv, arma::cube S0N, arma::cube S1N, arma::cube tempaug, arma::cube AsigInv);
-RcppExport SEXP _sievePH_GDIST2Ncplusplus(SEXP nvgridSEXP, SEXP iskipSEXP, SEXP zdevSEXP, SEXP KKSEXP, SEXP NSEXP, SEXP NPSEXP, SEXP XSEXP, SEXP ZTSEXP, SEXP betaofvSEXP, SEXP SigmaInvSEXP, SEXP S0NSEXP, SEXP S1NSEXP, SEXP tempaugSEXP, SEXP AsigInvSEXP) {
+arma::mat GDIST2Ncplusplus(int nvgrid, int iskip, arma::mat zdev, int KK, arma::ivec N, int NP, arma::mat X, arma::cube ZT, arma::mat beta, arma::cube SigmaInv, arma::cube S0N, arma::cube S1N, arma::cube tempaug, arma::cube AsigInv);
+RcppExport SEXP _sievePH_GDIST2Ncplusplus(SEXP nvgridSEXP, SEXP iskipSEXP, SEXP zdevSEXP, SEXP KKSEXP, SEXP NSEXP, SEXP NPSEXP, SEXP XSEXP, SEXP ZTSEXP, SEXP betaSEXP, SEXP SigmaInvSEXP, SEXP S0NSEXP, SEXP S1NSEXP, SEXP tempaugSEXP, SEXP AsigInvSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -109,22 +167,25 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type NP(NPSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
     Rcpp::traits::input_parameter< arma::cube >::type ZT(ZTSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type betaofv(betaofvSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type beta(betaSEXP);
     Rcpp::traits::input_parameter< arma::cube >::type SigmaInv(SigmaInvSEXP);
     Rcpp::traits::input_parameter< arma::cube >::type S0N(S0NSEXP);
     Rcpp::traits::input_parameter< arma::cube >::type S1N(S1NSEXP);
     Rcpp::traits::input_parameter< arma::cube >::type tempaug(tempaugSEXP);
     Rcpp::traits::input_parameter< arma::cube >::type AsigInv(AsigInvSEXP);
-    rcpp_result_gen = Rcpp::wrap(GDIST2Ncplusplus(nvgrid, iskip, zdev, KK, N, NP, X, ZT, betaofv, SigmaInv, S0N, S1N, tempaug, AsigInv));
+    rcpp_result_gen = Rcpp::wrap(GDIST2Ncplusplus(nvgrid, iskip, zdev, KK, N, NP, X, ZT, beta, SigmaInv, S0N, S1N, tempaug, AsigInv));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
     {"_sievePH_Epankercplusplus", (DL_FUNC) &_sievePH_Epankercplusplus, 4},
+    {"_sievePH_EpankercplusplusV", (DL_FUNC) &_sievePH_EpankercplusplusV, 4},
     {"_sievePH_estpcomcplusplus", (DL_FUNC) &_sievePH_estpcomcplusplus, 9},
     {"_sievePH_estpipwcplusplus", (DL_FUNC) &_sievePH_estpipwcplusplus, 15},
     {"_sievePH_estpaugcplusplus", (DL_FUNC) &_sievePH_estpaugcplusplus, 16},
+    {"_sievePH_AsigInvTempaug", (DL_FUNC) &_sievePH_AsigInvTempaug, 16},
+    {"_sievePH_S0NS1N", (DL_FUNC) &_sievePH_S0NS1N, 8},
     {"_sievePH_GDIST2Ncplusplus", (DL_FUNC) &_sievePH_GDIST2Ncplusplus, 14},
     {NULL, NULL, 0}
 };

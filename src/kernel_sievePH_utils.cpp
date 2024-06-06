@@ -16,15 +16,22 @@ double Epankercplusplus(double tk, double tvalue, double hband, double delt) {
   return result;
 }
 
-
-
+// [[Rcpp::export]]
+arma::vec EpankercplusplusV(arma::vec tks, double tvalue, double hband, arma::vec delt) {
+  int ntk = tks.n_elem;
+  arma::vec result(ntk);
+  result.zeros();
+  arma::uvec indices = arma::find(arma::abs(tks - tvalue) < hband);
+  result.elem(indices) = 3.0 / (4.0 * hband) * delt.elem(indices) % (1 - ((tks.elem(indices) - tvalue) / hband) % ((tks.elem(indices) - tvalue) / hband));
+  return result;
+}
 
 // [[Rcpp::export]]
 Rcpp::List estpcomcplusplus(double tau,int KK, arma::ivec N, int NP,
-                   arma::mat X, arma::cube ZT, arma::mat DELTA,
-                   arma::mat WGHT, arma::vec BETA0) {
+                            arma::mat X, arma::cube ZT, arma::mat DELTA,
+                            arma::mat WGHT, arma::vec BETA0) {
   const int mxn = max(N);
-
+  
   arma::mat BZt(mxn, 1, arma::fill::zeros);
   arma::mat S0(KK, mxn, arma::fill::zeros);
   arma::mat S1(NP, mxn, arma::fill::zeros);
@@ -34,48 +41,39 @@ Rcpp::List estpcomcplusplus(double tau,int KK, arma::ivec N, int NP,
   arma::vec BETA(NP);
   arma::mat F(NP, NP, arma::fill::zeros);
   arma::mat var(NP, NP, arma::fill::zeros);
-
+  
   int KL = 6;
-  for(int j = 0; j < NP; j++){
-    BETA(j) = BETA0(j);
-  }
+  BETA = BETA0;
   for (int Kiter = 1; Kiter <= KL; Kiter++) {
     F.zeros();
     F2.zeros();
     U.zeros();
-
+    
     for (int ks = 0; ks < KK; ks++) {
-      for (int i = 0; i < N(ks); i++) {
-        BZt(i, 0) = 0.0;
-        for (int j = 0; j < NP; j++) {
-          BZt(i, 0) += BETA(j) * ZT(ks, j, i);
-        }
-      }
-
+      arma::mat ZTks(NP, mxn);
+      ZTks = ZT.subcube(ks, 0, 0, ks, NP - 1, mxn - 1);
+      BZt.col(0) = arma::trans(ZTks) * BETA;
+     
       for (int i = 0; i < N(ks); i++) {
         if (X(ks, i) <= tau) {
           S0(ks, i) = 0.0;
           S1.col(i).zeros();
           S2.zeros();
-
-          for (int l = 0; l < N(ks); l++) {
-            if (X(ks, l) >= X(ks, i)) {
-              S0(ks, i) += exp(BZt(l, 0)) * WGHT(ks, l);
-
-              for (int j = 0; j < NP; j++) {
-                S1(j, i) += exp(BZt(l, 0)) * ZT(ks, j, l) * WGHT(ks, l);
-
-                for (int k = 0; k < NP; k++) {
-                  S2(j, k) += exp(BZt(l, 0)) * ZT(ks, j, l) * ZT(ks, k, l) * WGHT(ks, l);
-                }
-              }
+          arma::uvec risk_indices = arma::find(X.submat(ks, 0, ks, N(ks) - 1) >= X(ks, i));
+          arma::rowvec WGHTks = WGHT.row(ks);
+          arma::vec BZT0 = BZt.col(0);
+          S0(ks, i) = arma::sum(arma::exp(BZT0.elem(risk_indices)) % WGHTks.elem(risk_indices));
+          for (int j = 0; j < NP; j++) {
+            arma::vec ZTj = ZT.subcube(ks, j, 0, ks, j, mxn - 1);
+            S1(j, i) += arma::sum(exp(BZT0.elem(risk_indices)) % ZTj.elem(risk_indices) % WGHTks.elem(risk_indices));
+            for(int k = 0; k < NP; k++){
+              arma::vec ZTk = ZT.subcube(ks, k, 0, ks, k, mxn - 1);
+              S2(j, k) += arma::sum(arma::exp(BZT0.elem(risk_indices)) % ZTj.elem(risk_indices) % ZTk.elem(risk_indices) % WGHTks.elem(risk_indices));
             }
           }
-
-          if (S0(ks, i) > 0.00000001) {
+         if (S0(ks, i) > 0.00000001) {
             for (int j = 0; j < NP; j++) {
               U(j) += DELTA(ks, i) * (ZT(ks, j, i) - S1(j, i) / S0(ks, i)) * WGHT(ks, i);
-
               for (int k = 0; k < NP; k++) {
                 F(j, k) += DELTA(ks, i) * (S2(j, k) / S0(ks, i) - S1(j, i) * S1(k, i) / pow(S0(ks, i), 2)) * WGHT(ks, i);
                 F2(j, k) += pow(DELTA(ks, i), 2) * (ZT(ks, j, i) - S1(j, i) / S0(ks, i)) * (ZT(ks, k, i) - S1(k, i) / S0(ks, i)) * pow(WGHT(ks, i), 2);
@@ -85,12 +83,12 @@ Rcpp::List estpcomcplusplus(double tau,int KK, arma::ivec N, int NP,
         }
       }
     }
-
+    
     BETA += arma::solve(F, U);
   }
-
+  
   var = arma::inv(F) * F2 * arma::inv(F);
-
+  
   return Rcpp::List::create(
     Rcpp::Named("BETA") = BETA,
     Rcpp::Named("F") = F,
@@ -99,13 +97,11 @@ Rcpp::List estpcomcplusplus(double tau,int KK, arma::ivec N, int NP,
 }
 
 
-
 // [[Rcpp::export]]
 Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, int KK, arma::ivec N, int NP,
                    arma::mat X, arma::cube ZT, arma::mat CENSOR, arma::mat DELTA,
                    arma::mat WGHT, arma::vec BETA0, int maxit, int estBaseLamInd) {
-  const int mxn = max(N);
-
+  int mxn = max(N);
   arma::mat BZt(mxn, 1, arma::fill::zeros);
   arma::mat S0(KK, mxn, arma::fill::zeros);
   arma::mat S1(NP, mxn, arma::fill::zeros);
@@ -123,43 +119,37 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
   BETA = BETA0;
   
   while (arma::sum(arma::abs(change)) > 0.00001 && Kiter <= maxit) {
-  //for (int Kiter = 1; Kiter <= maxit; Kiter++) {
     F.zeros();
     F2.zeros();
     U.zeros();
     S0.zeros();
     for (int ks = 0; ks < KK; ks++) {
-      for (int i = 0; i < N(ks); i++) {
-        BZt(i, 0) = 0.0;
-        for (int j = 0; j < NP; j++) {
-          BZt(i, 0) += BETA(j) * ZT(ks, j, i);
-        }
-      }
+      arma::mat ZTks(NP, mxn);
+      ZTks = ZT.subcube(ks, 0, 0, ks, NP - 1, mxn - 1);
+      BZt.col(0) = arma::trans(ZTks) * BETA;
       
       for (int i = 0; i < N(ks); i++) {
         if (X(ks, i) <= tau) {
           S0(ks, i) = 0.0;
           S1.col(i).zeros();
           S2.zeros();
-          
-          for (int l = 0; l < N(ks); l++) {
-            if (X(ks, l) >= X(ks, i)) {
-              S0(ks, i) += exp(BZt(l, 0)) * WGHT(ks, l);
-              
-              for (int j = 0; j < NP; j++) {
-                S1(j, i) += exp(BZt(l, 0)) * ZT(ks, j, l) * WGHT(ks, l);
-                
-                for (int k = 0; k < NP; k++) {
-                  S2(j, k) += exp(BZt(l, 0)) * ZT(ks, j, l) * ZT(ks, k, l) * WGHT(ks, l);
-                }
-              }
+          arma::uvec risk_indices = arma::find(X.submat(ks, 0, ks, N(ks) - 1) >= X(ks, i));
+          arma::rowvec WGHTks = WGHT.row(ks);
+          arma::vec BZT0 = BZt.col(0);
+          S0(ks, i) = arma::sum(arma::exp(BZT0.elem(risk_indices)) % WGHTks.elem(risk_indices));
+          //Rcpp::Rcout << "1" << S0(ks, i) << std::endl;
+          for (int j = 0; j < NP; j++) {
+            arma::vec ZTj = ZT.subcube(ks, j, 0, ks, j, mxn - 1);
+            S1(j, i) += arma::sum(exp(BZT0.elem(risk_indices)) % ZTj.elem(risk_indices) % WGHTks.elem(risk_indices));
+            for(int k = 0; k < NP; k++){
+              arma::vec ZTk = ZT.subcube(ks, k, 0, ks, k, mxn - 1);
+              S2(j, k) += arma::sum(arma::exp(BZT0.elem(risk_indices)) % ZTj.elem(risk_indices) % ZTk.elem(risk_indices) % WGHTks.elem(risk_indices));
             }
           }
-          
+
           if (S0(ks, i) > 0.00000001) {
             for (int j = 0; j < NP; j++) {
               U(j) += DELTA(ks, i) * (ZT(ks, j, i) - S1(j, i) / S0(ks, i)) * WGHT(ks, i);
-              
               for (int k = 0; k < NP; k++) {
                 F(j, k) += DELTA(ks, i) * (S2(j, k) / S0(ks, i) - S1(j, i) * S1(k, i) / pow(S0(ks, i), 2)) * WGHT(ks, i);
                 F2(j, k) += pow(DELTA(ks, i), 2) * (ZT(ks, j, i) - S1(j, i) / S0(ks, i)) * (ZT(ks, k, i) - S1(k, i) / S0(ks, i)) * pow(WGHT(ks, i), 2);
@@ -181,33 +171,25 @@ Rcpp::List estpipwcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
   invF  = arma::inv(F);
   
   for (int ks = 0; ks < KK; ks++) {
+    arma::uvec indices = arma::find(X.submat(ks, 0, ks,  N(ks) - 1) <= tau && S0.submat(ks, 0, ks,  N(ks) - 1) > 0.00000001);
+    arma::rowvec xks = X.row(ks);
+    arma::rowvec censorks = CENSOR.row(ks);
+    arma::rowvec deltaks = DELTA.row(ks);
+    arma::rowvec wghtks = WGHT.row(ks);
+    arma::rowvec S0ks = S0.row(ks);
     for (int i = 0; i < N(ks); i++) {
-      double TEMPB = 0.0;
-      for (int ii = 0; ii < N(ks); ii++) {
-        if (X(ks, ii) <= tau && S0(ks, ii) > 0.00000001) {
-          TEMPB += Epankercplusplus(X(ks, ii), X(ks, i), TBAND, CENSOR(ks, ii)) * DELTA(ks, ii) * WGHT(ks, ii) / S0(ks, ii);
-        }
-      }
-      LAMBDA0(ks, i) = TEMPB;
+      LAMBDA0(ks, i) = arma::sum(EpankercplusplusV(xks.elem(indices), X(ks, i), TBAND, censorks.elem(indices)) % deltaks.elem(indices) % wghtks.elem(indices) / S0ks.elem(indices));
     }
-  }
-
-  if(estBaseLamInd == 1){
-    for (int ks = 0; ks < KK; ks++) {
+    
+    if(estBaseLamInd == 1){
       for (int Itgrid = 0; Itgrid < ntgrid; Itgrid++) {
         double tvalue = tstep * Itgrid;
-        double TEMPB = 0.0;
-        for (int ii = 0; ii < N(ks); ii++) {
-          if (X(ks, ii) <= tau && S0(ks,ii) > 0.00000001) {
-              TEMPB += Epankercplusplus(X(ks, ii), tvalue, TBAND, CENSOR(ks, ii)) * (DELTA(ks, ii) * WGHT(ks, ii)/ S0(ks,ii));
-          }
-        }
-        LAMBDAk0(ks, Itgrid) = TEMPB;
+        LAMBDAk0(ks, Itgrid) = arma::sum(EpankercplusplusV(xks.elem(indices), tvalue, TBAND, censorks.elem(indices)) % deltaks.elem(indices) % wghtks.elem(indices) / S0ks.elem(indices));
       }
-    } 
+    }
+    
   }
-  
-  
+
   return Rcpp::List::create(
     Rcpp::Named("BETA") = BETA,
     Rcpp::Named("F") = invF,
@@ -240,9 +222,8 @@ Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
   arma::vec change(NP, arma::fill::ones);
   int Kiter = 1; 
   
-  for(int j = 0; j < NP; j++){
-    BETA(j) = BETA0(j);
-  }
+  BETA = BETA0;
+  
   while (arma::sum(arma::abs(change)) > 0.00001 && Kiter <= maxit) {
   //for (int Kiter = 1; Kiter <= maxit; Kiter++) {
     F.zeros();
@@ -250,12 +231,9 @@ Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
     S0.zeros();
     U.zeros();
     for (int ks = 0; ks < KK; ks++) {
-      for (int i = 0; i < N(ks); i++) {
-        BZt.row(i).zeros();
-        for (int j = 0; j < NP; j++) {
-          BZt(i, 0) += BETA(j) * ZT(ks, j, i);
-        }
-      }
+      arma::mat ZTks(NP, mxn);
+      ZTks = ZT.subcube(ks, 0, 0, ks, NP - 1, mxn - 1);
+      BZt.col(0) = arma::trans(ZTks) * BETA;
 
       for (int i = 0; i < N(ks); i++) {
         if (X(ks, i) <= tau) {
@@ -263,22 +241,21 @@ Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
           S1.col(i).zeros();
           S2.zeros();
 
-          for (int L = 0; L < N(ks); L++) {
-            if (X(ks, L) >= X(ks, i)) {
-              S0(ks, i) += exp(BZt(L, 0));
-              for (int j = 0; j < NP; j++) {
-                S1(j, i) += exp(BZt(L, 0)) * ZT(ks, j, L);
-                for (int k = 0; k < NP; k++) {
-                  S2(j, k) += exp(BZt(L, 0)) * ZT(ks, j, L) * ZT(ks, k, L);
-                }
-              }
+          arma::uvec risk_indices = arma::find(X.submat(ks, 0, ks, N(ks) - 1) >= X(ks, i));
+          arma::rowvec WGHTks = WGHT.row(ks);
+          arma::vec BZT0 = BZt.col(0);
+          S0(ks, i) = arma::sum(arma::exp(BZT0.elem(risk_indices)));
+          for (int j = 0; j < NP; j++) {
+            arma::vec ZTj = ZT.subcube(ks, j, 0, ks, j, mxn - 1);
+            S1(j, i) += arma::sum(exp(BZT0.elem(risk_indices)) % ZTj.elem(risk_indices));
+            for(int k = 0; k < NP; k++){
+              arma::vec ZTk = ZT.subcube(ks, k, 0, ks, k, mxn - 1);
+              S2(j, k) += arma::sum(arma::exp(BZT0.elem(risk_indices)) % ZTj.elem(risk_indices) % ZTk.elem(risk_indices));
             }
           }
-
           if (S0(ks, i) > 0.00000001) {
             for (int j = 0; j < NP; j++) {
-              U(j) += (ZT(ks, j, i) - S1(j, i) / S0(ks, i)) * (WGHT(ks, i) * DELTA(ks, i) + (1.0 - WGHT(ks, i)) * CENSOR(ks, i) * DRHOipw(ks, i));
-
+            U(j) += (ZT(ks, j, i) - S1(j, i) / S0(ks, i)) * (WGHT(ks, i) * DELTA(ks, i) + (1.0 - WGHT(ks, i)) * CENSOR(ks, i) * DRHOipw(ks, i));
               for (int k = 0; k < NP; k++) {
                 F(j, k) += (S2(j, k) / S0(ks, i) - S1(j, i) * S1(k, i) / pow(S0(ks, i), 2)) * (WGHT(ks, i) * DELTA(ks, i) + (1.0 - WGHT(ks, i)) * CENSOR(ks, i) * DRHOipw(ks, i));
                 F2(j, k) += (ZT(ks, j, i) - S1(j, i) / S0(ks, i)) * (ZT(ks, k, i) - S1(k, i) / S0(ks, i)) * pow((WGHT(ks, i) * DELTA(ks, i) + (1.0 - WGHT(ks, i)) * CENSOR(ks, i) * DRHOipw(ks, i)), 2);
@@ -296,36 +273,29 @@ Rcpp::List estpaugcplusplus(double tau, double tstep, int ntgrid, double TBAND, 
   invF = arma::inv(F);
   var = invF * F2 * invF;
   
-  
   for (int ks = 0; ks < KK; ks++) {
+    arma::uvec indices = arma::find(X.submat(ks, 0, ks,  N(ks) - 1) <= tau && S0.submat(ks, 0, ks,  N(ks) - 1) > 0.00000001);
+    arma::rowvec xks = X.row(ks);
+    arma::rowvec censorks = CENSOR.row(ks);
+    arma::rowvec deltaks = DELTA.row(ks);
+    arma::rowvec wghtks = WGHT.row(ks);
+    arma::rowvec S0ks = S0.row(ks);
+    arma::rowvec DRHOipwks = DRHOipw.row(ks);
     for (int i = 0; i < N(ks); i++) {
-      double TEMPB = 0.0;
-      for (int ii = 0; ii < N(ks); ii++) {
-        if (X(ks, ii) <= tau && S0(ks, ii) > 0.00000001) {
-          TEMPB += Epankercplusplus(X(ks, ii), X(ks, i), TBAND, CENSOR(ks, ii)) * (WGHT(ks, ii) * DELTA(ks, ii) + (1.0 - WGHT(ks, ii)) * CENSOR(ks, ii) * DRHOipw(ks, ii)) / S0(ks, ii);
-        }
-      }
-      LAMBDA0(ks, i) = TEMPB;
+      LAMBDA0(ks, i) = arma::sum(EpankercplusplusV(xks.elem(indices), X(ks, i), TBAND, censorks.elem(indices)) % 
+                       (wghtks.elem(indices) % deltaks.elem(indices) + (1.0 - wghtks.elem(indices) % censorks.elem(indices) % DRHOipwks.elem(indices))) / S0ks.elem(indices));
     }
-  }
-  
-  if(estBaseLamInd == 1){
-    for (int ks = 0; ks < KK; ks++) {
+    
+    if(estBaseLamInd == 1){
       for (int Itgrid = 0; Itgrid < ntgrid; Itgrid++) {
         double tvalue = tstep * Itgrid;
-        double TEMPB = 0.0;
-        for (int ii = 0; ii < N(ks); ii++) {
-          if (X(ks, ii) <= tau) {
-            if (S0(ks, ii) > 0.00000001) {
-              TEMPB += Epankercplusplus(X(ks, ii), tvalue, TBAND, CENSOR(ks, ii)) * (WGHT(ks, ii) * DELTA(ks, ii) / S0(ks, ii) + (1.0 - WGHT(ks, ii)) * CENSOR(ks, ii) * DRHOipw(ks, ii) / S0(ks, ii));
-            }
-          }
-        }
-        LAMBDAk0(ks, Itgrid) = TEMPB;
+        LAMBDAk0(ks, Itgrid) = arma::sum(EpankercplusplusV(xks.elem(indices), tvalue, TBAND, censorks.elem(indices)) % 
+          (wghtks.elem(indices) % deltaks.elem(indices) + (1.0 - wghtks.elem(indices) % censorks.elem(indices) % DRHOipwks.elem(indices))) / S0ks.elem(indices));
       }
-    } 
+    }
+    
   }
-  
+ 
   return Rcpp::List::create(
     Rcpp::Named("BETA") = BETA,
     Rcpp::Named("F") = invF,
@@ -436,6 +406,7 @@ arma::mat GDIST2Ncplusplus(int nvgrid, int iskip, arma::mat zdev, int KK, arma::
       arma::mat ZTks(NP, mxn);
       ZTks = ZT.subcube(ks, 0, 0, ks, NP - 1, mxn - 1);
       BZt.col(0) = arma::trans(ZTks) * beta.col(ispot);
+      
       for (int i = 0; i < N(ks); i++) {
         Sx0.zeros();
         Sx1.zeros();
@@ -456,9 +427,7 @@ arma::mat GDIST2Ncplusplus(int nvgrid, int iskip, arma::mat zdev, int KK, arma::
             arma::vec Sx1k = Sx1.col(i);
             arma::vec tempBU1 = arma::trans(AsigInvk) * (ZTk - S1Nk / S0N(ks, i, ispot));
             arma::vec tempXBU2 = arma::trans(AsigInvk) * (Sx1k - Sx0(i) * S1Nk / S0N(ks, i, ispot)) / S0N(ks, i, ispot);
-
             CUMBDIST.submat(j, iskip - 1, j, nvgrid - 1) += arma::trans((tempBU1 * zdev(ks, i) - tempXBU2) * tempaug(ks, i, ispot));
-           
           }
         }
       }

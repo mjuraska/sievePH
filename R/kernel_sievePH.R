@@ -256,7 +256,7 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     tstep <- tau / 100
   }
   vstep <- 1 / nvgrid
-  iskip <- a0 / vstep
+  iskip <- max(a0 / vstep, 1)
   # Epanechnikov kernel has squared integral = 3/5 !
   ekconst <- 3 / 5
   a1 <- a0 + vstep
@@ -424,10 +424,10 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     CUMB1se[iskip:nvgrid] <- sqrt((CUMB1se[iskip:nvgrid] - (CUMB1x[iskip:nvgrid])^2.0 * nboot) / nboot)
 
     # calculate the test statistics for H_{10}:VE(v)=0 for v over [a1,b1], b1=1
-    iskipa1 <- a1 / vstep
-    nvgrid1 <- b1 / vstep
+    iskipa1 <- round(a1 / vstep, 0)
+    nvgrid1 <- round(b1 / vstep, 0)
     # calculate the test statistics for H_{20}:VE(v)=VE for v over [a2,b1], a2>a1
-    iskipa2 <- a2 / vstep
+    iskipa2 <- round(a2 / vstep, 0)
     cBproc1 <- rep(0, nvgrid)
     cBproc2 <- rep(0, nvgrid)
     cBproc1[iskipa1] <- CUMB1[iskipa1] - CUMB1[iskipa1]
@@ -445,7 +445,6 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     seqtest <- seq(iskipa1 + 1, nvgrid1, 1)
     cBproc1[seqtest] <- CUMB1[seqtest] - CUMB1[iskipa1]
     cBproc2[seqtest] <- (CUMB1[seqtest] - CUMB1[iskipa1]) / (vspot - a1) - (CUMB1[nvgrid1] - CUMB1[iskipa1]) / (b1 - a1)
-    #browser()
     # two-sided tests for testing H_1
     TSUP1 <- max(TSUP1, abs(cBproc1[seqtest]))
     Tint1 <- Tint1 + sum(cBproc1[seqtest]^2 * (CUMB1se[seqtest]^2 - CUMB1se[seqtest - 1]^2))

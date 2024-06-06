@@ -117,7 +117,7 @@ mark for which the treatment effects are evaluated.}
 values specifying the lower bound of the range for testing the null
 hypotheses \eqn{H_{10}: HR(v) = 1} and \eqn{H_{20}: HR(v)} does not depend
 on \eqn{v}, for \eqn{v \in [a, b]}; By default, \code{a} is set as
-\code{(max(mark) - min(mark))/nvgrid + min(mark)}.}
+\code{min(mark)}.}
 
 \item{b}{a numeric value between the minimum and maximum of observed mark
 specifying the upper bound of the range for testing the null hypotheses

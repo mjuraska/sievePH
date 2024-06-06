@@ -5,6 +5,10 @@ Epankercplusplus <- function(tk, tvalue, hband, delt) {
     .Call(`_sievePH_Epankercplusplus`, tk, tvalue, hband, delt)
 }
 
+EpankercplusplusV <- function(tks, tvalue, hband, delt) {
+    .Call(`_sievePH_EpankercplusplusV`, tks, tvalue, hband, delt)
+}
+
 estpcomcplusplus <- function(tau, KK, N, NP, X, ZT, DELTA, WGHT, BETA0) {
     .Call(`_sievePH_estpcomcplusplus`, tau, KK, N, NP, X, ZT, DELTA, WGHT, BETA0)
 }
@@ -17,7 +21,15 @@ estpaugcplusplus <- function(tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR
     .Call(`_sievePH_estpaugcplusplus`, tau, tstep, ntgrid, TBAND, KK, N, NP, X, ZT, CENSOR, DELTA, WGHT, DRHOipw, BETA0, maxit, estBaseLamInd)
 }
 
-GDIST2Ncplusplus <- function(nvgrid, iskip, zdev, KK, N, NP, X, ZT, betaofv, SigmaInv, S0N, S1N, tempaug, AsigInv) {
-    .Call(`_sievePH_GDIST2Ncplusplus`, nvgrid, iskip, zdev, KK, N, NP, X, ZT, betaofv, SigmaInv, S0N, S1N, tempaug, AsigInv)
+AsigInvTempaug <- function(SigmaInv, G, LAMBDAUG, CLAMBDAUG, wght, time, censor, markm, ncov, nvgrid, kk, nsamp, vstep, hband, iskip, tau) {
+    .Call(`_sievePH_AsigInvTempaug`, SigmaInv, G, LAMBDAUG, CLAMBDAUG, wght, time, censor, markm, ncov, nvgrid, kk, nsamp, vstep, hband, iskip, tau)
+}
+
+S0NS1N <- function(covart, beta, time, nsamp, kk, nvgrid, ncov, iskip) {
+    .Call(`_sievePH_S0NS1N`, covart, beta, time, nsamp, kk, nvgrid, ncov, iskip)
+}
+
+GDIST2Ncplusplus <- function(nvgrid, iskip, zdev, KK, N, NP, X, ZT, beta, SigmaInv, S0N, S1N, tempaug, AsigInv) {
+    .Call(`_sievePH_GDIST2Ncplusplus`, nvgrid, iskip, zdev, KK, N, NP, X, ZT, beta, SigmaInv, S0N, S1N, tempaug, AsigInv)
 }
 
