@@ -163,13 +163,15 @@ involve integration of deviations over the whole range of the mark. If
 corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not
 depend on \eqn{v \in [a, b]}. Columns \code{TSUP2} and \code{Tint2} include
 test statistics and p-values for testing \eqn{H_{20}} vs. \eqn{H_{2a}}: HR
-depends on \eqn{v \in [a, b]} (general alternative). Columns \code{TSUP2m}
-and \code{Tint2m} include test statistics and p-values for testing
-\eqn{H_{20}} vs. \eqn{H_{2m}}: HR increases as \eqn{v} increases \eqn{\in [a, b]}
-(monotone alternative). \code{TSUP2} and \code{TSUP2m} are based on
+depends on \eqn{v \in [a, b]} (general alternative). Columns \code{TSUP2minc}
+and \code{Tint2minc} include test statistics and p-values for testing
+\eqn{H_{20}} vs. \eqn{H_{2ma}}: HR increases as \eqn{v} increases \eqn{\in [a, b]}.
+Columns \code{TSUP2mdec} and \code{Tint2mdec} include test statistics and p-values for testing
+\eqn{H_{20}} vs. \eqn{H_{2mb}}: HR decreases as \eqn{v} increases \eqn{\in [a, b]}. 
+\code{TSUP2}, \code{TSUP2mdec}, and \code{TSUP2minc} are based on
 extensions of the classic Kolmogorov-Smirnov supremum-based test.
-\code{Tint2} and \code{Tint2m} are based on generalizations of the
-integration-based Cramer-von Mises test. \code{Tint2} and \code{Tint2m}
+\code{Tint2}, \code{Tint2mdec}, and \code{Tint2minc} are based on generalizations of the
+integration-based Cramer-von Mises test. \code{Tint2}, \code{Tint2mdec}, and \code{Tint2minc}
 involve integration of deviations over the whole range of the mark. If
 \code{nboot} is \code{NULL}, \code{H20} is returned as \code{NULL}.
 
@@ -216,7 +218,7 @@ different baseline subgroups. Missing marks are handled via augmented IPW
 }
 \examples{
 set.seed(20240410)
-beta <- 2.1
+beta <- 4.1
 gamma <- -1.3
 n <- 200
 tx <- rep(0:1, each = n / 2)

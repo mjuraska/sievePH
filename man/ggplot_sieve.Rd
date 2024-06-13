@@ -36,6 +36,8 @@ ggplot_sieve(
   pointSize = 1.7,
   bottomPlotMargin = c(-0.5, 0.3, 0, 0),
   topPlotMargin = c(0, 0.3, -0.12, 1.83),
+  margin.axis.title.x = 10,
+  margin.axis.title.y = 10,
   plotHeights = c(0.33, 0.67)
 )
 }
@@ -101,6 +103,10 @@ ggplot_sieve(
 \item{bottomPlotMargin}{a numeric vector, using cm as the unit, passed on to argument \code{plot.margin} in \code{theme()} for the bottom panel (\code{c(-0.5, 0.3, 0, 0)} by default)}
 
 \item{topPlotMargin}{a numeric vector, using \code{"lines"} as the unit, passed on to argument \code{plot.margin} in \code{theme()} for the top panel (\code{c(0, 0.3, -0.12, 1.83)} by default)}
+
+\item{margin.axis.title.x}{a numeric number, using \code{"lines"} as the unit, for the top margin of the x-axis title (\code{10} by default)}
+
+\item{margin.axis.title.y}{a numeric number, using \code{"lines"} as the unit, for the right margin of the y-axis title (\code{10} by default)}
 
 \item{plotHeights}{a numeric vector specifying relative heights of the top and bottom panels (\code{c(0.33, 0.67)} by default) passed on to argument \code{heights} in \code{ggpubr::ggarrange()}}
 }

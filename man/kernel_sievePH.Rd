@@ -55,10 +55,10 @@ hazards model. Available variables to be used in the formula include
 specified as \code{~ tx}.}
 
 \item{tau}{a numeric value specifying the duration of study follow-up period.
-Failures beyond \code{tau} are treated as right-censored. There needs to be at
-least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored by
-\code{tau} for the estimation to be stable. By default, \code{tau} is set
-as the maximum of \code{eventTime}.}
+Failures beyond \code{tau} are treated as right-censored. There needs to be
+at least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored
+by \code{tau} for the estimation to be stable. By default, \code{tau} is
+set as the maximum of \code{eventTime}.}
 
 \item{tband}{a numeric value between 0 and \code{tau} specifying the
 bandwidth of the kernel smoothing function over time. By default,
@@ -110,10 +110,10 @@ An object of class \code{kernel_sievePH} which can be processed by
   following components:
 \itemize{
 \item \code{H10}: a data frame with test statistics (first row) and
-corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for 
+corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for
 \eqn{v \in [a, b]}. Columns \code{TSUP1} and \code{Tint1} include test
 statistics and p-values for testing \eqn{H_{10}} vs. \eqn{H_{1a}: HR(v) \neq
-1} for any v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP1m}
+1} for some v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP1m}
 and \code{Tint1m} include test statistics and p-values for testing
 \eqn{H_{10}} vs. \eqn{H_{1m}: HR(v) \leq 1} with strict inequality for some \eqn{v}
 in \eqn{[a, b]} (monotone alternative). \code{TSUP1} and \code{TSUP1m} are
@@ -127,13 +127,15 @@ involve integration of deviations over the whole range of the mark. If
 corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not
 depend on \eqn{v \in [a, b]}. Columns \code{TSUP2} and \code{Tint2} include
 test statistics and p-values for testing \eqn{H_{20}} vs. \eqn{H_{2a}}: HR
-depends on \eqn{v \in [a, b]} (general alternative). Columns \code{TSUP2m}
-and \code{Tint2m} include test statistics and p-values for testing
-\eqn{H_{20}} vs. \eqn{H_{2m}}: HR increases as \eqn{v} increases \eqn{\in [a, b]}
-(monotone alternative). \code{TSUP2} and \code{TSUP2m} are based on
+depends on \eqn{v \in [a, b]} (general alternative). Columns \code{TSUP2minc}
+and \code{Tint2minc} include test statistics and p-values for testing
+\eqn{H_{20}} vs. \eqn{H_{2ma}}: HR increases as \eqn{v} increases \eqn{\in [a, b]}.
+Columns \code{TSUP2mdec} and \code{Tint2mdec} include test statistics and p-values for testing
+\eqn{H_{20}} vs. \eqn{H_{2mb}}: HR decreases as \eqn{v} increases \eqn{\in [a, b]}. 
+\code{TSUP2}, \code{TSUP2mdec}, and \code{TSUP2minc} are based on
 extensions of the classic Kolmogorov-Smirnov supremum-based test.
-\code{Tint2} and \code{Tint2m} are based on generalizations of the
-integration-based Cramer-von Mises test. \code{Tint2} and \code{Tint2m}
+\code{Tint2}, \code{Tint2mdec}, and \code{Tint2minc} are based on generalizations of the
+integration-based Cramer-von Mises test. \code{Tint2}, \code{Tint2mdec}, and \code{Tint2minc}
 involve integration of deviations over the whole range of the mark. If
 \code{nboot} is \code{NULL}, \code{H20} is returned as \code{NULL}.
 

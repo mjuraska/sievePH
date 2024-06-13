@@ -56,9 +56,10 @@
 #'
 #' \item \code{HRconstant.1sided}: a data frame with test statistics (first row) and
 #' corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not depend on v
-#' \eqn{\in [a, b]} vs. \eqn{H_{2m}}: HR increases as v increases \eqn{\in [a, b]}
-#' (monotone alternative). \code{TSUP2m} is based on an extension of the classic
-#' Kolmogorov-Smirnov supremum-based test. \code{Tint2m} is a generalization
+#' \eqn{\in [a, b]} vs. \eqn{H_{2ma}}: HR increases as v increases in \eqn{[a, b]} and testing
+#' \eqn{H_{20}} vs. \eqn{H_{2mb}}: HR decreases as v increases in \eqn{[a, b]}. 
+#' \code{TSUP2mdec} and \code{TSUP2minc} are based on an extension of the classic
+#' Kolmogorov-Smirnov supremum-based test. \code{Tint2mdec} and \code{Tint2minc} are a generalization
 #' of the integration-based Cramer-von Mises test.
 #' This component is available if \code{sieveAlternative="oneSided"}.
 #'
@@ -149,7 +150,7 @@ summary.kernel_sievePH <- function(object,
 
   if (!is.null(object$H20)){
     if (sieveAlternative == "oneSided"){
-      HRconstant <- object$H20[, c("TSUP2m", "Tint2m")]
+      HRconstant <- object$H20[, c("TSUP2mdec", "Tint2mdec", "TSUP2minc", "Tint2minc")]
     } else {
       HRconstant <- object$H20[, c("TSUP2", "Tint2")]
     }
@@ -158,7 +159,7 @@ summary.kernel_sievePH <- function(object,
   }
 
   if(!is.null(object$H10)){
-    HRunity.1sided <- object$H10[, c("TSUP1m", "Tint1m")]
+    HRunity.1sided <- object$H10[, c("TSUP1m", "Tint1m", "TSUP1m", "Tint1m")]
     HRunity.2sided <- object$H10[, c("TSUP1", "Tint1")]
   }else{
     HRunity.1sided <- NULL
@@ -210,23 +211,28 @@ print.summary.kernel_sievePH <- function(x, digits=4, ...){
   print(x$estBeta, digits=digits, print.gap=2)
   cat("\n")
   if (!is.null(x$HRunity.2sided) & !is.null(x$HRunity.1sided)) {
-    cat("Tests of H0: HR(v) = 1 for all v:\n")
-    cat("  Two-sided test:\n")
+    cat("Tests of H0: HR(v) = 1 for all v in [a, b]:\n")
+    cat("  Two-sided alternative: HR(v) != 1 for some v in [a, b]\n")
     cat("    Supremum-based test p-value: ", format(x$HRunity.2sided[2,"TSUP1"], digits=digits, nsmall=digits), "\n", sep="")
     cat("    Integration-based test p-value: ", format(x$HRunity.2sided[2,"Tint1"], digits=digits, nsmall=digits), "\n", sep="")
-    cat("  One-sided test:\n")
+    cat("  One-sided alternative: HR(v) <= 1 for all v with strict inequality for some v in [a, b]\n")
     cat("    Supremum-based test p-value: ", format(x$HRunity.1sided[2,"TSUP1m"], digits=digits, nsmall=digits), "\n", sep="")
     cat("    Integration-based test p-value: ", format(x$HRunity.1sided[2,"Tint1m"], digits=digits, nsmall=digits), "\n", sep="")
   }
 
   if (!is.null(x$HRconstant.2sided) | !is.null(x$HRconstant.1sided)) {
-    cat ("Tests of H0: HR(v) = HR for all v:\n")
+    cat ("Tests of H0: HR(v) = HR for all v in [a, b]:\n")
     if (!is.null(x$HRconstant.2sided)) {
+      cat("  Two-sided alternative: HR(v) depends on v\n")
       cat("  Supremum-based test p-value: ", format(x$HRconstant.2sided[2,"TSUP2"], digits=digits, nsmall=digits), "\n", sep="")
       cat("  Integration-based test p-value: ", format(x$HRconstant.2sided[2,"Tint2"], digits=digits, nsmall=digits), "\n", sep="")
     } else {
-      cat("  Supremum-based test p-value: ", format(x$HRconstant.1sided[2,"TSUP2m"], digits=digits, nsmall=digits), "\n", sep="")
-      cat("  Integration-based test p-value: ", format(x$HRconstant.1sided[2,"Tint2m"], digits=digits, nsmall=digits), "\n", sep="")
+      cat("  One-sided alternative: HR(v) increases with v in [a, b]\n")
+      cat("    Supremum-based test p-value: ", format(x$HRconstant.1sided[2,"TSUP2minc"], digits=digits, nsmall=digits), "\n", sep="")
+      cat("    Integration-based test p-value: ", format(x$HRconstant.1sided[2,"Tint2minc"], digits=digits, nsmall=digits), "\n", sep="")
+      cat("  One-sided alternative: HR(v) decreases with  v in [a, b]\n")
+      cat("    Supremum-based test p-value: ", format(x$HRconstant.1sided[2,"TSUP2mdec"], digits=digits, nsmall=digits), "\n", sep="")
+      cat("    Integration-based test p-value: ", format(x$HRconstant.1sided[2,"Tint2mdec"], digits=digits, nsmall=digits), "\n", sep="")
     }
   }
 

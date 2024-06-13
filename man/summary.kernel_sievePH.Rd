@@ -70,9 +70,10 @@ This component is available if \code{sieveAlternative="twoSided"}.
 
 \item \code{HRconstant.1sided}: a data frame with test statistics (first row) and
 corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not depend on v
-\eqn{\in [a, b]} vs. \eqn{H_{2m}}: HR increases as v increases \eqn{\in [a, b]}
-(monotone alternative). \code{TSUP2m} is based on an extension of the classic
-Kolmogorov-Smirnov supremum-based test. \code{Tint2m} is a generalization
+\eqn{\in [a, b]} vs. \eqn{H_{2ma}}: HR increases as v increases \eqn{\in [a, b]} and testing
+\eqn{H_{20}} vs. \eqn{H_{2mb}}: HR decreases as v increases \eqn{\in [a, b]}. 
+\code{TSUP2mdec} and \code{TSUP2minc} are based on an extension of the classic
+Kolmogorov-Smirnov supremum-based test. \code{Tint2mdec} and \code{Tint2minc} are a generalization
 of the integration-based Cramer-von Mises test.
 This component is available if \code{sieveAlternative="oneSided"}.
 

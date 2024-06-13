@@ -32,10 +32,10 @@ NULL
 #'   \code{tx} and variable(s) in \code{zcov}. By default, \code{formulaPH} is
 #'   specified as \code{~ tx}.
 #' @param tau a numeric value specifying the duration of study follow-up period.
-#'   Failures beyond \code{tau} are treated as right-censored. There needs to be at
-#'   least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored by
-#'   \code{tau} for the estimation to be stable. By default, \code{tau} is set
-#'   as the maximum of \code{eventTime}.
+#'   Failures beyond \code{tau} are treated as right-censored. There needs to be
+#'   at least \eqn{10\%} of subjects (as a rule of thumb) remaining uncensored
+#'   by \code{tau} for the estimation to be stable. By default, \code{tau} is
+#'   set as the maximum of \code{eventTime}.
 #' @param tband a numeric value between 0 and \code{tau} specifying the
 #'   bandwidth of the kernel smoothing function over time. By default,
 #'   \code{tband} is set as (\code{tau}-min(\code{eventTime}))/5.
@@ -86,10 +86,10 @@ NULL
 #'   following components:
 #' \itemize{
 #' \item \code{H10}: a data frame with test statistics (first row) and
-#' corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for 
+#' corresponding p-values (second row) for testing \eqn{H_{10}: HR(v) = 1} for
 #' \eqn{v \in [a, b]}. Columns \code{TSUP1} and \code{Tint1} include test
 #' statistics and p-values for testing \eqn{H_{10}} vs. \eqn{H_{1a}: HR(v) \neq
-#' 1} for any v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP1m}
+#' 1} for some v \eqn{\in [a, b]} (general alternative). Columns \code{TSUP1m}
 #' and \code{Tint1m} include test statistics and p-values for testing
 #' \eqn{H_{10}} vs. \eqn{H_{1m}: HR(v) \leq 1} with strict inequality for some \eqn{v}
 #' in \eqn{[a, b]} (monotone alternative). \code{TSUP1} and \code{TSUP1m} are
@@ -103,13 +103,15 @@ NULL
 #' corresponding p-values (second row) for testing \eqn{H_{20}}: HR(v) does not
 #' depend on \eqn{v \in [a, b]}. Columns \code{TSUP2} and \code{Tint2} include
 #' test statistics and p-values for testing \eqn{H_{20}} vs. \eqn{H_{2a}}: HR
-#' depends on \eqn{v \in [a, b]} (general alternative). Columns \code{TSUP2m}
-#' and \code{Tint2m} include test statistics and p-values for testing
-#' \eqn{H_{20}} vs. \eqn{H_{2m}}: HR increases as \eqn{v} increases \eqn{\in [a, b]}
-#' (monotone alternative). \code{TSUP2} and \code{TSUP2m} are based on
+#' depends on \eqn{v \in [a, b]} (general alternative). Columns \code{TSUP2minc}
+#' and \code{Tint2minc} include test statistics and p-values for testing
+#' \eqn{H_{20}} vs. \eqn{H_{2ma}}: HR increases as \eqn{v} increases in \eqn{[a, b]}.
+#' Columns \code{TSUP2mdec} and \code{Tint2mdec} include test statistics and p-values for testing
+#' \eqn{H_{20}} vs. \eqn{H_{2mb}}: HR decreases as \eqn{v} increases in \eqn{[a, b]}. 
+#' \code{TSUP2}, \code{TSUP2mdec}, and \code{TSUP2minc} are based on
 #' extensions of the classic Kolmogorov-Smirnov supremum-based test.
-#' \code{Tint2} and \code{Tint2m} are based on generalizations of the
-#' integration-based Cramer-von Mises test. \code{Tint2} and \code{Tint2m}
+#' \code{Tint2}, \code{Tint2mdec}, and \code{Tint2minc} are based on generalizations of the
+#' integration-based Cramer-von Mises test. \code{Tint2}, \code{Tint2mdec}, and \code{Tint2minc}
 #' involve integration of deviations over the whole range of the mark. If
 #' \code{nboot} is \code{NULL}, \code{H20} is returned as \code{NULL}.
 #'
@@ -458,10 +460,13 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     TSUP2 <- max(TSUP2, abs(cBproc2[valid_indices]))
     Tint2 <- Tint2 + sum(cBproc2[valid_indices]^2 * (CUMB1se[valid_indices]^2 - CUMB1se[valid_indices - 1]^2))
     
-    # one-sided tests for testing H_2
+    # one-sided tests for testing H_2: HR increases as v increases
     TSUP2m <- min(TSUP2m, cBproc2[valid_indices])
     Tint2m <- Tint2m + sum(cBproc2[valid_indices] * (CUMB1se[valid_indices]^2 - CUMB1se[valid_indices - 1]^2))
     
+    # one-sided tests for testing H_2: HR decreases as v increases
+    TSUP2mdec <- max(TSUP2m, cBproc2[valid_indices])
+    Tint2mdec <- Tint2m
     # *****************************************************************
     # Find the p-values of the test statistics.
     # *****************************************************************
@@ -475,6 +480,9 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     Tint1mpv <- 0.0
     Tint2pv <- 0.0
     Tint2mpv <- 0.0
+    Tint2mdecpv <- 0.0
+    TSUP2mdecpv <- 0.0
+    
     cBproc1s <- matrix(0,nrow = nvgrid, ncol = nboot)
     cBproc2s <- matrix(0,nrow = nvgrid, ncol = nboot)
 
@@ -488,11 +496,12 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
       TSUP1mx <- cBproc1x[iskipa1]
       TSUP2x <- abs(cBproc2x[iskipa2])
       TSUP2mx <- cBproc2x[iskipa2]
+      TSUP2mdecx <- cBproc2x[iskipa2]
       Tint1x <- 0
       Tint1mx <- 0
       Tint2x <- 0
       Tint2mx <- 0
-      
+
       seqispot <- (iskipa1 + 1):nvgrid1
       seqvspot <- seqispot * vstep
       
@@ -515,9 +524,12 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
       TSUP2x <- max(TSUP2x, abs(cBproc2x[valid_indices]))
       Tint2x <- Tint2x + sum(cBproc2x[valid_indices]^2 * (CUMB1se[valid_indices]^2 - CUMB1se[valid_indices - 1]^2))
       
-      # one-sided tests for testing $H_2$:
+      # one-sided tests for testing $H_2$: HR increases as v increases
       TSUP2mx <- min(TSUP2mx, cBproc2x[valid_indices])
       Tint2mx <- Tint2mx + sum(cBproc2x[valid_indices] * (CUMB1se[valid_indices]^2 - CUMB1se[valid_indices - 1]^2))
+      
+      # one-sided tests for testing $H_2$: HR decreases as v increases
+      TSUP2mdecx <- max(TSUP2mdecx, cBproc2x[valid_indices])
       
       # calculate bootstrap p-values for H10:
       TSUP1pv <- TSUP1pv + as.numeric(TSUP1x > TSUP1) / nboot
@@ -528,8 +540,10 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
       # calculate bootstrap p-values for H20:
       TSUP2pv <- TSUP2pv + as.numeric(TSUP2x > TSUP2) / nboot
       TSUP2mpv <- TSUP2mpv + as.numeric(TSUP2mx < TSUP2m) / nboot
+      TSUP2mdecpv <- TSUP2mdecpv + as.numeric(TSUP2mdecx > TSUP2mdec) / nboot
       Tint2pv <- Tint2pv + as.numeric(Tint2x > Tint2) / nboot
       Tint2mpv <- Tint2mpv + as.numeric(Tint2mx < Tint2m) / nboot
+      Tint2mdecpv <- Tint2mdecpv + as.numeric(Tint2mx > Tint2m) / nboot
     }
 
     # the actual test statistics need to multiply by sqrt(n):
@@ -541,8 +555,8 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     TSUP2m <- sqrt(rnsamp) * TSUP2m
     Tint2 <- sqrt(rnsamp) * Tint2
     Tint2m <- sqrt(rnsamp) * Tint2m
-
-
+    TSUP2mdec <- sqrt(rnsamp) * TSUP2mdec
+    Tint2mdec <- sqrt(rnsamp) * Tint2mdec
     # for plotting the test processes and the Gaussian multiplier processes;
     # the actual test processes need to multiply by sqrt(n):
 
@@ -556,10 +570,10 @@ kernel_sievePH <- function(eventTime, eventInd, mark, tx, zcov = NULL, strata = 
     ans10 <- data.frame(rbind(test10,pvalue10))
     colnames(ans10) <- c("TSUP1","TSUP1m", "Tint1","Tint1m")
     rownames(ans10) <- c("Test Statistic", "P-value")
-    test20 <- c(TSUP2,TSUP2m, Tint2,Tint2m)
-    pvalue20 <- c(TSUP2pv,TSUP2mpv, Tint2pv,Tint2mpv)
+    test20 <- c(TSUP2, TSUP2m, TSUP2mdec, Tint2, Tint2m, Tint2mdec)
+    pvalue20 <- c(TSUP2pv, TSUP2mpv, TSUP2mdecpv, Tint2pv, Tint2mpv, Tint2mdecpv)
     ans20 <- data.frame(rbind(test20,pvalue20))
-    colnames(ans20) <- c("TSUP2","TSUP2m", "Tint2","Tint2m")
+    colnames(ans20) <- c("TSUP2","TSUP2minc", "TSUP2mdec", "Tint2","Tint2minc", "Tint2mdec")
     rownames(ans20) <- c("Test Statistic", "P-value")
     markgrid <- (1:nvgrid) * vstep
     markgrid_original_scale <- markgrid*(mx-mn)+mn
