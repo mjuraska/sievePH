@@ -165,9 +165,9 @@ depend on \eqn{v \in [a, b]}. Columns \code{TSUP2} and \code{Tint2} include
 test statistics and p-values for testing \eqn{H_{20}} vs. \eqn{H_{2a}}: HR
 depends on \eqn{v \in [a, b]} (general alternative). Columns \code{TSUP2minc}
 and \code{Tint2minc} include test statistics and p-values for testing
-\eqn{H_{20}} vs. \eqn{H_{2ma}}: HR increases as \eqn{v} increases \eqn{\in [a, b]}.
+\eqn{H_{20}} vs. \eqn{H_{2ma}}: HR increases as \eqn{v} increases in \eqn{[a, b]}.
 Columns \code{TSUP2mdec} and \code{Tint2mdec} include test statistics and p-values for testing
-\eqn{H_{20}} vs. \eqn{H_{2mb}}: HR decreases as \eqn{v} increases \eqn{\in [a, b]}. 
+\eqn{H_{20}} vs. \eqn{H_{2mb}}: HR decreases as \eqn{v} increases in \eqn{[a, b]}. 
 \code{TSUP2}, \code{TSUP2mdec}, and \code{TSUP2minc} are based on
 extensions of the classic Kolmogorov-Smirnov supremum-based test.
 \code{Tint2}, \code{Tint2mdec}, and \code{Tint2minc} are based on generalizations of the
