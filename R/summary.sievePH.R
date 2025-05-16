@@ -28,7 +28,7 @@ waldH0.2sided.pval <- function(est, vEst){
 #' @param markGrid a matrix specifying a grid of multivariate mark values, where rows correspond to different values on the (multivariate) grid and columns correspond to components of the mark. A numeric vector is allowed
 #' for univariate marks. The point and interval estimates of the \code{contrast} are calculated on this grid.
 #' @param contrast a character string specifying the treatment effect parameter of interest. The default value is \code{"te"} (treatment efficacy); other options are \code{"hr"} (hazard ratio) and \code{"loghr"} (log hazard ratio).
-#' @param sieveAlternative a character string specifying the alternative hypothesis for the sieve tests, which can be either \code{"twoSided"} (default) or, in case of a univariate mark, \code{"HR.decrease"} or \code{"HR.increase"}.
+#' @param sieveAlternative a character string specifying the alternative hypothesis for the sieve tests, which can be either \code{"twoSided"} (default) or, in case of a univariate mark, \code{"oneSided"}.
 #' The one-sided option is unavailable for a multivariate mark.
 #' @param confLevel the confidence level (0.95 by default) of reported confidence intervals
 #'
@@ -52,8 +52,10 @@ waldH0.2sided.pval <- function(est, vEst){
 #' \item \code{pLR.HRconstant.1sided}: a numeric vector with two named components: \code{pLR.dRatio.2sided} is a p-value from the two-sided profile likelihood-ratio test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\},
 #' and \code{estBeta} is the point estimate of the univariate mark coefficient in the density ratio model. This component is available if the mark is univariate and \code{sieveAlternative="oneSided"}.
 #' \item \code{pWald.HRconstant.2sided}: a p-value from the two-sided Wald test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\}. This component is available if \code{sieveAlternative="twoSided"}.
-#' \item \code{pWald.HRconstant.1sided}: a p-value from the one-sided Wald test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\} against the alternative hypothesis \{\eqn{H_1: HR(v)} is increasing in \eqn{v}\} or \{\eqn{H_1: HR(v)} is decreasing in \eqn{v}\}.
-#' This component is available if the mark is univariate and \code{sieveAlternative="HRdecrease"} or \code{sieveAlternative="HRincrease"}.
+#' \item \code{pWald.HRconstant.1sided.HRincrease}: a p-value from the one-sided Wald test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\} against the alternative hypothesis \{\eqn{H_1: HR(v)} is increasing in \eqn{v}\}.
+#' This component is available if the mark is univariate and \code{sieveAlternative="oneSided"}.
+#' \item \code{pWald.HRconstant.1sided.HRdecrease}: a p-value from the one-sided Wald test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\} against the alternative hypothesis \{\eqn{H_1: HR(v)} is decreasing in \eqn{v}\}.
+#' This component is available if the mark is univariate and \code{sieveAlternative="oneSided"}.
 #' \item \code{te}: a data frame summarizing point and interval estimates of the mark-specific treatment efficacy on the grid of mark values in \code{markGrid} (available if \code{contrast="te"}). The confidence level is specified
 #' by \code{confLevel}.
 #' \item \code{hr}: a data frame summarizing point and interval estimates of the mark-specific hazard ratio on the grid of mark values in \code{markGrid} (available if \code{contrast="hr"}). The confidence level is specified by
@@ -88,12 +90,12 @@ waldH0.2sided.pval <- function(est, vEst){
 #' @export
 summary.sievePH <- function(object, markGrid,
                             contrast = c("te", "hr", "loghr"),
-                            sieveAlternative = c("twoSided","HRincrease", "HRdecrease"), confLevel = 0.95, ...){
+                            sieveAlternative = c("twoSided","oneSided"), confLevel = 0.95, ...){
 
   if (missing(markGrid)){ stop("The grid of mark values in 'markGrid' is missing.") }
 
   contrast <- match.arg(contrast, choices = c("te", "hr", "loghr"))
-  sieveAlternative <- match.arg(sieveAlternative, choices = c("twoSided","HRincrease", "HRdecrease"))
+  sieveAlternative <- match.arg(sieveAlternative, choices = c("twoSided","oneSided"))
 
   nMark <- NCOL(object$mark)
   alphaHat <- object$DRcoef[1]
@@ -140,14 +142,16 @@ summary.sievePH <- function(object, markGrid,
   }
   pWtWald.HRunity.1sided <- 1 - pnorm(weighted.waldH00)
 
-  if (sieveAlternative %in% c("HRdecrease", "HRincrease") & nMark > 1){ warning("One-sided sieve tests are available for univariate marks only.") }
+  if (sieveAlternative=="oneSided" & nMark > 1){ warning("One-sided sieve tests are available for univariate marks only.") }
 
-  if (sieveAlternative=="HRdecrease" & nMark==1){
+  if (sieveAlternative=="oneSided" & nMark==1){
 
-    ### 1-sided Wald test of H0: HR(v)=HR (i.e., beta=0) vs H1: HR(v) decreasing in v (i.e., beta<0)
+    ### 1-sided Wald test of H0: HR(v)=HR (i.e., beta=0) vs H1: HR(v) increasing in v (i.e., beta>0)
     waldH0 <- betaHat / sqrt(vBetaHat)
-    pWald.HRconstant <- pnorm(waldH0)
-    
+    pWald.HRconstant.vs.HRincrease <- 1 - pnorm(waldH0)
+    ### 1-sided Wald test of H0: HR(v)=HR (i.e., beta=0) vs H1: HR(v) decreasing in v (i.e., beta<0)
+    pWald.HRconstant.vs.HRdecrease <- pnorm(waldH0)
+
     # ### The labels are 'pWald.beta.2sided' and 'estBeta1', 'estBeta2', etc. (if the dimension of beta is 1, then only 'estBeta')
     # pWald.HRconstant <- 1 - pchisq(drop(t(betaHat) %*% solve(object$cov[-c(1, length(variances)), -c(1, length(variances))]) %*% betaHat), nMark)
     # names(pWald.HRconstant) <- c("pWald.beta.2sided", ifelse(nMark==1, "estBeta", sapply(1:nMark, function(x) paste0("estBeta", x))))
@@ -158,14 +162,7 @@ summary.sievePH <- function(object, markGrid,
     pLR.HRconstant <- c(pLR.dRatio.2sided, betaHat)
     names(pLR.HRconstant) <- c("pLR.dRatio.2sided", "estBeta")
 
-  }else if(sieveAlternative=="HRincrease" & nMark==1){
-    ### 1-sided Wald test of H0: HR(v)=HR (i.e., beta=0) vs H1: HR(v) increasing in v (i.e., beta>0)
-    waldH0 <- betaHat / sqrt(vBetaHat)
-    pWald.HRconstant <- 1 - pnorm(waldH0)
-    
-    pLR.HRconstant <- c(pLR.dRatio.2sided, betaHat)
-    names(pLR.HRconstant) <- c("pLR.dRatio.2sided", "estBeta")
-  }else {
+  } else {
 
     ### 2-sided Wald test of H0: HR(v)=HR (i.e., beta=0) vs H1: HR(v)!=HR (i.e., beta!=0)
     pWald.HRconstant <- 1 - pchisq(drop(t(betaHat) %*% solve(object$cov[2:(nMark + 1), 2:(nMark + 1)]) %*% betaHat), nMark)
@@ -214,13 +211,24 @@ summary.sievePH <- function(object, markGrid,
   # assemble the contrast matrix of the output list
   contrastDF <- data.frame(markGrid, est, lb, ub)
   colnames(contrastDF) <- c(colnames(object$mark), switch(contrast, te="TE", hr="HR", loghr="LogHR"), "LB", "UB")
-  out <- list(coef, pLR.HRunity.2sided, pWald.HRunity.2sided, pWtWald.HRunity.1sided, pLR.HRconstant, 
-              pWald.HRconstant, contrastDF)
-  names(out) <- c("coef", "pLR.HRunity.2sided", "pWald.HRunity.2sided", "pWtWald.HRunity.1sided",
-                  paste0("pLR.HRconstant.", ifelse(sieveAlternative %in% c("HRdecrease", "HRincrease") & nMark==1, "1", "2"), "sided"),
-                  paste0("pWald.HRconstant.", ifelse(sieveAlternative %in% c("HRdecrease", "HRincrease") & nMark==1, "1", "2"), "sided"),
-                  contrast)
-  
+  if(sieveAlternative == "oneSided"){
+    if(nMark > 1) { stop("") }
+    out <- list(coef, pLR.HRunity.2sided, pWald.HRunity.2sided, pWtWald.HRunity.1sided, pLR.HRconstant,
+                pWald.HRconstant.vs.HRincrease, pWald.HRconstant.vs.HRdecrease, contrastDF)
+    names(out) <- c("coef", "pLR.HRunity.2sided", "pWald.HRunity.2sided", "pWtWald.HRunity.1sided",
+                    paste0("pLR.HRconstant.", ifelse(sieveAlternative=="oneSided" & nMark==1, "1", "2"), "sided"),
+                    paste0("pWald.HRconstant.", ifelse(sieveAlternative=="oneSided" & nMark==1, "1", "2"), "sided", ".HRincrease"),
+                    paste0("pWald.HRconstant.", ifelse(sieveAlternative=="oneSided" & nMark==1, "1", "2"), "sided", ".HRdecrease"),
+                    contrast)
+  }else {
+    out <- list(coef, pLR.HRunity.2sided, pWald.HRunity.2sided, pWtWald.HRunity.1sided, pLR.HRconstant,
+                pWald.HRconstant, contrastDF)
+    names(out) <- c("coef", "pLR.HRunity.2sided", "pWald.HRunity.2sided", "pWtWald.HRunity.1sided",
+                    paste0("pLR.HRconstant.", ifelse(sieveAlternative=="oneSided" & nMark==1, "1", "2"), "sided"),
+                    paste0("pWald.HRconstant.", ifelse(sieveAlternative=="oneSided" & nMark==1, "1", "2"), "sided"),
+                    contrast)
+  }
+
 
   class(out) <- "summary.sievePH"
   return(out)
@@ -242,14 +250,14 @@ print.summary.sievePH <- function(x, digits=4, ...){
   cat("Two-sided Wald test p-value: ", format(x$pWald.HRunity.2sided, digits=digits, nsmall=digits), "\n", sep="")
   cat("One-sided weighted Wald test p-value: ", format(x$pWtWald.HRunity.1sided, digits=digits, nsmall=digits), "\n\n", sep="")
   cat("Tests of H0: HR(v) = HR for all v:\n")
-  if (is.null(x$pLR.HRconstant.2sided)){
+  if (is.null(x$pLR.HRconstant.2sided) & length(rownames(x$coef)) == 3){
     cat("Two-sided likelihood-ratio test p-value: ", format(x$pLR.HRconstant.1sided["pLR.dRatio.2sided"], digits=digits, nsmall=digits), "\n", sep="")
-    cat("  Point estimate of the mark coefficient: ", format(x$pLR.HRconstant.1sided["estBeta"], digits=digits, nsmall=digits), "\n", sep="")
-    cat("One-sided Wald test p-value: ", format(x$pWald.HRconstant.1sided, digits=digits, nsmall=digits), "\n", sep="")
+    cat("Point estimate of the mark coefficient: ", format(x$pLR.HRconstant.1sided["estBeta"], digits=digits, nsmall=digits), "\n", sep="")
+    cat("One-sided Wald test p-value (HR(v) increasing in v): ", format(x$pWald.HRconstant.1sided.HRincrease, digits=digits, nsmall=digits), "\n", sep="")
+    cat("One-sided Wald test p-value (HR(v) decreasing in v): ", format(x$pWald.HRconstant.1sided.HRdecrease, digits=digits, nsmall=digits), "\n", sep="")
   } else {
     cat("Two-sided likelihood-ratio test p-value: ", format(x$pLR.HRconstant.2sided, digits=digits, nsmall=digits), "\n", sep="")
     cat("Two-sided Wald test p-value: ", format(x$pWald.HRconstant.2sided, digits=digits, nsmall=digits), "\n", sep="")
   }
 }
-
 

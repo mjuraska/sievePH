@@ -9,7 +9,7 @@
   object,
   markGrid,
   contrast = c("te", "hr", "loghr"),
-  sieveAlternative = c("twoSided", "HRincrease", "HRdecrease"),
+  sieveAlternative = c("twoSided", "oneSided"),
   confLevel = 0.95,
   ...
 )
@@ -24,7 +24,7 @@ for univariate marks. The point and interval estimates of the \code{contrast} ar
 
 \item{contrast}{a character string specifying the treatment effect parameter of interest. The default value is \code{"te"} (treatment efficacy); other options are \code{"hr"} (hazard ratio) and \code{"loghr"} (log hazard ratio).}
 
-\item{sieveAlternative}{a character string specifying the alternative hypothesis for the sieve tests, which can be either \code{"twoSided"} (default) or, in case of a univariate mark, \code{"HR.decrease"} or \code{"HR.increase"}.
+\item{sieveAlternative}{a character string specifying the alternative hypothesis for the sieve tests, which can be either \code{"twoSided"} (default) or, in case of a univariate mark, \code{"oneSided"}.
 The one-sided option is unavailable for a multivariate mark.}
 
 \item{confLevel}{the confidence level (0.95 by default) of reported confidence intervals}
@@ -50,8 +50,10 @@ increasing in each component of \eqn{v}\}
 \item \code{pLR.HRconstant.1sided}: a numeric vector with two named components: \code{pLR.dRatio.2sided} is a p-value from the two-sided profile likelihood-ratio test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\},
 and \code{estBeta} is the point estimate of the univariate mark coefficient in the density ratio model. This component is available if the mark is univariate and \code{sieveAlternative="oneSided"}.
 \item \code{pWald.HRconstant.2sided}: a p-value from the two-sided Wald test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\}. This component is available if \code{sieveAlternative="twoSided"}.
-\item \code{pWald.HRconstant.1sided}: a p-value from the one-sided Wald test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\} against the alternative hypothesis \{\eqn{H_1: HR(v)} is increasing in \eqn{v}\} or \{\eqn{H_1: HR(v)} is decreasing in \eqn{v}\}.
-This component is available if the mark is univariate and \code{sieveAlternative="HRdecrease"} or \code{sieveAlternative="HRincrease"}.
+\item \code{pWald.HRconstant.1sided.HRincrease}: a p-value from the one-sided Wald test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\} against the alternative hypothesis \{\eqn{H_1: HR(v)} is increasing in \eqn{v}\}.
+This component is available if the mark is univariate and \code{sieveAlternative="oneSided"}.
+\item \code{pWald.HRconstant.1sided.HRdecrease}: a p-value from the one-sided Wald test of the null hypothesis \{\eqn{H_0: HR(v)=HR} for all \eqn{v}\} against the alternative hypothesis \{\eqn{H_1: HR(v)} is decreasing in \eqn{v}\}.
+This component is available if the mark is univariate and \code{sieveAlternative="oneSided"}.
 \item \code{te}: a data frame summarizing point and interval estimates of the mark-specific treatment efficacy on the grid of mark values in \code{markGrid} (available if \code{contrast="te"}). The confidence level is specified
 by \code{confLevel}.
 \item \code{hr}: a data frame summarizing point and interval estimates of the mark-specific hazard ratio on the grid of mark values in \code{markGrid} (available if \code{contrast="hr"}). The confidence level is specified by
